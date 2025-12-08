@@ -149,6 +149,7 @@ export type Database = {
         Row: {
           affiliate_id: string | null
           amount: number
+          buyer_cpf: string | null
           buyer_email: string
           buyer_name: string | null
           copy_paste: string | null
@@ -165,6 +166,7 @@ export type Database = {
         Insert: {
           affiliate_id?: string | null
           amount: number
+          buyer_cpf?: string | null
           buyer_email: string
           buyer_name?: string | null
           copy_paste?: string | null
@@ -181,6 +183,7 @@ export type Database = {
         Update: {
           affiliate_id?: string | null
           amount?: number
+          buyer_cpf?: string | null
           buyer_email?: string
           buyer_name?: string | null
           copy_paste?: string | null
@@ -213,13 +216,17 @@ export type Database = {
       }
       products: {
         Row: {
+          allow_affiliates: boolean
           commission_rate: number
           content_url: string | null
           cover_url: string | null
           created_at: string
+          deliverable_type: string | null
+          deliverable_url: string | null
           description: string | null
           id: string
           name: string
+          order_bumps: string[] | null
           price: number
           seller_id: string
           status: string
@@ -227,13 +234,17 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_affiliates?: boolean
           commission_rate?: number
           content_url?: string | null
           cover_url?: string | null
           created_at?: string
+          deliverable_type?: string | null
+          deliverable_url?: string | null
           description?: string | null
           id?: string
           name: string
+          order_bumps?: string[] | null
           price?: number
           seller_id: string
           status?: string
@@ -241,13 +252,17 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_affiliates?: boolean
           commission_rate?: number
           content_url?: string | null
           cover_url?: string | null
           created_at?: string
+          deliverable_type?: string | null
+          deliverable_url?: string | null
           description?: string | null
           id?: string
           name?: string
+          order_bumps?: string[] | null
           price?: number
           seller_id?: string
           status?: string
@@ -451,6 +466,48 @@ export type Database = {
           secret?: string | null
           status?: string
           url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      withdrawals: {
+        Row: {
+          amount: number
+          completed_at: string | null
+          fee: number
+          id: string
+          net_amount: number
+          notes: string | null
+          pix_key: string
+          pix_key_type: string
+          requested_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          completed_at?: string | null
+          fee?: number
+          id?: string
+          net_amount: number
+          notes?: string | null
+          pix_key: string
+          pix_key_type?: string
+          requested_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          completed_at?: string | null
+          fee?: number
+          id?: string
+          net_amount?: number
+          notes?: string | null
+          pix_key?: string
+          pix_key_type?: string
+          requested_at?: string
+          status?: string
           user_id?: string
         }
         Relationships: []

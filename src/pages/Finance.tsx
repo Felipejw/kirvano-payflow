@@ -8,7 +8,6 @@ import {
   Wallet,
   TrendingUp,
   ArrowUpRight,
-  ArrowDownRight,
   Clock,
   CheckCircle,
   XCircle,
@@ -36,11 +35,16 @@ interface FinanceData {
 interface Withdrawal {
   id: string;
   amount: number;
-  status: 'pending' | 'completed' | 'failed';
+  fee: number;
+  net_amount: number;
+  status: string;
   pix_key: string;
+  pix_key_type: string;
   requested_at: string;
   completed_at: string | null;
 }
+
+const PLATFORM_FEE_RATE = 0.07; // 7%
 
 const Finance = () => {
   const [financeData, setFinanceData] = useState<FinanceData>({
@@ -56,6 +60,7 @@ const Finance = () => {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [pixKeyType, setPixKeyType] = useState("cpf");
   const [pixKey, setPixKey] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchFinanceData();
@@ -63,46 +68,55 @@ const Finance = () => {
 
   const fetchFinanceData = async () => {
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     
-    // Fetch transactions to calculate balances
-    const { data: transactions } = await supabase
+    // Fetch paid transactions to calculate available balance
+    const { data: paidTransactions } = await supabase
       .from('transactions')
       .select('*')
+      .eq('seller_id', user.id)
       .eq('status', 'paid');
 
-    if (transactions) {
-      const sellerAmount = transactions.reduce((acc, t) => acc + Number(t.seller_amount), 0);
-      const platformFees = transactions.reduce((acc, t) => acc + Number(t.platform_fee), 0);
-      const affiliateFees = transactions.reduce((acc, t) => acc + Number(t.affiliate_amount), 0);
+    // Fetch pending transactions
+    const { data: pendingTransactions } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('seller_id', user.id)
+      .eq('status', 'pending');
+
+    // Fetch real withdrawals
+    const { data: withdrawalsData } = await supabase
+      .from('withdrawals')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('requested_at', { ascending: false });
+
+    if (paidTransactions) {
+      const totalSeller = paidTransactions.reduce((acc, t) => acc + Number(t.seller_amount), 0);
+      const platformFees = paidTransactions.reduce((acc, t) => acc + Number(t.platform_fee), 0);
+      const affiliateFees = paidTransactions.reduce((acc, t) => acc + Number(t.affiliate_amount), 0);
+      
+      // Calculate total withdrawn
+      const completedWithdrawals = withdrawalsData?.filter(w => w.status === 'completed') || [];
+      const totalWithdrawn = completedWithdrawals.reduce((acc, w) => acc + Number(w.net_amount), 0);
+      
+      // Pending withdrawals reduce available balance
+      const pendingWithdrawals = withdrawalsData?.filter(w => w.status === 'pending') || [];
+      const pendingWithdrawalAmount = pendingWithdrawals.reduce((acc, w) => acc + Number(w.amount), 0);
       
       setFinanceData({
-        availableBalance: sellerAmount,
-        pendingBalance: 0, // Would need pending transactions
-        totalWithdrawn: 0, // Would need withdrawals table
+        availableBalance: totalSeller - totalWithdrawn - pendingWithdrawalAmount,
+        pendingBalance: pendingTransactions?.reduce((acc, t) => acc + Number(t.seller_amount), 0) || 0,
+        totalWithdrawn,
         platformFees,
         affiliateFees,
       });
     }
 
-    // Mock withdrawals for now (would need a withdrawals table)
-    setWithdrawals([
-      {
-        id: '1',
-        amount: 1500,
-        status: 'completed',
-        pix_key: '***.456.789-**',
-        requested_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        completed_at: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: '2',
-        amount: 2350,
-        status: 'pending',
-        pix_key: '***.456.789-**',
-        requested_at: new Date().toISOString(),
-        completed_at: null,
-      },
-    ]);
+    if (withdrawalsData) {
+      setWithdrawals(withdrawalsData);
+    }
 
     setLoading(false);
   };
@@ -115,6 +129,11 @@ const Finance = () => {
       return;
     }
     
+    if (amount < 10) {
+      toast.error("Valor mínimo para saque é R$ 10,00");
+      return;
+    }
+    
     if (amount > financeData.availableBalance) {
       toast.error("Saldo insuficiente");
       return;
@@ -124,13 +143,49 @@ const Finance = () => {
       toast.error("Informe sua chave PIX");
       return;
     }
+
+    setSubmitting(true);
     
-    // Would call API to create withdrawal
-    toast.success(`Saque de R$ ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} solicitado!`);
-    setWithdrawDialogOpen(false);
-    setWithdrawAmount("");
-    setPixKey("");
-    fetchFinanceData();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Usuário não encontrado");
+      setSubmitting(false);
+      return;
+    }
+
+    // Calculate net amount (no withdrawal fee for now)
+    const fee = 0;
+    const netAmount = amount - fee;
+
+    const { error } = await supabase
+      .from('withdrawals')
+      .insert({
+        user_id: user.id,
+        amount,
+        fee,
+        net_amount: netAmount,
+        pix_key: pixKey,
+        pix_key_type: pixKeyType,
+        status: 'pending',
+      });
+
+    if (error) {
+      toast.error("Erro ao solicitar saque");
+      console.error(error);
+    } else {
+      toast.success(`Saque de R$ ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} solicitado!`);
+      setWithdrawDialogOpen(false);
+      setWithdrawAmount("");
+      setPixKey("");
+      fetchFinanceData();
+    }
+    
+    setSubmitting(false);
+  };
+
+  const maskPixKey = (key: string) => {
+    if (key.length <= 6) return key;
+    return `${key.substring(0, 3)}***${key.substring(key.length - 3)}`;
   };
 
   const getStatusBadge = (status: string) => {
@@ -184,16 +239,20 @@ const Finance = () => {
                       className="pl-10"
                       value={withdrawAmount}
                       onChange={(e) => setWithdrawAmount(e.target.value)}
+                      min={10}
                     />
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-xs"
-                    onClick={() => setWithdrawAmount(financeData.availableBalance.toString())}
-                  >
-                    Sacar tudo
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-xs"
+                      onClick={() => setWithdrawAmount(financeData.availableBalance.toString())}
+                    >
+                      Sacar tudo
+                    </Button>
+                    <span className="text-xs text-muted-foreground self-center">Mínimo: R$ 10,00</span>
+                  </div>
                 </div>
                 
                 <div className="space-y-2">
@@ -221,8 +280,13 @@ const Finance = () => {
                   />
                 </div>
                 
-                <Button variant="gradient" className="w-full" onClick={handleWithdraw}>
-                  Confirmar Saque
+                <Button 
+                  variant="gradient" 
+                  className="w-full" 
+                  onClick={handleWithdraw}
+                  disabled={submitting}
+                >
+                  {submitting ? "Processando..." : "Confirmar Saque"}
                 </Button>
               </div>
             </DialogContent>
@@ -299,7 +363,7 @@ const Finance = () => {
                     <p className="font-medium">Taxa por transação</p>
                     <p className="text-sm text-muted-foreground">Cobrada em cada venda</p>
                   </div>
-                  <Badge variant="secondary">5%</Badge>
+                  <Badge variant="secondary" className="text-lg px-3 py-1">7%</Badge>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
                   <div>
@@ -353,7 +417,9 @@ const Finance = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {withdrawals.length === 0 ? (
+            {loading ? (
+              <div className="py-8 text-center text-muted-foreground">Carregando...</div>
+            ) : withdrawals.length === 0 ? (
               <div className="py-8 text-center">
                 <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">Nenhum saque realizado</p>
@@ -364,6 +430,7 @@ const Finance = () => {
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left p-4 font-medium text-muted-foreground">Valor</th>
+                      <th className="text-left p-4 font-medium text-muted-foreground">Líquido</th>
                       <th className="text-left p-4 font-medium text-muted-foreground">Chave PIX</th>
                       <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
                       <th className="text-left p-4 font-medium text-muted-foreground">Solicitado</th>
@@ -375,11 +442,17 @@ const Finance = () => {
                       <tr key={withdrawal.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                         <td className="p-4">
                           <p className="font-semibold">
-                            R$ {withdrawal.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {Number(withdrawal.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </p>
                         </td>
                         <td className="p-4">
-                          <p className="text-sm font-mono">{withdrawal.pix_key}</p>
+                          <p className="text-accent font-medium">
+                            R$ {Number(withdrawal.net_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                        </td>
+                        <td className="p-4">
+                          <p className="text-sm font-mono">{maskPixKey(withdrawal.pix_key)}</p>
+                          <p className="text-xs text-muted-foreground">{withdrawal.pix_key_type.toUpperCase()}</p>
                         </td>
                         <td className="p-4">
                           {getStatusBadge(withdrawal.status)}
