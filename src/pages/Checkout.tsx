@@ -27,6 +27,15 @@ interface Product {
   description: string;
   price: number;
   cover_url: string;
+  order_bumps: string[] | null;
+}
+
+interface OrderBumpProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  cover_url: string | null;
 }
 
 interface Charge {
@@ -39,34 +48,6 @@ interface Charge {
   copy_paste: string;
   expires_at: string;
 }
-
-interface OrderBump {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  originalPrice: number;
-  icon: typeof Gift;
-}
-
-const orderBumps: OrderBump[] = [
-  {
-    id: "bump-1",
-    name: "Suporte VIP 30 dias",
-    description: "Acesso direto ao suporte prioritário via WhatsApp",
-    price: 47,
-    originalPrice: 97,
-    icon: Shield,
-  },
-  {
-    id: "bump-2",
-    name: "Bônus Exclusivos",
-    description: "Pack de templates e materiais complementares",
-    price: 27,
-    originalPrice: 67,
-    icon: Gift,
-  },
-];
 
 interface Upsell {
   id: string;
@@ -98,6 +79,7 @@ const Checkout = () => {
   const affiliateCode = searchParams.get("ref");
   
   const [product, setProduct] = useState<Product | null>(null);
+  const [orderBumps, setOrderBumps] = useState<OrderBumpProduct[]>([]);
   const [charge, setCharge] = useState<Charge | null>(null);
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerName, setBuyerName] = useState("");
@@ -182,6 +164,19 @@ const Checkout = () => {
     }
 
     setProduct(data);
+
+    // Fetch order bumps if they exist
+    if (data.order_bumps && data.order_bumps.length > 0) {
+      const { data: bumpsData } = await supabase
+        .from('products')
+        .select('id, name, description, price, cover_url')
+        .in('id', data.order_bumps)
+        .eq('status', 'active');
+
+      if (bumpsData) {
+        setOrderBumps(bumpsData);
+      }
+    }
   };
 
   const handleCreateCharge = async (e: React.FormEvent) => {
@@ -287,6 +282,12 @@ const Checkout = () => {
     );
   };
 
+  // Calculate savings percentage
+  const getSavingsPercent = (bump: OrderBumpProduct) => {
+    // If no original price available, show a default discount
+    return 20;
+  };
+
   // Upsell Screen
   if (showUpsell) {
     return (
@@ -386,7 +387,7 @@ const Checkout = () => {
 
         <div className="grid lg:grid-cols-5 gap-8">
           {/* Left Column - Product + Order Bumps */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className={`lg:col-span-3 space-y-6 ${charge ? 'hidden lg:block' : ''}`}>
             {/* Product Info */}
             <Card className="glass-card">
               <CardHeader>
@@ -426,7 +427,7 @@ const Checkout = () => {
             </Card>
 
             {/* Order Bumps */}
-            {!charge && (
+            {!charge && orderBumps.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Gift className="h-5 w-5 text-accent" />
@@ -449,22 +450,28 @@ const Checkout = () => {
                           onCheckedChange={() => toggleBump(bump.id)}
                           className="mt-1"
                         />
+                        {bump.cover_url && (
+                          <img 
+                            src={bump.cover_url} 
+                            alt={bump.name}
+                            className="w-16 h-16 object-cover rounded-lg shrink-0"
+                          />
+                        )}
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <bump.icon className="h-4 w-4 text-accent" />
+                            <Gift className="h-4 w-4 text-accent" />
                             <span className="font-medium">{bump.name}</span>
-                            <span className="text-xs px-2 py-0.5 bg-destructive/20 text-destructive rounded-full">
-                              -{Math.round((1 - bump.price / bump.originalPrice) * 100)}%
+                            <span className="text-xs px-2 py-0.5 bg-accent/20 text-accent rounded-full">
+                              Oferta especial
                             </span>
                           </div>
-                          <p className="text-sm text-muted-foreground">{bump.description}</p>
+                          {bump.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2">{bump.description}</p>
+                          )}
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground line-through">
-                            R$ {bump.originalPrice.toFixed(2)}
-                          </p>
                           <p className="font-bold text-accent">
-                            R$ {bump.price.toFixed(2)}
+                            + R$ {bump.price.toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -577,10 +584,22 @@ const Checkout = () => {
                       </div>
                     )}
 
+                    {/* QR Code Image */}
                     <div className="bg-white p-4 rounded-lg mx-auto w-fit">
-                      <div className="w-40 h-40 bg-secondary flex items-center justify-center">
-                        <QrCode className="h-28 w-28 text-primary" />
-                      </div>
+                      {charge.qr_code_base64 ? (
+                        <img 
+                          src={charge.qr_code_base64.startsWith('data:') 
+                            ? charge.qr_code_base64 
+                            : `data:image/png;base64,${charge.qr_code_base64}`
+                          } 
+                          alt="QR Code PIX" 
+                          className="w-48 h-48"
+                        />
+                      ) : (
+                        <div className="w-48 h-48 bg-secondary flex items-center justify-center">
+                          <QrCode className="h-28 w-28 text-primary" />
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -605,20 +624,16 @@ const Checkout = () => {
                       </div>
                     </div>
 
+                    <div className="text-center py-2 border-t border-border">
+                      <p className="text-lg font-bold gradient-text">
+                        R$ {totalPrice.toFixed(2)}
+                      </p>
+                    </div>
+
                     <div className="flex items-center justify-center gap-2 text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Aguardando pagamento...
                     </div>
-
-                    <Button
-                      variant="outline"
-                      onClick={handleSimulatePayment}
-                      className="w-full"
-                      disabled={loading}
-                    >
-                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Simular Pagamento (Teste)
-                    </Button>
                   </div>
                 )}
               </CardContent>
