@@ -336,7 +336,7 @@ const Settings = () => {
                       <p className="font-medium">Prazo de Saque</p>
                       <p className="text-sm text-muted-foreground">Tempo para processamento</p>
                     </div>
-                    <p className="text-lg font-semibold">D+1</p>
+                    <p className="text-lg font-semibold text-accent">Imediato</p>
                   </div>
                 </div>
 

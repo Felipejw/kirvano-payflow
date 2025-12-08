@@ -152,25 +152,27 @@ const Dashboard = () => {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold gradient-text">Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold gradient-text">Dashboard</h1>
             <p className="text-muted-foreground">Visão geral do seu negócio</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2" onClick={() => setPixDialogOpen(true)}>
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => setPixDialogOpen(true)}>
               <QrCode className="h-4 w-4" />
-              Gerar PIX
+              <span className="hidden sm:inline">Gerar PIX</span>
+              <span className="sm:hidden">PIX</span>
             </Button>
-            <Button className="btn-primary-gradient gap-2" onClick={() => navigate('/dashboard/products')}>
+            <Button className="btn-primary-gradient gap-2 flex-1 sm:flex-none" onClick={() => navigate('/dashboard/products')}>
               <ArrowUpRight className="h-4 w-4" />
-              Novo Produto
+              <span className="hidden sm:inline">Novo Produto</span>
+              <span className="sm:hidden">Novo</span>
             </Button>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <StatsCard
             title="Receita Total"
             value={`R$ ${stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
@@ -196,17 +198,17 @@ const Dashboard = () => {
             iconColor="text-accent"
           />
           <StatsCard
-            title="Afiliados Ativos"
+            title="Afiliados"
             value={stats.activeAffiliates.toString()}
-            change="Promovendo seus produtos"
+            change="Ativos"
             changeType="positive"
             icon={Users}
             iconColor="text-purple-400"
           />
           <StatsCard
-            title="Taxa de Conversão"
+            title="Conversão"
             value={`${stats.conversionRate}%`}
-            change="Baseado em todas transações"
+            change="Taxa média"
             changeType={stats.conversionRate >= 3 ? "positive" : "negative"}
             icon={Percent}
             iconColor="text-yellow-400"
@@ -215,10 +217,10 @@ const Dashboard = () => {
 
         {/* Tabs for different dashboard sections */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-secondary/50">
-            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="conversions">Conversões</TabsTrigger>
-            <TabsTrigger value="finance">Financeiro</TabsTrigger>
+          <TabsList className="bg-secondary/50 w-full sm:w-auto">
+            <TabsTrigger value="overview" className="flex-1 sm:flex-none">Visão Geral</TabsTrigger>
+            <TabsTrigger value="conversions" className="flex-1 sm:flex-none">Conversões</TabsTrigger>
+            <TabsTrigger value="finance" className="flex-1 sm:flex-none">Financeiro</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -230,45 +232,6 @@ const Dashboard = () => {
 
             {/* Recent Transactions */}
             <RecentTransactions />
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="glass-card-hover group cursor-pointer" onClick={() => navigate('/dashboard/api')}>
-                <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-4 rounded-xl bg-primary/10 group-hover:scale-110 transition-transform">
-                    <QrCode className="h-8 w-8 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-1">API PIX</h3>
-                    <p className="text-sm text-muted-foreground">Gere cobranças via API</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="glass-card-hover group cursor-pointer" onClick={() => navigate('/dashboard/affiliates')}>
-                <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-4 rounded-xl bg-accent/10 group-hover:scale-110 transition-transform">
-                    <Users className="h-8 w-8 text-accent" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-1">Afiliados</h3>
-                    <p className="text-sm text-muted-foreground">Gerencie sua rede</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="glass-card-hover group cursor-pointer" onClick={() => navigate('/dashboard/sales')}>
-                <CardContent className="p-6 flex items-center gap-4">
-                  <div className="p-4 rounded-xl bg-yellow-400/10 group-hover:scale-110 transition-transform">
-                    <ShoppingCart className="h-8 w-8 text-yellow-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-1">Vendas</h3>
-                    <p className="text-sm text-muted-foreground">Veja suas vendas</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
 
           <TabsContent value="conversions" className="space-y-6">

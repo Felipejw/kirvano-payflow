@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,13 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { 
   Palette, 
   Layout, 
   Shield, 
   Timer,
-  Image,
+  Image as ImageIcon,
   Type,
   Eye,
   Save,
@@ -23,7 +23,9 @@ import {
   Monitor,
   CreditCard,
   Bell,
-  CheckCircle
+  CheckCircle,
+  Upload,
+  Loader2
 } from "lucide-react";
 
 interface CheckoutConfig {
@@ -50,8 +52,10 @@ interface CheckoutConfig {
   // Timer e Urgência
   enableTimer: boolean;
   timerMinutes: number;
+  timerText: string;
   showStock: boolean;
   stockCount: number;
+  stockText: string;
   
   // Selos e Garantias
   showSecurityBadge: boolean;
@@ -94,8 +98,10 @@ const defaultConfig: CheckoutConfig = {
   
   enableTimer: true,
   timerMinutes: 15,
+  timerText: "Oferta expira em",
   showStock: false,
   stockCount: 10,
+  stockText: "Apenas {count} unidades restantes!",
   
   showSecurityBadge: true,
   showGuarantee: true,
@@ -118,22 +124,185 @@ const CheckoutSettings = () => {
   const [config, setConfig] = useState<CheckoutConfig>(defaultConfig);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [settingsId, setSettingsId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('checkout_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (data) {
+      setSettingsId(data.id);
+      setConfig({
+        primaryColor: data.primary_color || defaultConfig.primaryColor,
+        backgroundColor: data.background_color || defaultConfig.backgroundColor,
+        textColor: data.text_color || defaultConfig.textColor,
+        buttonColor: data.button_color || defaultConfig.buttonColor,
+        buttonTextColor: data.button_text_color || defaultConfig.buttonTextColor,
+        fontFamily: data.font_family || defaultConfig.fontFamily,
+        borderRadius: data.border_radius || defaultConfig.borderRadius,
+        layout: (data.layout as "one-column" | "two-column") || defaultConfig.layout,
+        showProductImage: data.show_product_image ?? defaultConfig.showProductImage,
+        showProductDescription: data.show_product_description ?? defaultConfig.showProductDescription,
+        showOrderSummary: data.show_order_summary ?? defaultConfig.showOrderSummary,
+        requirePhone: data.require_phone ?? defaultConfig.requirePhone,
+        requireCpf: data.require_cpf ?? defaultConfig.requireCpf,
+        requireAddress: data.require_address ?? defaultConfig.requireAddress,
+        enableTimer: data.enable_timer ?? defaultConfig.enableTimer,
+        timerMinutes: data.timer_minutes || defaultConfig.timerMinutes,
+        timerText: data.timer_text || defaultConfig.timerText,
+        showStock: data.show_stock ?? defaultConfig.showStock,
+        stockCount: data.stock_count || defaultConfig.stockCount,
+        stockText: data.stock_text || defaultConfig.stockText,
+        showSecurityBadge: data.show_security_badge ?? defaultConfig.showSecurityBadge,
+        showGuarantee: data.show_guarantee ?? defaultConfig.showGuarantee,
+        guaranteeDays: data.guarantee_days || defaultConfig.guaranteeDays,
+        guaranteeText: data.guarantee_text || defaultConfig.guaranteeText,
+        logoUrl: data.logo_url || "",
+        faviconUrl: data.favicon_url || "",
+        pageTitle: data.page_title || defaultConfig.pageTitle,
+        enableEmailNotification: data.enable_email_notification ?? defaultConfig.enableEmailNotification,
+        enableSmsNotification: data.enable_sms_notification ?? defaultConfig.enableSmsNotification,
+        facebookPixel: data.facebook_pixel || "",
+        googleAnalytics: data.google_analytics || "",
+        tiktokPixel: data.tiktok_pixel || "",
+      });
+    }
+    
+    setLoading(false);
+  };
 
   const updateConfig = (key: keyof CheckoutConfig, value: any) => {
     setConfig(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setUploading(true);
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/logo-${Date.now()}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from('checkout-assets')
+      .upload(fileName, file, { upsert: true });
+
+    if (error) {
+      toast.error("Erro ao fazer upload da logo");
+      setUploading(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('checkout-assets')
+      .getPublicUrl(fileName);
+
+    updateConfig("logoUrl", publicUrl);
+    toast.success("Logo enviada com sucesso!");
+    setUploading(false);
+  };
+
   const handleSave = async () => {
     setSaving(true);
-    // Simular salvamento (depois implementar no Supabase)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast({
-      title: "Configurações salvas",
-      description: "As configurações do checkout foram atualizadas com sucesso.",
-    });
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      toast.error("Usuário não encontrado");
+      setSaving(false);
+      return;
+    }
+
+    const settingsData = {
+      user_id: user.id,
+      primary_color: config.primaryColor,
+      background_color: config.backgroundColor,
+      text_color: config.textColor,
+      button_color: config.buttonColor,
+      button_text_color: config.buttonTextColor,
+      font_family: config.fontFamily,
+      border_radius: config.borderRadius,
+      layout: config.layout,
+      show_product_image: config.showProductImage,
+      show_product_description: config.showProductDescription,
+      show_order_summary: config.showOrderSummary,
+      require_phone: config.requirePhone,
+      require_cpf: config.requireCpf,
+      require_address: config.requireAddress,
+      enable_timer: config.enableTimer,
+      timer_minutes: config.timerMinutes,
+      timer_text: config.timerText,
+      show_stock: config.showStock,
+      stock_count: config.stockCount,
+      stock_text: config.stockText,
+      show_security_badge: config.showSecurityBadge,
+      show_guarantee: config.showGuarantee,
+      guarantee_days: config.guaranteeDays,
+      guarantee_text: config.guaranteeText,
+      logo_url: config.logoUrl,
+      favicon_url: config.faviconUrl,
+      page_title: config.pageTitle,
+      enable_email_notification: config.enableEmailNotification,
+      enable_sms_notification: config.enableSmsNotification,
+      facebook_pixel: config.facebookPixel,
+      google_analytics: config.googleAnalytics,
+      tiktok_pixel: config.tiktokPixel,
+    };
+
+    let error;
+    
+    if (settingsId) {
+      const result = await supabase
+        .from('checkout_settings')
+        .update(settingsData)
+        .eq('id', settingsId);
+      error = result.error;
+    } else {
+      const result = await supabase
+        .from('checkout_settings')
+        .insert(settingsData)
+        .select()
+        .single();
+      error = result.error;
+      if (result.data) {
+        setSettingsId(result.data.id);
+      }
+    }
+
+    if (error) {
+      toast.error("Erro ao salvar configurações");
+    } else {
+      toast.success("Configurações salvas com sucesso!");
+    }
+    
     setSaving(false);
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -141,15 +310,15 @@ const CheckoutSettings = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold gradient-text">Configurar Checkout</h1>
-            <p className="text-muted-foreground">Personalize a experiência de compra dos seus clientes</p>
+            <h1 className="text-xl sm:text-2xl font-bold gradient-text">Configurar Checkout</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">Personalize a experiência de compra dos seus clientes</p>
           </div>
           <Button 
             onClick={handleSave} 
             disabled={saving}
-            className="btn-primary-gradient"
+            className="btn-primary-gradient w-full sm:w-auto"
           >
-            <Save className="h-4 w-4 mr-2" />
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             {saving ? "Salvando..." : "Salvar Alterações"}
           </Button>
         </div>
@@ -159,24 +328,24 @@ const CheckoutSettings = () => {
           <div className="lg:col-span-2 space-y-6">
             <Tabs defaultValue="appearance" className="space-y-6">
               <TabsList className="grid w-full grid-cols-5 bg-secondary">
-                <TabsTrigger value="appearance" className="flex items-center gap-2">
-                  <Palette className="h-4 w-4" />
+                <TabsTrigger value="appearance" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                  <Palette className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Aparência</span>
                 </TabsTrigger>
-                <TabsTrigger value="layout" className="flex items-center gap-2">
-                  <Layout className="h-4 w-4" />
+                <TabsTrigger value="layout" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                  <Layout className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Layout</span>
                 </TabsTrigger>
-                <TabsTrigger value="fields" className="flex items-center gap-2">
-                  <Type className="h-4 w-4" />
+                <TabsTrigger value="fields" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                  <Type className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Campos</span>
                 </TabsTrigger>
-                <TabsTrigger value="urgency" className="flex items-center gap-2">
-                  <Timer className="h-4 w-4" />
+                <TabsTrigger value="urgency" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                  <Timer className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Urgência</span>
                 </TabsTrigger>
-                <TabsTrigger value="tracking" className="flex items-center gap-2">
-                  <Bell className="h-4 w-4" />
+                <TabsTrigger value="tracking" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                  <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Tracking</span>
                 </TabsTrigger>
               </TabsList>
@@ -192,7 +361,7 @@ const CheckoutSettings = () => {
                     <CardDescription>Configure as cores do seu checkout</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Cor Principal</Label>
                         <div className="flex gap-2">
@@ -262,7 +431,7 @@ const CheckoutSettings = () => {
                       </div>
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Fonte</Label>
                         <Select value={config.fontFamily} onValueChange={(v) => updateConfig("fontFamily", v)}>
@@ -301,20 +470,41 @@ const CheckoutSettings = () => {
                 <Card className="glass-card">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Image className="h-5 w-5 text-primary" />
+                      <ImageIcon className="h-5 w-5 text-primary" />
                       Logo e Branding
                     </CardTitle>
                     <CardDescription>Configure sua marca no checkout</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>URL da Logo</Label>
-                      <Input
-                        value={config.logoUrl}
-                        onChange={(e) => updateConfig("logoUrl", e.target.value)}
-                        placeholder="https://seusite.com/logo.png"
-                        className="input-dark"
-                      />
+                      <Label>Logo</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={config.logoUrl}
+                          onChange={(e) => updateConfig("logoUrl", e.target.value)}
+                          placeholder="https://seusite.com/logo.png"
+                          className="input-dark flex-1"
+                        />
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleLogoUpload}
+                        />
+                        <Button 
+                          variant="outline" 
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploading}
+                        >
+                          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {config.logoUrl && (
+                        <div className="mt-2 p-2 bg-secondary rounded-lg inline-block">
+                          <img src={config.logoUrl} alt="Logo preview" className="h-12 object-contain" />
+                        </div>
+                      )}
                     </div>
                     
                     <div className="space-y-2">
@@ -478,15 +668,26 @@ const CheckoutSettings = () => {
                     </div>
                     
                     {config.enableTimer && (
-                      <div className="space-y-2">
-                        <Label>Tempo em minutos</Label>
-                        <Input
-                          type="number"
-                          value={config.timerMinutes}
-                          onChange={(e) => updateConfig("timerMinutes", parseInt(e.target.value) || 15)}
-                          className="input-dark"
-                        />
-                      </div>
+                      <>
+                        <div className="space-y-2">
+                          <Label>Tempo em minutos</Label>
+                          <Input
+                            type="number"
+                            value={config.timerMinutes}
+                            onChange={(e) => updateConfig("timerMinutes", parseInt(e.target.value) || 15)}
+                            className="input-dark"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Texto do Timer</Label>
+                          <Input
+                            value={config.timerText}
+                            onChange={(e) => updateConfig("timerText", e.target.value)}
+                            placeholder="Oferta expira em"
+                            className="input-dark"
+                          />
+                        </div>
+                      </>
                     )}
                     
                     <div className="flex items-center justify-between">
@@ -501,15 +702,27 @@ const CheckoutSettings = () => {
                     </div>
                     
                     {config.showStock && (
-                      <div className="space-y-2">
-                        <Label>Quantidade em Estoque</Label>
-                        <Input
-                          type="number"
-                          value={config.stockCount}
-                          onChange={(e) => updateConfig("stockCount", parseInt(e.target.value) || 10)}
-                          className="input-dark"
-                        />
-                      </div>
+                      <>
+                        <div className="space-y-2">
+                          <Label>Quantidade em Estoque</Label>
+                          <Input
+                            type="number"
+                            value={config.stockCount}
+                            onChange={(e) => updateConfig("stockCount", parseInt(e.target.value) || 10)}
+                            className="input-dark"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Texto do Estoque</Label>
+                          <Input
+                            value={config.stockText}
+                            onChange={(e) => updateConfig("stockText", e.target.value)}
+                            placeholder="Apenas {count} unidades restantes!"
+                            className="input-dark"
+                          />
+                          <p className="text-xs text-muted-foreground">Use {'{count}'} para inserir o número</p>
+                        </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -689,7 +902,7 @@ const CheckoutSettings = () => {
                   <div className="p-4 space-y-4">
                     {/* Logo */}
                     {config.logoUrl ? (
-                      <img src={config.logoUrl} alt="Logo" className="h-8 mx-auto" />
+                      <img src={config.logoUrl} alt="Logo" className="h-8 mx-auto object-contain" />
                     ) : (
                       <div className="h-8 w-24 bg-secondary/50 rounded mx-auto flex items-center justify-center">
                         <span className="text-xs text-muted-foreground">Logo</span>
@@ -699,7 +912,7 @@ const CheckoutSettings = () => {
                     {/* Product */}
                     {config.showProductImage && (
                       <div className="h-32 bg-secondary/30 rounded-lg flex items-center justify-center">
-                        <Image className="h-8 w-8 text-muted-foreground" />
+                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
                       </div>
                     )}
                     
@@ -716,14 +929,14 @@ const CheckoutSettings = () => {
                         className="text-center py-2 rounded-lg text-sm font-medium"
                         style={{ backgroundColor: `${config.primaryColor}20`, color: config.primaryColor }}
                       >
-                        ⏰ Oferta expira em {config.timerMinutes}:00
+                        ⏰ {config.timerText} {config.timerMinutes}:00
                       </div>
                     )}
                     
                     {/* Stock */}
                     {config.showStock && (
                       <div className="text-center text-sm text-yellow-500">
-                        🔥 Apenas {config.stockCount} unidades restantes!
+                        🔥 {config.stockText.replace('{count}', config.stockCount.toString())}
                       </div>
                     )}
                     

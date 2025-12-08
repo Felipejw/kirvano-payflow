@@ -100,6 +100,123 @@ export type Database = {
         }
         Relationships: []
       }
+      checkout_settings: {
+        Row: {
+          background_color: string | null
+          border_radius: string | null
+          button_color: string | null
+          button_text_color: string | null
+          created_at: string
+          enable_email_notification: boolean | null
+          enable_sms_notification: boolean | null
+          enable_timer: boolean | null
+          facebook_pixel: string | null
+          favicon_url: string | null
+          font_family: string | null
+          google_analytics: string | null
+          guarantee_days: number | null
+          guarantee_text: string | null
+          id: string
+          layout: string | null
+          logo_url: string | null
+          page_title: string | null
+          primary_color: string | null
+          require_address: boolean | null
+          require_cpf: boolean | null
+          require_phone: boolean | null
+          show_guarantee: boolean | null
+          show_order_summary: boolean | null
+          show_product_description: boolean | null
+          show_product_image: boolean | null
+          show_security_badge: boolean | null
+          show_stock: boolean | null
+          stock_count: number | null
+          stock_text: string | null
+          text_color: string | null
+          tiktok_pixel: string | null
+          timer_minutes: number | null
+          timer_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          background_color?: string | null
+          border_radius?: string | null
+          button_color?: string | null
+          button_text_color?: string | null
+          created_at?: string
+          enable_email_notification?: boolean | null
+          enable_sms_notification?: boolean | null
+          enable_timer?: boolean | null
+          facebook_pixel?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          google_analytics?: string | null
+          guarantee_days?: number | null
+          guarantee_text?: string | null
+          id?: string
+          layout?: string | null
+          logo_url?: string | null
+          page_title?: string | null
+          primary_color?: string | null
+          require_address?: boolean | null
+          require_cpf?: boolean | null
+          require_phone?: boolean | null
+          show_guarantee?: boolean | null
+          show_order_summary?: boolean | null
+          show_product_description?: boolean | null
+          show_product_image?: boolean | null
+          show_security_badge?: boolean | null
+          show_stock?: boolean | null
+          stock_count?: number | null
+          stock_text?: string | null
+          text_color?: string | null
+          tiktok_pixel?: string | null
+          timer_minutes?: number | null
+          timer_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          background_color?: string | null
+          border_radius?: string | null
+          button_color?: string | null
+          button_text_color?: string | null
+          created_at?: string
+          enable_email_notification?: boolean | null
+          enable_sms_notification?: boolean | null
+          enable_timer?: boolean | null
+          facebook_pixel?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          google_analytics?: string | null
+          guarantee_days?: number | null
+          guarantee_text?: string | null
+          id?: string
+          layout?: string | null
+          logo_url?: string | null
+          page_title?: string | null
+          primary_color?: string | null
+          require_address?: boolean | null
+          require_cpf?: boolean | null
+          require_phone?: boolean | null
+          show_guarantee?: boolean | null
+          show_order_summary?: boolean | null
+          show_product_description?: boolean | null
+          show_product_image?: boolean | null
+          show_security_badge?: boolean | null
+          show_stock?: boolean | null
+          stock_count?: number | null
+          stock_text?: string | null
+          text_color?: string | null
+          tiktok_pixel?: string | null
+          timer_minutes?: number | null
+          timer_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       members: {
         Row: {
           access_level: string

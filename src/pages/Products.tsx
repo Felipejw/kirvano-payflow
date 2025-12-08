@@ -111,7 +111,7 @@ const Products = () => {
   };
 
   const openCheckout = (productId: string) => {
-    window.open(`/checkout?product=${productId}`, '_blank');
+    window.open(`/checkout/${productId}`, '_blank');
   };
 
   const filteredProducts = products.filter(product =>
