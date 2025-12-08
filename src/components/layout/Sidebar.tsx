@@ -3,13 +3,10 @@ import {
   Package, 
   CreditCard, 
   Users, 
-  TrendingUp, 
   Settings, 
-  Code, 
   ShoppingCart,
   Wallet,
-  FileText,
-  Shield,
+  Palette,
   LogOut,
   ChevronLeft,
   Menu
@@ -26,13 +23,10 @@ const menuItems = [
   { icon: CreditCard, label: "Transações", path: "/dashboard/transactions" },
   { icon: Users, label: "Afiliados", path: "/dashboard/affiliates" },
   { icon: Wallet, label: "Financeiro", path: "/dashboard/finance" },
-  { icon: TrendingUp, label: "Relatórios", path: "/dashboard/reports" },
-  { icon: Shield, label: "Membros", path: "/dashboard/members" },
+  { icon: Palette, label: "Checkout", path: "/dashboard/checkout" },
 ];
 
 const bottomMenuItems = [
-  { icon: Code, label: "API PIX", path: "/dashboard/api" },
-  { icon: FileText, label: "Documentação", path: "/dashboard/docs" },
   { icon: Settings, label: "Configurações", path: "/dashboard/settings" },
 ];
 
