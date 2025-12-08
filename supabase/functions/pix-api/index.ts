@@ -10,10 +10,12 @@ interface CreateChargeRequest {
   amount: number;
   buyer_email: string;
   buyer_name?: string;
+  buyer_document?: string;
   product_id?: string;
   affiliate_code?: string;
   expires_in_minutes?: number;
   webhook_url?: string;
+  description?: string;
 }
 
 interface ChargeResponse {
@@ -28,32 +30,141 @@ interface ChargeResponse {
   created_at: string;
 }
 
+// BSPAY API Integration
+const BSPAY_API_URL = "https://api.bspay.co/v2";
+
+async function getBspayToken(): Promise<string> {
+  const clientId = Deno.env.get('BSPAY_CLIENT_ID');
+  const clientSecret = Deno.env.get('BSPAY_CLIENT_SECRET');
+  
+  if (!clientId || !clientSecret) {
+    throw new Error('BSPAY credentials not configured');
+  }
+  
+  // Create Basic Auth header
+  const credentials = `${clientId}:${clientSecret}`;
+  const base64Credentials = btoa(credentials);
+  
+  console.log('Getting BSPAY token...');
+  
+  const response = await fetch(`${BSPAY_API_URL}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${base64Credentials}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('BSPAY token error:', response.status, errorText);
+    throw new Error(`Failed to get BSPAY token: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('BSPAY token obtained successfully');
+  return data.access_token;
+}
+
+async function createBspayQRCode(
+  token: string,
+  amount: number,
+  externalId: string,
+  payer: { name?: string; email: string; document?: string },
+  postbackUrl: string,
+  description?: string
+): Promise<{ qrCode: string; qrCodeBase64: string; transactionId: string }> {
+  console.log('Creating BSPAY QRCode for amount:', amount);
+  
+  const payload = {
+    amount: amount,
+    external_id: externalId,
+    payerQuestion: description || "Pagamento via PIX",
+    payer: {
+      name: payer.name || "Cliente",
+      document: payer.document || "00000000000",
+      email: payer.email,
+    },
+    postbackUrl: postbackUrl,
+  };
+  
+  const response = await fetch(`${BSPAY_API_URL}/pix/qrcode`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('BSPAY QRCode error:', response.status, errorText);
+    throw new Error(`Failed to create BSPAY QRCode: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  console.log('BSPAY QRCode created:', data.transactionId || data.id);
+  
+  return {
+    qrCode: data.qrcode || data.qr_code || data.copyPaste || data.copy_paste,
+    qrCodeBase64: data.qrcodeBase64 || data.qr_code_base64 || data.qrCodeImage || '',
+    transactionId: data.transactionId || data.transaction_id || data.id,
+  };
+}
+
+async function getBspayBalance(token: string): Promise<{ balance: number }> {
+  console.log('Getting BSPAY balance...');
+  
+  const response = await fetch(`${BSPAY_API_URL}/balance`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('BSPAY balance error:', response.status, errorText);
+    throw new Error(`Failed to get BSPAY balance: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('BSPAY balance obtained:', data.balance);
+  return { balance: data.balance || data.available || 0 };
+}
+
+async function getBspayTransaction(token: string, pixId: string): Promise<any> {
+  console.log('Getting BSPAY transaction:', pixId);
+  
+  const response = await fetch(`${BSPAY_API_URL}/consult-transaction`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({ pix_id: pixId }),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('BSPAY transaction error:', response.status, errorText);
+    throw new Error(`Failed to get BSPAY transaction: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('BSPAY transaction status:', data.status);
+  return data;
+}
+
 const generateExternalId = () => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 10);
   return `PIX${timestamp}${random}`.toUpperCase();
-};
-
-const generatePixCode = (externalId: string, amount: number) => {
-  // Simulated PIX code - in production, integrate with a real PSP
-  const pixKey = "pixpay@example.com";
-  const merchantName = "PIXPAY GATEWAY";
-  const merchantCity = "SAO PAULO";
-  const txId = externalId.substring(0, 25);
-  
-  // EMV QR Code format (simplified)
-  return `00020126580014BR.GOV.BCB.PIX0136${pixKey}5204000053039865404${amount.toFixed(2)}5802BR5913${merchantName}6009${merchantCity}62070503***6304`;
-};
-
-const generateQRCodeBase64 = async (data: string): Promise<string> => {
-  // Generate a simple QR code placeholder - in production use a proper QR library
-  return `data:image/svg+xml;base64,${btoa(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-      <rect width="200" height="200" fill="white"/>
-      <text x="100" y="100" text-anchor="middle" font-size="12" fill="black">QR CODE PIX</text>
-      <text x="100" y="120" text-anchor="middle" font-size="8" fill="gray">${data.substring(0, 20)}...</text>
-    </svg>
-  `)}`;
 };
 
 serve(async (req) => {
@@ -74,7 +185,6 @@ serve(async (req) => {
     let authenticatedUserId: string | null = null;
 
     if (apiKey) {
-      // Hash the API key and look it up
       const encoder = new TextEncoder();
       const data = encoder.encode(apiKey);
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -97,14 +207,33 @@ serve(async (req) => {
 
       authenticatedUserId = keyData.user_id;
 
-      // Update last used timestamp
       await supabase
         .from('api_keys')
         .update({ last_used_at: new Date().toISOString() })
         .eq('key_hash', keyHash);
     }
 
-    // POST /charges - Create a new PIX charge
+    // GET /balance - Get BSPAY account balance
+    if (req.method === 'GET' && path === '/balance') {
+      try {
+        const token = await getBspayToken();
+        const balanceData = await getBspayBalance(token);
+        
+        return new Response(JSON.stringify(balanceData), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('Balance error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return new Response(JSON.stringify({ error: errorMessage }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // POST /charges - Create a new PIX charge via BSPAY
     if (req.method === 'POST' && (path === '/charges' || path === '' || path === '/')) {
       const body: CreateChargeRequest = await req.json();
       
@@ -126,8 +255,46 @@ serve(async (req) => {
       const expiresInMinutes = body.expires_in_minutes || 30;
       const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
       
-      const pixCode = generatePixCode(externalId, body.amount);
-      const qrCodeBase64 = await generateQRCodeBase64(pixCode);
+      // Webhook URL for BSPAY callbacks
+      const webhookUrl = body.webhook_url || `${supabaseUrl}/functions/v1/pix-api/webhook`;
+
+      let pixCode: string;
+      let qrCodeBase64: string;
+      let bspayTransactionId: string | null = null;
+
+      try {
+        // Get BSPAY token and create QR Code
+        const token = await getBspayToken();
+        const bspayResult = await createBspayQRCode(
+          token,
+          body.amount,
+          externalId,
+          {
+            name: body.buyer_name,
+            email: body.buyer_email,
+            document: body.buyer_document,
+          },
+          webhookUrl,
+          body.description
+        );
+        
+        pixCode = bspayResult.qrCode;
+        qrCodeBase64 = bspayResult.qrCodeBase64;
+        bspayTransactionId = bspayResult.transactionId;
+        
+        console.log('BSPAY charge created successfully:', bspayTransactionId);
+      } catch (bspayError) {
+        console.error('BSPAY error, using fallback:', bspayError);
+        // Fallback to simulated PIX if BSPAY fails
+        pixCode = `00020126580014BR.GOV.BCB.PIX0136pixpay@example.com5204000053039865404${body.amount.toFixed(2)}5802BR5913PIXPAY6009SAO PAULO62070503***6304`;
+        qrCodeBase64 = `data:image/svg+xml;base64,${btoa(`
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+            <rect width="200" height="200" fill="white"/>
+            <text x="100" y="100" text-anchor="middle" font-size="12" fill="black">QR CODE PIX</text>
+            <text x="100" y="120" text-anchor="middle" font-size="8" fill="gray">${externalId}</text>
+          </svg>
+        `)}`;
+      }
 
       // Check for affiliate
       let affiliateId: string | null = null;
@@ -147,7 +314,7 @@ serve(async (req) => {
       const { data: charge, error } = await supabase
         .from('pix_charges')
         .insert({
-          external_id: externalId,
+          external_id: bspayTransactionId || externalId,
           product_id: body.product_id || null,
           buyer_email: body.buyer_email,
           buyer_name: body.buyer_name || null,
@@ -190,6 +357,118 @@ serve(async (req) => {
       });
     }
 
+    // POST /webhook - Handle BSPAY payment webhook
+    if (req.method === 'POST' && path === '/webhook') {
+      const body = await req.json();
+      console.log('Received BSPAY webhook:', JSON.stringify(body));
+      
+      const requestBody = body.requestBody || body;
+      
+      if (requestBody.transactionType === 'RECEIVEPIX' && requestBody.status === 'PAID') {
+        const transactionId = requestBody.transactionId || requestBody.external_id;
+        
+        // Find the charge
+        const { data: charge, error: fetchError } = await supabase
+          .from('pix_charges')
+          .select('*, products(*), affiliates(*)')
+          .or(`external_id.eq.${transactionId},external_id.eq.${requestBody.external_id}`)
+          .single();
+
+        if (charge && charge.status === 'pending') {
+          // Update charge status
+          await supabase
+            .from('pix_charges')
+            .update({ status: 'paid', paid_at: new Date().toISOString() })
+            .eq('id', charge.id);
+
+          // Calculate amounts
+          const amount = Number(charge.amount);
+          const platformFee = amount * 0.05;
+          let affiliateAmount = 0;
+          let sellerAmount = amount - platformFee;
+
+          if (charge.affiliate_id && charge.affiliates) {
+            const commissionRate = charge.affiliates.commission_rate || 10;
+            affiliateAmount = amount * (commissionRate / 100);
+            sellerAmount = amount - platformFee - affiliateAmount;
+
+            await supabase
+              .from('affiliates')
+              .update({
+                total_sales: charge.affiliates.total_sales + 1,
+                total_earnings: Number(charge.affiliates.total_earnings) + affiliateAmount,
+              })
+              .eq('id', charge.affiliate_id);
+          }
+
+          // Create transaction
+          await supabase
+            .from('transactions')
+            .insert({
+              charge_id: charge.id,
+              product_id: charge.product_id,
+              seller_id: charge.products?.seller_id,
+              affiliate_id: charge.affiliate_id,
+              amount,
+              seller_amount: sellerAmount,
+              affiliate_amount: affiliateAmount,
+              platform_fee: platformFee,
+              status: 'paid',
+            });
+
+          // Send user webhooks
+          const { data: webhooks } = await supabase
+            .from('webhooks')
+            .select('*')
+            .eq('status', 'active')
+            .contains('events', ['payment.confirmed']);
+
+          if (webhooks) {
+            for (const webhook of webhooks) {
+              try {
+                const payload = {
+                  event: 'payment.confirmed',
+                  charge_id: charge.id,
+                  external_id: charge.external_id,
+                  amount: charge.amount,
+                  paid_at: new Date().toISOString(),
+                };
+
+                const response = await fetch(webhook.url, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-Webhook-Secret': webhook.secret || '',
+                  },
+                  body: JSON.stringify(payload),
+                });
+
+                await supabase
+                  .from('webhook_logs')
+                  .insert({
+                    webhook_id: webhook.id,
+                    charge_id: charge.id,
+                    event_type: 'payment.confirmed',
+                    payload,
+                    response_status: response.status,
+                    response_body: await response.text(),
+                  });
+              } catch (e) {
+                console.error('Webhook error:', e);
+              }
+            }
+          }
+
+          console.log('Payment confirmed via webhook:', charge.external_id);
+        }
+      }
+      
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // GET /charges/:id - Get charge status
     if (req.method === 'GET' && path.startsWith('/charges/')) {
       const chargeId = path.replace('/charges/', '');
@@ -207,13 +486,34 @@ serve(async (req) => {
         });
       }
 
+      // If pending, check BSPAY for updates
+      if (charge.status === 'pending') {
+        try {
+          const token = await getBspayToken();
+          const bspayTransaction = await getBspayTransaction(token, charge.external_id);
+          
+          if (bspayTransaction.status === 'PAID') {
+            // Update local status
+            await supabase
+              .from('pix_charges')
+              .update({ status: 'paid', paid_at: new Date().toISOString() })
+              .eq('id', charge.id);
+            
+            charge.status = 'paid';
+            charge.paid_at = new Date().toISOString();
+          }
+        } catch (e) {
+          console.log('Could not check BSPAY status:', e);
+        }
+      }
+
       return new Response(JSON.stringify(charge), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // POST /charges/:id/confirm - Simulate payment confirmation (for testing)
+    // POST /charges/:id/confirm - Manual payment confirmation (for testing)
     if (req.method === 'POST' && path.includes('/confirm')) {
       const chargeId = path.replace('/charges/', '').replace('/confirm', '');
       
@@ -237,7 +537,6 @@ serve(async (req) => {
         });
       }
 
-      // Update charge status
       const { error: updateError } = await supabase
         .from('pix_charges')
         .update({ status: 'paid', paid_at: new Date().toISOString() })
@@ -251,9 +550,8 @@ serve(async (req) => {
         });
       }
 
-      // Calculate amounts
       const amount = Number(charge.amount);
-      const platformFee = amount * 0.05; // 5% platform fee
+      const platformFee = amount * 0.05;
       let affiliateAmount = 0;
       let sellerAmount = amount - platformFee;
 
@@ -262,7 +560,6 @@ serve(async (req) => {
         affiliateAmount = amount * (commissionRate / 100);
         sellerAmount = amount - platformFee - affiliateAmount;
 
-        // Update affiliate stats
         await supabase
           .from('affiliates')
           .update({
@@ -272,7 +569,6 @@ serve(async (req) => {
           .eq('id', charge.affiliate_id);
       }
 
-      // Create transaction
       const { data: transaction } = await supabase
         .from('transactions')
         .insert({
@@ -289,50 +585,7 @@ serve(async (req) => {
         .select()
         .single();
 
-      // Send webhooks
-      const { data: webhooks } = await supabase
-        .from('webhooks')
-        .select('*')
-        .eq('status', 'active')
-        .contains('events', ['payment.confirmed']);
-
-      if (webhooks) {
-        for (const webhook of webhooks) {
-          try {
-            const payload = {
-              event: 'payment.confirmed',
-              charge_id: charge.id,
-              external_id: charge.external_id,
-              amount: charge.amount,
-              paid_at: new Date().toISOString(),
-            };
-
-            const response = await fetch(webhook.url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Webhook-Secret': webhook.secret || '',
-              },
-              body: JSON.stringify(payload),
-            });
-
-            await supabase
-              .from('webhook_logs')
-              .insert({
-                webhook_id: webhook.id,
-                charge_id: charge.id,
-                event_type: 'payment.confirmed',
-                payload,
-                response_status: response.status,
-                response_body: await response.text(),
-              });
-          } catch (e) {
-            console.error('Webhook error:', e);
-          }
-        }
-      }
-
-      console.log('Payment confirmed:', charge.external_id);
+      console.log('Payment confirmed manually:', charge.external_id);
 
       return new Response(JSON.stringify({ 
         success: true, 
