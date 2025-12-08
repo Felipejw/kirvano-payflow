@@ -130,12 +130,12 @@ export function GeneratePixDialog({ open, onOpenChange }: GeneratePixDialogProps
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Produto (opcional)</Label>
-              <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+              <Select value={selectedProduct} onValueChange={(value) => setSelectedProduct(value === "custom" ? "" : value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um produto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Valor personalizado</SelectItem>
+                  <SelectItem value="custom">Valor personalizado</SelectItem>
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name} - R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
