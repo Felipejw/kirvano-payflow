@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,8 +92,9 @@ const upsellOffer: Upsell = {
 };
 
 const Checkout = () => {
+  const { productId: routeProductId } = useParams();
   const [searchParams] = useSearchParams();
-  const productId = searchParams.get("product");
+  const productId = routeProductId || searchParams.get("product");
   const affiliateCode = searchParams.get("ref");
   
   const [product, setProduct] = useState<Product | null>(null);
