@@ -18,16 +18,35 @@ import {
   ArrowUpRight,
   Wallet,
   ShoppingCart,
-  Eye,
   Percent
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+interface DashboardStats {
+  totalRevenue: number;
+  totalSales: number;
+  availableBalance: number;
+  activeAffiliates: number;
+  conversionRate: number;
+  revenueChange: string;
+  salesChange: string;
+}
+
 const Dashboard = () => {
   const [user, setUser] = useState<any>(null);
   const [pixDialogOpen, setPixDialogOpen] = useState(false);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalRevenue: 0,
+    totalSales: 0,
+    availableBalance: 0,
+    activeAffiliates: 0,
+    conversionRate: 0,
+    revenueChange: "+0%",
+    salesChange: "+0%",
+  });
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,11 +63,90 @@ const Dashboard = () => {
         navigate("/auth");
       } else {
         setUser(session.user);
+        fetchDashboardStats(session.user.id);
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const fetchDashboardStats = async (userId: string) => {
+    setLoading(true);
+
+    // Fetch paid transactions
+    const { data: paidTransactions } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('seller_id', userId)
+      .eq('status', 'paid');
+
+    // Fetch all transactions for conversion calculation
+    const { data: allTransactions } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('seller_id', userId);
+
+    // Fetch active affiliates
+    const { data: affiliates } = await supabase
+      .from('affiliates')
+      .select('id, product_id, products!inner(seller_id)')
+      .eq('status', 'active');
+
+    // Filter affiliates by seller
+    const sellerAffiliates = affiliates?.filter((a: any) => a.products?.seller_id === userId) || [];
+
+    // Fetch completed withdrawals
+    const { data: withdrawals } = await supabase
+      .from('withdrawals')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+
+    // Calculate stats
+    const totalRevenue = paidTransactions?.reduce((acc, t) => acc + Number(t.amount), 0) || 0;
+    const totalSellerAmount = paidTransactions?.reduce((acc, t) => acc + Number(t.seller_amount), 0) || 0;
+    const totalWithdrawn = withdrawals?.reduce((acc, w) => acc + Number(w.net_amount), 0) || 0;
+
+    // Calculate conversion rate
+    const paidCount = paidTransactions?.length || 0;
+    const totalCount = allTransactions?.length || 1;
+    const conversionRate = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+
+    // Calculate month over month change (simplified)
+    const now = new Date();
+    const thisMonth = paidTransactions?.filter(t => {
+      const date = new Date(t.created_at);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }) || [];
+    
+    const lastMonth = paidTransactions?.filter(t => {
+      const date = new Date(t.created_at);
+      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1);
+      return date.getMonth() === lastMonthDate.getMonth() && date.getFullYear() === lastMonthDate.getFullYear();
+    }) || [];
+
+    const thisMonthRevenue = thisMonth.reduce((acc, t) => acc + Number(t.amount), 0);
+    const lastMonthRevenue = lastMonth.reduce((acc, t) => acc + Number(t.amount), 0);
+    const revenueChange = lastMonthRevenue > 0 
+      ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1)
+      : "0";
+
+    const salesChange = lastMonth.length > 0 
+      ? ((thisMonth.length - lastMonth.length) / lastMonth.length * 100).toFixed(1)
+      : "0";
+
+    setStats({
+      totalRevenue,
+      totalSales: paidTransactions?.length || 0,
+      availableBalance: totalSellerAmount - totalWithdrawn,
+      activeAffiliates: sellerAffiliates.length,
+      conversionRate: parseFloat(conversionRate.toFixed(1)),
+      revenueChange: `${parseFloat(revenueChange) >= 0 ? '+' : ''}${revenueChange}% este mês`,
+      salesChange: `${parseFloat(salesChange) >= 0 ? '+' : ''}${salesChange}% este mês`,
+    });
+
+    setLoading(false);
+  };
 
   return (
     <DashboardLayout>
@@ -75,23 +173,23 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatsCard
             title="Receita Total"
-            value="R$ 256.815,00"
-            change="+12.5% este mês"
-            changeType="positive"
+            value={`R$ ${stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            change={stats.revenueChange}
+            changeType={stats.revenueChange.startsWith('+') ? "positive" : "negative"}
             icon={DollarSign}
             iconColor="text-accent"
           />
           <StatsCard
             title="Vendas"
-            value="1.234"
-            change="+8% este mês"
-            changeType="positive"
+            value={stats.totalSales.toString()}
+            change={stats.salesChange}
+            changeType={stats.salesChange.startsWith('+') ? "positive" : "negative"}
             icon={ShoppingCart}
             iconColor="text-primary"
           />
           <StatsCard
             title="Saldo Disponível"
-            value="R$ 15.680,50"
+            value={`R$ ${stats.availableBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
             change="Disponível para saque"
             changeType="positive"
             icon={Wallet}
@@ -99,17 +197,17 @@ const Dashboard = () => {
           />
           <StatsCard
             title="Afiliados Ativos"
-            value="89"
-            change="+3 novos"
+            value={stats.activeAffiliates.toString()}
+            change="Promovendo seus produtos"
             changeType="positive"
             icon={Users}
             iconColor="text-purple-400"
           />
           <StatsCard
             title="Taxa de Conversão"
-            value="4.2%"
-            change="-0.3% esta semana"
-            changeType="negative"
+            value={`${stats.conversionRate}%`}
+            change="Baseado em todas transações"
+            changeType={stats.conversionRate >= 3 ? "positive" : "negative"}
             icon={Percent}
             iconColor="text-yellow-400"
           />

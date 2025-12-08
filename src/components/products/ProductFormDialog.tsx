@@ -5,8 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Upload, Link, X, Package } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Product {
   id?: string;
@@ -18,6 +23,10 @@ interface Product {
   commission_rate: number;
   cover_url: string | null;
   content_url: string | null;
+  allow_affiliates?: boolean;
+  order_bumps?: string[];
+  deliverable_url?: string | null;
+  deliverable_type?: string | null;
 }
 
 interface ProductFormDialogProps {
@@ -29,6 +38,10 @@ interface ProductFormDialogProps {
 
 export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: ProductFormDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [coverInputType, setCoverInputType] = useState<'url' | 'upload'>('url');
+  const [deliverableInputType, setDeliverableInputType] = useState<'url' | 'upload'>('url');
+  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
+  
   const [formData, setFormData] = useState<Product>({
     name: "",
     description: "",
@@ -38,9 +51,17 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     commission_rate: 10,
     cover_url: "",
     content_url: "",
+    allow_affiliates: false,
+    order_bumps: [],
+    deliverable_url: "",
+    deliverable_type: "file",
   });
 
   useEffect(() => {
+    if (open) {
+      fetchAvailableProducts();
+    }
+    
     if (product) {
       setFormData({
         id: product.id,
@@ -52,6 +73,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         commission_rate: product.commission_rate,
         cover_url: product.cover_url || "",
         content_url: product.content_url || "",
+        allow_affiliates: product.allow_affiliates || false,
+        order_bumps: product.order_bumps || [],
+        deliverable_url: product.deliverable_url || "",
+        deliverable_type: product.deliverable_type || "file",
       });
     } else {
       setFormData({
@@ -63,9 +88,43 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         commission_rate: 10,
         cover_url: "",
         content_url: "",
+        allow_affiliates: false,
+        order_bumps: [],
+        deliverable_url: "",
+        deliverable_type: "file",
       });
     }
   }, [product, open]);
+
+  const fetchAvailableProducts = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('products')
+      .select('id, name, price')
+      .eq('seller_id', user.id)
+      .eq('status', 'active');
+
+    if (data) {
+      setAvailableProducts(data as Product[]);
+    }
+  };
+
+  const handleOrderBumpToggle = (productId: string) => {
+    const currentBumps = formData.order_bumps || [];
+    if (currentBumps.includes(productId)) {
+      setFormData({
+        ...formData,
+        order_bumps: currentBumps.filter(id => id !== productId)
+      });
+    } else {
+      setFormData({
+        ...formData,
+        order_bumps: [...currentBumps, productId]
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,14 +149,17 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         price: formData.price,
         type: formData.type,
         status: formData.status,
-        commission_rate: formData.commission_rate,
+        commission_rate: formData.allow_affiliates ? formData.commission_rate : 0,
         cover_url: formData.cover_url || null,
         content_url: formData.content_url || null,
         seller_id: user.id,
+        allow_affiliates: formData.allow_affiliates,
+        order_bumps: formData.order_bumps || [],
+        deliverable_url: formData.deliverable_url || null,
+        deliverable_type: formData.deliverable_type || null,
       };
 
       if (product?.id) {
-        // Update
         const { error } = await supabase
           .from('products')
           .update(productData)
@@ -106,7 +168,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         if (error) throw error;
         toast.success("Produto atualizado com sucesso!");
       } else {
-        // Create
         const { error } = await supabase
           .from('products')
           .insert(productData);
@@ -125,123 +186,273 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     }
   };
 
+  // Filter out current product from order bumps list
+  const orderBumpOptions = availableProducts.filter(p => p.id !== product?.id);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{product ? "Editar Produto" : "Novo Produto"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome do produto *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Ex: Curso de Marketing Digital"
-              required
-            />
-          </div>
+        <ScrollArea className="max-h-[70vh] pr-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Info */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome do produto *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Curso de Marketing Digital"
+                  required
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              value={formData.description || ""}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Descreva seu produto..."
-              rows={3}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description || ""}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Descreva seu produto..."
+                  rows={3}
+                />
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price">Preço (R$) *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                required
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price">Preço (R$) *</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tipo</Label>
+                  <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="digital">Digital</SelectItem>
+                      <SelectItem value="physical">Físico</SelectItem>
+                      <SelectItem value="service">Serviço</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="paused">Pausado</SelectItem>
+                    <SelectItem value="draft">Rascunho</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="commission">Comissão (%)</Label>
-              <Input
-                id="commission"
-                type="number"
-                min="0"
-                max="100"
-                value={formData.commission_rate}
-                onChange={(e) => setFormData({ ...formData, commission_rate: parseFloat(e.target.value) || 0 })}
-              />
+            {/* Affiliates Section */}
+            <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base">Permitir Afiliados</Label>
+                  <p className="text-sm text-muted-foreground">Ative para permitir que afiliados promovam seu produto</p>
+                </div>
+                <Switch
+                  checked={formData.allow_affiliates}
+                  onCheckedChange={(checked) => setFormData({ ...formData, allow_affiliates: checked })}
+                />
+              </div>
+
+              {formData.allow_affiliates && (
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="commission">Comissão do Afiliado (%)</Label>
+                  <Input
+                    id="commission"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.commission_rate}
+                    onChange={(e) => setFormData({ ...formData, commission_rate: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              )}
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="digital">Digital</SelectItem>
-                  <SelectItem value="physical">Físico</SelectItem>
-                  <SelectItem value="service">Serviço</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Cover Image Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Imagem de Capa</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={coverInputType === 'url' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCoverInputType('url')}
+                    className="gap-1"
+                  >
+                    <Link className="h-3 w-3" />
+                    URL
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={coverInputType === 'upload' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCoverInputType('upload')}
+                    className="gap-1"
+                  >
+                    <Upload className="h-3 w-3" />
+                    Upload
+                  </Button>
+                </div>
+              </div>
+
+              {coverInputType === 'url' ? (
+                <Input
+                  type="url"
+                  value={formData.cover_url || ""}
+                  onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
+                  placeholder="https://exemplo.com/imagem.jpg"
+                />
+              ) : (
+                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Arraste uma imagem ou clique para selecionar</p>
+                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG até 5MB</p>
+                  <input type="file" accept="image/*" className="hidden" />
+                </div>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="paused">Pausado</SelectItem>
-                  <SelectItem value="draft">Rascunho</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Deliverable Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Entregável (Opcional)</Label>
+                  <p className="text-xs text-muted-foreground">Arquivo ou link entregue após a compra</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={deliverableInputType === 'url' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDeliverableInputType('url')}
+                    className="gap-1"
+                  >
+                    <Link className="h-3 w-3" />
+                    URL
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={deliverableInputType === 'upload' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDeliverableInputType('upload')}
+                    className="gap-1"
+                  >
+                    <Upload className="h-3 w-3" />
+                    Upload
+                  </Button>
+                </div>
+              </div>
+
+              {deliverableInputType === 'url' ? (
+                <Input
+                  type="url"
+                  value={formData.deliverable_url || ""}
+                  onChange={(e) => setFormData({ ...formData, deliverable_url: e.target.value })}
+                  placeholder="https://exemplo.com/arquivo.pdf"
+                />
+              ) : (
+                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Arraste um arquivo ou clique para selecionar</p>
+                  <p className="text-xs text-muted-foreground mt-1">PDF, ZIP, MP4 até 50MB</p>
+                  <input type="file" className="hidden" />
+                </div>
+              )}
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="cover">URL da Capa</Label>
-            <Input
-              id="cover"
-              type="url"
-              value={formData.cover_url || ""}
-              onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
-              placeholder="https://..."
-            />
-          </div>
+            {/* Order Bumps Section */}
+            <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
+              <div>
+                <Label className="text-base flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Order Bumps
+                </Label>
+                <p className="text-sm text-muted-foreground">Selecione produtos para oferecer como upsell no checkout</p>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="content">URL do Conteúdo</Label>
-            <Input
-              id="content"
-              type="url"
-              value={formData.content_url || ""}
-              onChange={(e) => setFormData({ ...formData, content_url: e.target.value })}
-              placeholder="https://..."
-            />
-          </div>
+              {orderBumpOptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  Nenhum outro produto disponível para order bump
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {orderBumpOptions.map((p) => (
+                    <div 
+                      key={p.id} 
+                      className="flex items-center gap-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors"
+                    >
+                      <Checkbox
+                        checked={formData.order_bumps?.includes(p.id || '') || false}
+                        onCheckedChange={() => handleOrderBumpToggle(p.id || '')}
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{p.name}</p>
+                      </div>
+                      <Badge variant="secondary">
+                        R$ {Number(p.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="gradient" className="flex-1" disabled={loading}>
-              {loading ? "Salvando..." : (product ? "Atualizar" : "Criar Produto")}
-            </Button>
-          </div>
-        </form>
+              {(formData.order_bumps?.length || 0) > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {formData.order_bumps?.map(bumpId => {
+                    const bumpProduct = orderBumpOptions.find(p => p.id === bumpId);
+                    return bumpProduct ? (
+                      <Badge key={bumpId} variant="info" className="gap-1">
+                        {bumpProduct.name}
+                        <button 
+                          type="button" 
+                          onClick={() => handleOrderBumpToggle(bumpId)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="gradient" className="flex-1" disabled={loading}>
+                {loading ? "Salvando..." : (product ? "Atualizar" : "Criar Produto")}
+              </Button>
+            </div>
+          </form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

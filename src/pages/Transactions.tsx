@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   Search, 
   Filter,
@@ -13,79 +15,46 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  X,
+  Calendar
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const transactions = [
-  {
-    id: "TXN-2024-001234",
-    type: "sale",
-    customer: "Maria Santos",
-    email: "maria@email.com",
-    product: "Curso de Marketing Digital Pro",
-    amount: "R$ 497,00",
-    fee: "R$ 7,45",
-    net: "R$ 489,55",
-    status: "completed",
-    method: "PIX",
-    date: "15 Jan 2024, 14:32",
-  },
-  {
-    id: "TXN-2024-001235",
-    type: "sale",
-    customer: "Carlos Oliveira",
-    email: "carlos@email.com",
-    product: "E-book Vendas Automatizadas",
-    amount: "R$ 47,00",
-    fee: "R$ 0,70",
-    net: "R$ 46,30",
-    status: "completed",
-    method: "PIX",
-    date: "15 Jan 2024, 14:18",
-  },
-  {
-    id: "TXN-2024-001236",
-    type: "sale",
-    customer: "Ana Paula Silva",
-    email: "ana@email.com",
-    product: "Mentoria Business Elite",
-    amount: "R$ 1.997,00",
-    fee: "R$ 29,95",
-    net: "R$ 1.967,05",
-    status: "pending",
-    method: "PIX",
-    date: "15 Jan 2024, 13:45",
-  },
-  {
-    id: "TXN-2024-001237",
-    type: "refund",
-    customer: "Roberto Lima",
-    email: "roberto@email.com",
-    product: "Pack Templates Premium",
-    amount: "R$ 127,00",
-    fee: "R$ 0,00",
-    net: "-R$ 127,00",
-    status: "completed",
-    method: "PIX",
-    date: "15 Jan 2024, 12:30",
-  },
-  {
-    id: "TXN-2024-001238",
-    type: "sale",
-    customer: "Fernanda Costa",
-    email: "fernanda@email.com",
-    product: "Curso de Marketing Digital Pro",
-    amount: "R$ 497,00",
-    fee: "R$ 7,45",
-    net: "R$ 489,55",
-    status: "failed",
-    method: "PIX",
-    date: "15 Jan 2024, 11:15",
-  },
-];
+interface Transaction {
+  id: string;
+  amount: number;
+  seller_amount: number;
+  platform_fee: number;
+  affiliate_amount: number;
+  status: string;
+  created_at: string;
+  product?: {
+    name: string;
+  } | null;
+  charge?: {
+    buyer_name: string | null;
+    buyer_email: string;
+  } | null;
+}
+
+interface TransactionStats {
+  receivedToday: number;
+  pending: number;
+  refunds: number;
+  totalTransactions: number;
+}
 
 const statusConfig = {
-  completed: { 
+  paid: { 
     label: "Aprovado", 
     variant: "success" as const,
     icon: CheckCircle 
@@ -95,19 +64,148 @@ const statusConfig = {
     variant: "warning" as const,
     icon: Clock 
   },
-  failed: { 
-    label: "Falhou", 
+  expired: { 
+    label: "Expirado", 
     variant: "destructive" as const,
     icon: XCircle 
   },
-  refunded: { 
-    label: "Reembolsado", 
+  cancelled: { 
+    label: "Cancelado", 
     variant: "secondary" as const,
     icon: RefreshCw 
   },
 };
 
 const Transactions = () => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [stats, setStats] = useState<TransactionStats>({
+    receivedToday: 0,
+    pending: 0,
+    refunds: 0,
+    totalTransactions: 0,
+  });
+  
+  // Filter states
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [minAmount, setMinAmount] = useState<string>("");
+  const [maxAmount, setMaxAmount] = useState<string>("");
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select(`
+        *,
+        product:products(name),
+        charge:pix_charges(buyer_name, buyer_email)
+      `)
+      .eq('seller_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setTransactions(data);
+      calculateStats(data);
+    }
+    setLoading(false);
+  };
+
+  const calculateStats = (data: Transaction[]) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const receivedToday = data
+      .filter(t => t.status === 'paid' && new Date(t.created_at) >= today)
+      .reduce((acc, t) => acc + Number(t.seller_amount), 0);
+
+    const pending = data
+      .filter(t => t.status === 'pending')
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+
+    const refunds = data
+      .filter(t => t.status === 'cancelled')
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+
+    setStats({
+      receivedToday,
+      pending,
+      refunds,
+      totalTransactions: data.length,
+    });
+  };
+
+  const applyFilters = () => {
+    let filtered = [...transactions];
+
+    // Status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(t => t.status === statusFilter);
+    }
+
+    // Date filter
+    if (dateFilter !== "all") {
+      const now = new Date();
+      let startDate: Date;
+
+      switch (dateFilter) {
+        case "today":
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+          break;
+        case "week":
+          startDate = new Date(now.setDate(now.getDate() - 7));
+          break;
+        case "month":
+          startDate = new Date(now.setMonth(now.getMonth() - 1));
+          break;
+        default:
+          startDate = new Date(0);
+      }
+
+      filtered = filtered.filter(t => new Date(t.created_at) >= startDate);
+    }
+
+    // Amount filters
+    if (minAmount) {
+      filtered = filtered.filter(t => Number(t.amount) >= parseFloat(minAmount));
+    }
+    if (maxAmount) {
+      filtered = filtered.filter(t => Number(t.amount) <= parseFloat(maxAmount));
+    }
+
+    return filtered;
+  };
+
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setDateFilter("all");
+    setMinAmount("");
+    setMaxAmount("");
+  };
+
+  const hasActiveFilters = statusFilter !== "all" || dateFilter !== "all" || minAmount || maxAmount;
+
+  const filteredTransactions = applyFilters().filter(t => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      t.id.toLowerCase().includes(search) ||
+      t.charge?.buyer_email?.toLowerCase().includes(search) ||
+      t.charge?.buyer_name?.toLowerCase().includes(search) ||
+      t.product?.name?.toLowerCase().includes(search)
+    );
+  });
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -122,10 +220,6 @@ const Transactions = () => {
               <Download className="h-4 w-4" />
               Exportar
             </Button>
-            <Button variant="gradient" className="gap-2">
-              <QrCode className="h-4 w-4" />
-              Nova Cobrança
-            </Button>
           </div>
         </div>
 
@@ -139,7 +233,9 @@ const Transactions = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Recebido Hoje</p>
-                  <p className="text-xl font-bold">R$ 3.456,00</p>
+                  <p className="text-xl font-bold">
+                    R$ {stats.receivedToday.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -152,7 +248,9 @@ const Transactions = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Pendente</p>
-                  <p className="text-xl font-bold">R$ 1.997,00</p>
+                  <p className="text-xl font-bold">
+                    R$ {stats.pending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -164,8 +262,10 @@ const Transactions = () => {
                   <ArrowUpRight className="h-5 w-5 text-destructive" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Reembolsos</p>
-                  <p className="text-xl font-bold">R$ 127,00</p>
+                  <p className="text-sm text-muted-foreground">Cancelados</p>
+                  <p className="text-xl font-bold">
+                    R$ {stats.refunds.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -177,8 +277,8 @@ const Transactions = () => {
                   <QrCode className="h-5 w-5 text-yellow-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Transações PIX</p>
-                  <p className="text-xl font-bold">1.234</p>
+                  <p className="text-sm text-muted-foreground">Total Transações</p>
+                  <p className="text-xl font-bold">{stats.totalTransactions}</p>
                 </div>
               </div>
             </CardContent>
@@ -194,12 +294,93 @@ const Transactions = () => {
                 <Input 
                   placeholder="Buscar por ID, cliente, email..." 
                   className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button variant="outline" className="gap-2">
-                <Filter className="h-4 w-4" />
-                Filtros
-              </Button>
+              <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant={hasActiveFilters ? "default" : "outline"} className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filtros
+                    {hasActiveFilters && (
+                      <Badge variant="secondary" className="ml-1">
+                        {[statusFilter !== "all", dateFilter !== "all", minAmount, maxAmount].filter(Boolean).length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="end">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold">Filtros</h4>
+                      {hasActiveFilters && (
+                        <Button variant="ghost" size="sm" onClick={clearFilters}>
+                          <X className="h-4 w-4 mr-1" />
+                          Limpar
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          <SelectItem value="paid">Aprovado</SelectItem>
+                          <SelectItem value="pending">Pendente</SelectItem>
+                          <SelectItem value="expired">Expirado</SelectItem>
+                          <SelectItem value="cancelled">Cancelado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Período</Label>
+                      <Select value={dateFilter} onValueChange={setDateFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          <SelectItem value="today">Hoje</SelectItem>
+                          <SelectItem value="week">Última semana</SelectItem>
+                          <SelectItem value="month">Último mês</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Valor</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Mín"
+                          value={minAmount}
+                          onChange={(e) => setMinAmount(e.target.value)}
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Máx"
+                          value={maxAmount}
+                          onChange={(e) => setMaxAmount(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <Button 
+                      variant="gradient" 
+                      className="w-full"
+                      onClick={() => setFilterOpen(false)}
+                    >
+                      Aplicar Filtros
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </CardContent>
         </Card>
@@ -207,58 +388,76 @@ const Transactions = () => {
         {/* Transactions Table */}
         <Card variant="glass">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Cliente</th>
-                    <th>Produto</th>
-                    <th>Valor</th>
-                    <th>Taxa</th>
-                    <th>Líquido</th>
-                    <th>Status</th>
-                    <th>Data</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((tx) => {
-                    const StatusIcon = statusConfig[tx.status as keyof typeof statusConfig].icon;
-                    return (
-                      <tr key={tx.id} className="group cursor-pointer">
-                        <td className="font-mono text-sm text-primary">{tx.id}</td>
-                        <td>
-                          <div>
-                            <p className="font-medium">{tx.customer}</p>
-                            <p className="text-xs text-muted-foreground">{tx.email}</p>
-                          </div>
-                        </td>
-                        <td className="max-w-[200px]">
-                          <p className="truncate">{tx.product}</p>
-                        </td>
-                        <td className="font-semibold">{tx.amount}</td>
-                        <td className="text-muted-foreground">{tx.fee}</td>
-                        <td className={tx.type === "refund" ? "text-destructive" : "text-accent"}>
-                          {tx.net}
-                        </td>
-                        <td>
-                          <Badge 
-                            variant={statusConfig[tx.status as keyof typeof statusConfig].variant}
-                            className="gap-1"
-                          >
-                            <StatusIcon className="h-3 w-3" />
-                            {statusConfig[tx.status as keyof typeof statusConfig].label}
-                          </Badge>
-                        </td>
-                        <td className="text-sm text-muted-foreground whitespace-nowrap">
-                          {tx.date}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {loading ? (
+              <div className="text-center py-12 text-muted-foreground">Carregando transações...</div>
+            ) : filteredTransactions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                {searchTerm || hasActiveFilters ? "Nenhuma transação encontrada com os filtros aplicados" : "Nenhuma transação encontrada"}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Cliente</th>
+                      <th>Produto</th>
+                      <th>Valor</th>
+                      <th>Taxa (7%)</th>
+                      <th>Líquido</th>
+                      <th>Status</th>
+                      <th>Data</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTransactions.map((tx) => {
+                      const statusInfo = statusConfig[tx.status as keyof typeof statusConfig] || statusConfig.pending;
+                      const StatusIcon = statusInfo.icon;
+                      const platformFee = Number(tx.platform_fee);
+                      const sellerAmount = Number(tx.seller_amount);
+                      
+                      return (
+                        <tr key={tx.id} className="group cursor-pointer">
+                          <td className="font-mono text-sm text-primary">
+                            {tx.id.substring(0, 8)}...
+                          </td>
+                          <td>
+                            <div>
+                              <p className="font-medium">{tx.charge?.buyer_name || "—"}</p>
+                              <p className="text-xs text-muted-foreground">{tx.charge?.buyer_email || "—"}</p>
+                            </div>
+                          </td>
+                          <td className="max-w-[200px]">
+                            <p className="truncate">{tx.product?.name || "—"}</p>
+                          </td>
+                          <td className="font-semibold">
+                            R$ {Number(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="text-muted-foreground">
+                            R$ {platformFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="text-accent font-medium">
+                            R$ {sellerAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td>
+                            <Badge 
+                              variant={statusInfo.variant}
+                              className="gap-1"
+                            >
+                              <StatusIcon className="h-3 w-3" />
+                              {statusInfo.label}
+                            </Badge>
+                          </td>
+                          <td className="text-sm text-muted-foreground whitespace-nowrap">
+                            {format(new Date(tx.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

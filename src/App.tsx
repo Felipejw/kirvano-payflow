@@ -15,6 +15,7 @@ import Members from "./pages/Members";
 import ApiDocs from "./pages/ApiDocs";
 import Sales from "./pages/Sales";
 import Finance from "./pages/Finance";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/dashboard/api" element={<ApiDocs />} />
             <Route path="/dashboard/sales" element={<Sales />} />
             <Route path="/dashboard/finance" element={<Finance />} />
+            <Route path="/dashboard/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
