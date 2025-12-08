@@ -11,8 +11,7 @@ import Products from "./pages/Products";
 import Transactions from "./pages/Transactions";
 import Affiliates from "./pages/Affiliates";
 import Checkout from "./pages/Checkout";
-import Members from "./pages/Members";
-import ApiDocs from "./pages/ApiDocs";
+import CheckoutSettings from "./pages/CheckoutSettings";
 import Sales from "./pages/Sales";
 import Finance from "./pages/Finance";
 import Settings from "./pages/Settings";
@@ -30,13 +29,12 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/members" element={<Members />} />
+            <Route path="/checkout/:productId" element={<Checkout />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/products" element={<Products />} />
             <Route path="/dashboard/transactions" element={<Transactions />} />
             <Route path="/dashboard/affiliates" element={<Affiliates />} />
-            <Route path="/dashboard/api" element={<ApiDocs />} />
+            <Route path="/dashboard/checkout" element={<CheckoutSettings />} />
             <Route path="/dashboard/sales" element={<Sales />} />
             <Route path="/dashboard/finance" element={<Finance />} />
             <Route path="/dashboard/settings" element={<Settings />} />
