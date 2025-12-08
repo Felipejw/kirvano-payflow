@@ -1,1 +1,4 @@
 project_id = "gfjsvuoqaheiaddvfrwb"
+
+[functions.pix-api]
+verify_jwt = false
