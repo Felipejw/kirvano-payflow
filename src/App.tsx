@@ -13,6 +13,8 @@ import Affiliates from "./pages/Affiliates";
 import Checkout from "./pages/Checkout";
 import Members from "./pages/Members";
 import ApiDocs from "./pages/ApiDocs";
+import Sales from "./pages/Sales";
+import Finance from "./pages/Finance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="/dashboard/transactions" element={<Transactions />} />
             <Route path="/dashboard/affiliates" element={<Affiliates />} />
             <Route path="/dashboard/api" element={<ApiDocs />} />
+            <Route path="/dashboard/sales" element={<Sales />} />
+            <Route path="/dashboard/finance" element={<Finance />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

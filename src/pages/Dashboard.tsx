@@ -8,6 +8,7 @@ import { TopProducts } from "@/components/dashboard/TopProducts";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ConversionFunnel, ConversionChart } from "@/components/dashboard/ConversionMetrics";
 import { WithdrawalManagement } from "@/components/dashboard/WithdrawalManagement";
+import { GeneratePixDialog } from "@/components/dashboard/GeneratePixDialog";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -26,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Dashboard = () => {
   const [user, setUser] = useState<any>(null);
+  const [pixDialogOpen, setPixDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -58,7 +60,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground">Visão geral do seu negócio</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setPixDialogOpen(true)}>
               <QrCode className="h-4 w-4" />
               Gerar PIX
             </Button>
@@ -157,14 +159,14 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="glass-card-hover group cursor-pointer">
+              <Card className="glass-card-hover group cursor-pointer" onClick={() => navigate('/dashboard/sales')}>
                 <CardContent className="p-6 flex items-center gap-4">
                   <div className="p-4 rounded-xl bg-yellow-400/10 group-hover:scale-110 transition-transform">
-                    <Eye className="h-8 w-8 text-yellow-400" />
+                    <ShoppingCart className="h-8 w-8 text-yellow-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-1">Visualizações</h3>
-                    <p className="text-sm text-muted-foreground">Analise seu tráfego</p>
+                    <h3 className="font-semibold mb-1">Vendas</h3>
+                    <p className="text-sm text-muted-foreground">Veja suas vendas</p>
                   </div>
                 </CardContent>
               </Card>
@@ -222,6 +224,9 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* PIX Generation Dialog */}
+      <GeneratePixDialog open={pixDialogOpen} onOpenChange={setPixDialogOpen} />
     </DashboardLayout>
   );
 };
