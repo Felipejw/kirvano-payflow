@@ -2,13 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-interface MonthlyData {
-  month: string;
+interface DailyData {
+  date: string;
   vendas: number;
 }
-
-const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -25,7 +25,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function SalesChart() {
-  const [data, setData] = useState<MonthlyData[]>([]);
+  const [data, setData] = useState<DailyData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,41 +36,45 @@ export function SalesChart() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    const now = new Date();
+    const sevenDaysAgo = startOfDay(subDays(now, 6));
+
     const { data: transactions } = await supabase
       .from('transactions')
       .select('amount, created_at')
       .eq('seller_id', user.id)
-      .eq('status', 'paid');
+      .eq('status', 'paid')
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .lte('created_at', endOfDay(now).toISOString());
 
-    // Initialize last 12 months with zero
-    const now = new Date();
-    const monthlyData: Map<string, number> = new Map();
+    // Initialize last 7 days with zero
+    const dailyData: Map<string, number> = new Map();
     
-    for (let i = 11; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${date.getFullYear()}-${date.getMonth()}`;
-      monthlyData.set(key, 0);
+    for (let i = 6; i >= 0; i--) {
+      const date = subDays(now, i);
+      const key = format(date, 'yyyy-MM-dd');
+      dailyData.set(key, 0);
     }
 
     // Fill with actual data
     if (transactions) {
       transactions.forEach(tx => {
         const date = new Date(tx.created_at);
-        const key = `${date.getFullYear()}-${date.getMonth()}`;
-        if (monthlyData.has(key)) {
-          monthlyData.set(key, (monthlyData.get(key) || 0) + Number(tx.amount));
+        const key = format(date, 'yyyy-MM-dd');
+        if (dailyData.has(key)) {
+          dailyData.set(key, (dailyData.get(key) || 0) + Number(tx.amount));
         }
       });
     }
 
     // Convert to array format
-    const chartData: MonthlyData[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${date.getFullYear()}-${date.getMonth()}`;
+    const chartData: DailyData[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = subDays(now, i);
+      const key = format(date, 'yyyy-MM-dd');
       chartData.push({
-        month: monthNames[date.getMonth()],
-        vendas: monthlyData.get(key) || 0,
+        date: format(date, 'dd/MM', { locale: ptBR }),
+        vendas: dailyData.get(key) || 0,
       });
     }
 
@@ -81,7 +85,7 @@ export function SalesChart() {
   return (
     <Card variant="glass" className="col-span-full lg:col-span-2">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Receita Mensal</CardTitle>
+        <CardTitle className="text-lg font-semibold">Receita (Últimos 7 dias)</CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -99,7 +103,7 @@ export function SalesChart() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
               <XAxis 
-                dataKey="month" 
+                dataKey="date" 
                 stroke="hsl(var(--muted-foreground))" 
                 fontSize={12}
                 tickLine={false}
@@ -110,7 +114,7 @@ export function SalesChart() {
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) => value >= 1000 ? `R$ ${(value / 1000).toFixed(0)}k` : `R$ ${value}`}
               />
               <Tooltip content={<CustomTooltip />} />
               <Area 
