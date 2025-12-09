@@ -1089,14 +1089,14 @@ const Checkout = () => {
                 borderRadius: styles.borderRadius + 'px',
               }}
             >
-              {loading ? (
+            {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Gerando PIX...
                 </>
               ) : (
                 <>
-                  Pagar {formatCurrency(totalPrice)}
+                  Comprar Agora {formatCurrency(totalPrice)}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}
