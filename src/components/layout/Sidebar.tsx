@@ -33,7 +33,7 @@ const sellerMenuItems = [
 
 const adminMenuItems = [
   { icon: LayoutDashboard, label: "Visão Geral", path: "/admin" },
-  { icon: Users, label: "Vendedores", path: "/admin/sellers" },
+  { icon: Users, label: "Usuários", path: "/admin/users" },
   { icon: ShoppingCart, label: "Transações", path: "/admin/transactions" },
   { icon: Wallet, label: "Saques", path: "/admin/withdrawals" },
   { icon: TrendingUp, label: "Analytics", path: "/admin/analytics" },
