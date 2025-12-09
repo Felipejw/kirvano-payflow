@@ -39,93 +39,162 @@ serve(async (req) => {
       );
     }
 
-    console.log(`User ${user.id} requested to clear test data`);
-
-    // Use service role client for deletions
+    // Use service role client for operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user's products
-    const { data: products } = await supabase
-      .from('products')
-      .select('id')
-      .eq('seller_id', user.id);
+    // Check if user is admin
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
 
-    const productIds = products?.map(p => p.id) || [];
-    console.log(`Found ${productIds.length} products for user`);
-
-    let deletedTransactions = 0;
-    let deletedCharges = 0;
-    let deletedMembers = 0;
-    let deletedWebhookLogs = 0;
-
-    // Delete transactions for user's products
-    if (productIds.length > 0) {
-      const { count: txCount } = await supabase
-        .from('transactions')
-        .delete({ count: 'exact' })
-        .eq('seller_id', user.id);
-      
-      deletedTransactions = txCount || 0;
-      console.log(`Deleted ${deletedTransactions} transactions`);
-
-      // Delete PIX charges for user's products
-      const { count: chargeCount } = await supabase
-        .from('pix_charges')
-        .delete({ count: 'exact' })
-        .in('product_id', productIds);
-      
-      deletedCharges = chargeCount || 0;
-      console.log(`Deleted ${deletedCharges} PIX charges`);
-
-      // Delete members for user's products
-      const { count: memberCount } = await supabase
-        .from('members')
-        .delete({ count: 'exact' })
-        .in('product_id', productIds);
-      
-      deletedMembers = memberCount || 0;
-      console.log(`Deleted ${deletedMembers} members`);
+    if (!roleData) {
+      console.error('User is not admin:', user.id);
+      return new Response(
+        JSON.stringify({ error: 'Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Reset affiliate stats for user's products
-    const { error: affiliateError } = await supabase
-      .from('affiliates')
-      .update({ total_earnings: 0, total_sales: 0 })
-      .in('product_id', productIds);
+    // Parse request body
+    const body = await req.json();
+    const { type } = body; // 'all', 'products', 'transactions', 'affiliates', 'charges'
 
-    if (affiliateError) {
-      console.error('Error resetting affiliates:', affiliateError);
-    }
+    console.log(`Admin ${user.id} requested to clear data: ${type}`);
 
-    // Delete user's webhooks logs
-    const { data: webhooks } = await supabase
-      .from('webhooks')
-      .select('id')
-      .eq('user_id', user.id);
+    let deletedCount = 0;
+    const results: Record<string, number> = {};
 
-    if (webhooks && webhooks.length > 0) {
-      const webhookIds = webhooks.map(w => w.id);
-      const { count: logCount } = await supabase
-        .from('webhook_logs')
-        .delete({ count: 'exact' })
-        .in('webhook_id', webhookIds);
-      
-      deletedWebhookLogs = logCount || 0;
-      console.log(`Deleted ${deletedWebhookLogs} webhook logs`);
+    // Delete based on type
+    switch (type) {
+      case 'transactions':
+        // Delete all transactions
+        const { count: txCount } = await supabase
+          .from('transactions')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        results.transactions = txCount || 0;
+        deletedCount = txCount || 0;
+        console.log(`Deleted ${txCount} transactions`);
+        break;
+
+      case 'charges':
+        // Delete all PIX charges
+        const { count: chargeCount } = await supabase
+          .from('pix_charges')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.pix_charges = chargeCount || 0;
+        deletedCount = chargeCount || 0;
+        console.log(`Deleted ${chargeCount} PIX charges`);
+        break;
+
+      case 'affiliates':
+        // Delete all affiliates
+        const { count: affCount } = await supabase
+          .from('affiliates')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.affiliates = affCount || 0;
+        deletedCount = affCount || 0;
+        console.log(`Deleted ${affCount} affiliates`);
+        break;
+
+      case 'products':
+        // First delete related data
+        const { count: prodTxCount } = await supabase
+          .from('transactions')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.transactions = prodTxCount || 0;
+
+        const { count: prodChargeCount } = await supabase
+          .from('pix_charges')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.pix_charges = prodChargeCount || 0;
+
+        const { count: prodAffCount } = await supabase
+          .from('affiliates')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.affiliates = prodAffCount || 0;
+
+        const { count: memberCount } = await supabase
+          .from('members')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.members = memberCount || 0;
+
+        // Then delete products
+        const { count: prodCount } = await supabase
+          .from('products')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.products = prodCount || 0;
+        deletedCount = prodCount || 0;
+        console.log(`Deleted ${prodCount} products and related data`);
+        break;
+
+      case 'all':
+        // Delete in order due to foreign keys
+        const { count: allTxCount } = await supabase
+          .from('transactions')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.transactions = allTxCount || 0;
+
+        const { count: allChargeCount } = await supabase
+          .from('pix_charges')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.pix_charges = allChargeCount || 0;
+
+        const { count: allMemberCount } = await supabase
+          .from('members')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.members = allMemberCount || 0;
+
+        const { count: allAffCount } = await supabase
+          .from('affiliates')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.affiliates = allAffCount || 0;
+
+        const { count: allProdCount } = await supabase
+          .from('products')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.products = allProdCount || 0;
+
+        // Delete webhook logs
+        const { count: logCount } = await supabase
+          .from('webhook_logs')
+          .delete({ count: 'exact' })
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        results.webhook_logs = logCount || 0;
+
+        console.log(`Deleted all data:`, results);
+        break;
+
+      default:
+        return new Response(
+          JSON.stringify({ error: 'Invalid type. Use: all, products, transactions, affiliates, charges' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
     }
 
     const summary = {
       success: true,
-      deleted: {
-        transactions: deletedTransactions,
-        pix_charges: deletedCharges,
-        members: deletedMembers,
-        webhook_logs: deletedWebhookLogs,
-      },
-      message: 'Dados de teste removidos com sucesso!'
+      type,
+      deleted: results,
+      message: `Dados removidos com sucesso!`
     };
 
-    console.log('Clear test data completed:', summary);
+    console.log('Clear data completed:', summary);
 
     return new Response(
       JSON.stringify(summary),
@@ -134,7 +203,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error clearing test data:', error);
+    console.error('Error clearing data:', error);
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

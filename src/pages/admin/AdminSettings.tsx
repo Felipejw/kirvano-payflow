@@ -6,11 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Trash2, AlertTriangle, Package, CreditCard, Users, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface PlatformSettings {
   id: string;
@@ -28,9 +39,35 @@ export default function AdminSettings() {
   const [settings, setSettings] = useState<PlatformSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
+
+  const handleClearData = async (type: 'all' | 'products' | 'transactions' | 'affiliates' | 'charges') => {
+    setDeleting(type);
+    try {
+      const { data, error } = await supabase.functions.invoke('clear-test-data', {
+        body: { type }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Sucesso",
+        description: data.message || 'Dados removidos com sucesso!'
+      });
+    } catch (error: any) {
+      console.error('Error clearing data:', error);
+      toast({
+        title: "Erro",
+        description: error.message || 'Erro ao limpar dados',
+        variant: "destructive"
+      });
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
@@ -307,6 +344,176 @@ export default function AdminSettings() {
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Separator />
+
+        {/* Danger Zone */}
+        <Card className="glass-card border-destructive/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Zona de Perigo
+            </CardTitle>
+            <CardDescription>
+              Ações destrutivas para limpar dados de teste. Use com cuidado!
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Delete Transactions */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start gap-2 border-destructive/50 hover:bg-destructive/10">
+                    <CreditCard className="h-4 w-4 text-destructive" />
+                    <span>Excluir Transações</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir Todas as Transações</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação irá remover <strong>todas as transações</strong> do sistema.
+                      Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => handleClearData('transactions')}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={deleting === 'transactions'}
+                    >
+                      {deleting === 'transactions' ? "Excluindo..." : "Confirmar Exclusão"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Delete PIX Charges */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start gap-2 border-destructive/50 hover:bg-destructive/10">
+                    <ShoppingCart className="h-4 w-4 text-destructive" />
+                    <span>Excluir Cobranças PIX</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir Todas as Cobranças PIX</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação irá remover <strong>todas as cobranças PIX</strong> do sistema.
+                      Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => handleClearData('charges')}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={deleting === 'charges'}
+                    >
+                      {deleting === 'charges' ? "Excluindo..." : "Confirmar Exclusão"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Delete Affiliates */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start gap-2 border-destructive/50 hover:bg-destructive/10">
+                    <Users className="h-4 w-4 text-destructive" />
+                    <span>Excluir Afiliados</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir Todos os Afiliados</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação irá remover <strong>todos os afiliados</strong> do sistema.
+                      Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => handleClearData('affiliates')}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={deleting === 'affiliates'}
+                    >
+                      {deleting === 'affiliates' ? "Excluindo..." : "Confirmar Exclusão"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Delete Products */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start gap-2 border-destructive/50 hover:bg-destructive/10">
+                    <Package className="h-4 w-4 text-destructive" />
+                    <span>Excluir Produtos</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir Todos os Produtos</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação irá remover <strong>todos os produtos</strong> e dados relacionados (transações, cobranças, afiliados, membros).
+                      Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => handleClearData('products')}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={deleting === 'products'}
+                    >
+                      {deleting === 'products' ? "Excluindo..." : "Confirmar Exclusão"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+
+            <Separator />
+
+            {/* Delete All */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Limpar Todos os Dados
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-5 w-5" />
+                    Excluir TODOS os Dados
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação irá remover <strong>TODOS os dados</strong> do sistema incluindo:
+                    produtos, transações, cobranças PIX, afiliados, membros e logs de webhook.
+                    <br /><br />
+                    <strong className="text-destructive">Esta ação é irreversível!</strong>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => handleClearData('all')}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={deleting === 'all'}
+                  >
+                    {deleting === 'all' ? "Excluindo..." : "Sim, Excluir Tudo"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
 
