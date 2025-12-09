@@ -37,6 +37,7 @@ interface Product {
   facebook_pixel: string | null;
   tiktok_pixel: string | null;
   google_analytics: string | null;
+  checkout_theme: string | null;
 }
 
 interface CheckoutTemplate {
@@ -142,7 +143,7 @@ const Checkout = () => {
   const [selectedBumps, setSelectedBumps] = useState<string[]>([]);
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellAccepted, setUpsellAccepted] = useState(false);
-  const [isOrderSummaryOpen, setIsOrderSummaryOpen] = useState(true);
+  const [isOrderSummaryOpen, setIsOrderSummaryOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -621,16 +622,16 @@ const Checkout = () => {
     );
   }
 
-  // Template styling with theme support
-  const isLightTheme = template?.theme === 'light';
+  // Template styling with theme support - use product theme if available
+  const isLightTheme = product?.checkout_theme === 'light';
   const styles = {
-    backgroundColor: template?.background_color || (isLightTheme ? '#ffffff' : 'hsl(var(--background))'),
-    textColor: template?.text_color || (isLightTheme ? '#1a1a2e' : 'hsl(var(--foreground))'),
-    primaryColor: template?.primary_color || 'hsl(var(--primary))',
-    buttonColor: template?.button_color || 'hsl(var(--primary))',
-    buttonTextColor: template?.button_text_color || (isLightTheme ? '#ffffff' : 'hsl(var(--primary-foreground))'),
-    borderRadius: template?.border_radius || '12',
-    cardBg: isLightTheme ? '#f8f9fa' : template?.background_color || 'hsl(var(--background))',
+    backgroundColor: isLightTheme ? '#ffffff' : 'hsl(var(--background))',
+    textColor: isLightTheme ? '#1a1a2e' : 'hsl(var(--foreground))',
+    primaryColor: 'hsl(var(--primary))',
+    buttonColor: '#03c753',
+    buttonTextColor: '#ffffff',
+    borderRadius: '12',
+    cardBg: isLightTheme ? '#f8f9fa' : 'hsl(var(--card))',
   };
 
   const showOrderBumpAfterButton = template?.show_order_bump_after_button ?? false;
