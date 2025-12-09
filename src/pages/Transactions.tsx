@@ -17,7 +17,11 @@ import {
   XCircle,
   RefreshCw,
   X,
-  Calendar
+  Calendar,
+  User,
+  Package,
+  CreditCard,
+  Receipt
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -28,6 +32,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Transaction {
   id: string;
@@ -43,6 +51,8 @@ interface Transaction {
   charge?: {
     buyer_name: string | null;
     buyer_email: string;
+    buyer_cpf: string | null;
+    paid_at: string | null;
   } | null;
 }
 
@@ -76,6 +86,8 @@ const statusConfig = {
   },
 };
 
+const PLATFORM_FEE_RATE = 0.07; // 7%
+
 const Transactions = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +105,10 @@ const Transactions = () => {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [minAmount, setMinAmount] = useState<string>("");
   const [maxAmount, setMaxAmount] = useState<string>("");
+  
+  // Transaction detail dialog
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
@@ -109,7 +125,7 @@ const Transactions = () => {
       .select(`
         *,
         product:products(name),
-        charge:pix_charges(buyer_name, buyer_email)
+        charge:pix_charges(buyer_name, buyer_email, buyer_cpf, paid_at)
       `)
       .eq('seller_id', user.id)
       .order('created_at', { ascending: false });
@@ -206,6 +222,55 @@ const Transactions = () => {
     );
   });
 
+  const handleTransactionClick = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setDetailDialogOpen(true);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.text("Relatório de Transações", 14, 22);
+    
+    // Date
+    doc.setFontSize(10);
+    doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, 14, 30);
+    
+    // Stats summary
+    doc.setFontSize(12);
+    doc.text(`Total de transações: ${filteredTransactions.length}`, 14, 40);
+    doc.text(`Recebido hoje: R$ ${stats.receivedToday.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, 48);
+    doc.text(`Pendente: R$ ${stats.pending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, 56);
+    
+    // Table data
+    const tableData = filteredTransactions.map(tx => {
+      const statusInfo = statusConfig[tx.status as keyof typeof statusConfig] || statusConfig.pending;
+      return [
+        tx.id.substring(0, 8) + "...",
+        tx.charge?.buyer_name || "—",
+        tx.product?.name || "—",
+        `R$ ${Number(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        `R$ ${Number(tx.platform_fee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        `R$ ${Number(tx.seller_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        statusInfo.label,
+        format(new Date(tx.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+      ];
+    });
+    
+    autoTable(doc, {
+      startY: 65,
+      head: [['ID', 'Cliente', 'Produto', 'Valor', 'Taxa (7%)', 'Líquido', 'Status', 'Data']],
+      body: tableData,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [0, 180, 216] },
+    });
+    
+    doc.save(`transacoes_${format(new Date(), "yyyy-MM-dd")}.pdf`);
+    toast.success("PDF exportado com sucesso!");
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -216,7 +281,7 @@ const Transactions = () => {
             <p className="text-muted-foreground">Histórico completo de pagamentos</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={exportToPDF}>
               <Download className="h-4 w-4" />
               Exportar
             </Button>
@@ -417,7 +482,11 @@ const Transactions = () => {
                       const sellerAmount = Number(tx.seller_amount);
                       
                       return (
-                        <tr key={tx.id} className="group cursor-pointer">
+                        <tr 
+                          key={tx.id} 
+                          className="group cursor-pointer hover:bg-secondary/50 transition-colors"
+                          onClick={() => handleTransactionClick(tx)}
+                        >
                           <td className="font-mono text-sm text-primary">
                             {tx.id.substring(0, 8)}...
                           </td>
@@ -460,6 +529,137 @@ const Transactions = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Transaction Detail Dialog */}
+        <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-primary" />
+                Detalhes da Transação
+              </DialogTitle>
+            </DialogHeader>
+            {selectedTransaction && (
+              <div className="space-y-6 py-4">
+                {/* Status Badge */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  {(() => {
+                    const statusInfo = statusConfig[selectedTransaction.status as keyof typeof statusConfig] || statusConfig.pending;
+                    const StatusIcon = statusInfo.icon;
+                    return (
+                      <Badge variant={statusInfo.variant} className="gap-1">
+                        <StatusIcon className="h-3 w-3" />
+                        {statusInfo.label}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+
+                {/* Transaction ID */}
+                <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+                  <p className="text-xs text-muted-foreground mb-1">ID da Transação</p>
+                  <p className="font-mono text-sm break-all">{selectedTransaction.id}</p>
+                </div>
+
+                {/* Customer Info */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Informações do Cliente</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-secondary/30">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Nome</p>
+                      <p className="font-medium">{selectedTransaction.charge?.buyer_name || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">CPF</p>
+                      <p className="font-medium">{selectedTransaction.charge?.buyer_cpf || "—"}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs text-muted-foreground">E-mail</p>
+                      <p className="font-medium">{selectedTransaction.charge?.buyer_email || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product Info */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Produto</span>
+                  </div>
+                  <div className="p-4 rounded-lg bg-secondary/30">
+                    <p className="font-medium">{selectedTransaction.product?.name || "—"}</p>
+                  </div>
+                </div>
+
+                {/* Financial Info */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Valores</span>
+                  </div>
+                  <div className="space-y-2 p-4 rounded-lg bg-secondary/30">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Valor bruto</span>
+                      <span className="font-semibold">
+                        R$ {Number(selectedTransaction.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Taxa da plataforma (7%)</span>
+                      <span className="text-destructive">
+                        - R$ {Number(selectedTransaction.platform_fee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {Number(selectedTransaction.affiliate_amount) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Comissão afiliado</span>
+                        <span className="text-destructive">
+                          - R$ {Number(selectedTransaction.affiliate_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                    <div className="border-t border-border pt-2 mt-2">
+                      <div className="flex justify-between">
+                        <span className="font-medium">Valor líquido</span>
+                        <span className="font-bold text-accent">
+                          R$ {Number(selectedTransaction.seller_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dates */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Datas</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-secondary/30">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Criado em</p>
+                      <p className="font-medium">
+                        {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                    {selectedTransaction.charge?.paid_at && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Pago em</p>
+                        <p className="font-medium">
+                          {format(new Date(selectedTransaction.charge.paid_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
