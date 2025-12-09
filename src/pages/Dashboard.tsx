@@ -20,8 +20,21 @@ import {
   ArrowUpRight,
   Wallet,
   ShoppingCart,
-  Percent
+  Percent,
+  Trash2
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -54,7 +67,29 @@ const Dashboard = () => {
     salesChange: "+0%",
   });
   const [loading, setLoading] = useState(true);
+  const [clearingData, setClearingData] = useState(false);
   const navigate = useNavigate();
+
+  const handleClearTestData = async () => {
+    setClearingData(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('clear-test-data');
+      
+      if (error) throw error;
+      
+      toast.success(data.message || 'Dados de teste removidos!');
+      
+      // Refresh dashboard stats
+      if (user) {
+        fetchDashboardStats(user.id, dateRange);
+      }
+    } catch (error: any) {
+      console.error('Error clearing test data:', error);
+      toast.error(error.message || 'Erro ao limpar dados de teste');
+    } finally {
+      setClearingData(false);
+    }
+  };
 
   const fetchDashboardStats = useCallback(async (userId: string, range: DateRange) => {
     setLoading(true);
@@ -188,6 +223,32 @@ const Dashboard = () => {
               <p className="text-muted-foreground">Visão geral do seu negócio</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="icon" className="text-destructive hover:text-destructive" title="Limpar dados de teste">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Limpar Dados de Teste</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação irá remover todas as transações, cobranças PIX, membros e logs de webhook dos seus produtos. 
+                      <strong className="text-foreground"> Esta ação não pode ser desfeita.</strong>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleClearTestData}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={clearingData}
+                    >
+                      {clearingData ? "Limpando..." : "Sim, Limpar Tudo"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => setPixDialogOpen(true)}>
                 <QrCode className="h-4 w-4" />
                 <span className="hidden sm:inline">Gerar PIX</span>
