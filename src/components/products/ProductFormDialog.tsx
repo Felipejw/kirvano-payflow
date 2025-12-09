@@ -10,9 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Link, X, Package } from "lucide-react";
+import { Upload, Link, X, Package, BarChart3 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckoutTemplatePreview } from "@/components/checkout/CheckoutTemplatePreview";
 
 interface Product {
   id?: string;
@@ -28,24 +27,9 @@ interface Product {
   order_bumps?: string[];
   deliverable_url?: string | null;
   deliverable_type?: string | null;
-  checkout_template_id?: string | null;
-}
-
-interface CheckoutTemplateData {
-  id: string;
-  name: string;
-  primary_color?: string;
-  background_color?: string;
-  text_color?: string;
-  button_color?: string;
-  button_text_color?: string;
-  border_radius?: string;
-  enable_timer?: boolean;
-  timer_text?: string;
-  show_security_badge?: boolean;
-  show_guarantee?: boolean;
-  guarantee_text?: string;
-  logo_url?: string;
+  facebook_pixel?: string | null;
+  tiktok_pixel?: string | null;
+  google_analytics?: string | null;
 }
 
 interface ProductFormDialogProps {
@@ -62,7 +46,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const [coverInputType, setCoverInputType] = useState<'url' | 'upload'>('url');
   const [deliverableInputType, setDeliverableInputType] = useState<'url' | 'upload'>('url');
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
-  const [checkoutTemplates, setCheckoutTemplates] = useState<CheckoutTemplateData[]>([]);
   
   const [formData, setFormData] = useState<Product>({
     name: "",
@@ -77,7 +60,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     order_bumps: [],
     deliverable_url: "",
     deliverable_type: "file",
-    checkout_template_id: null,
+    facebook_pixel: "",
+    tiktok_pixel: "",
+    google_analytics: "",
   });
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,7 +142,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   useEffect(() => {
     if (open) {
       fetchAvailableProducts();
-      fetchCheckoutTemplates();
     }
     
     if (product) {
@@ -175,7 +159,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         order_bumps: product.order_bumps || [],
         deliverable_url: product.deliverable_url || "",
         deliverable_type: product.deliverable_type || "file",
-        checkout_template_id: product.checkout_template_id || null,
+        facebook_pixel: product.facebook_pixel || "",
+        tiktok_pixel: product.tiktok_pixel || "",
+        google_analytics: product.google_analytics || "",
       });
     } else {
       setFormData({
@@ -191,26 +177,12 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         order_bumps: [],
         deliverable_url: "",
         deliverable_type: "file",
-        checkout_template_id: null,
+        facebook_pixel: "",
+        tiktok_pixel: "",
+        google_analytics: "",
       });
     }
   }, [product, open]);
-
-  const fetchCheckoutTemplates = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from('checkout_templates')
-      .select('id, name, primary_color, background_color, text_color, button_color, button_text_color, border_radius, enable_timer, timer_text, show_security_badge, show_guarantee, guarantee_text, logo_url')
-      .eq('user_id', user.id);
-
-    if (data) {
-      setCheckoutTemplates(data);
-    }
-  };
-
-  const selectedTemplate = checkoutTemplates.find(t => t.id === formData.checkout_template_id) || null;
 
   const fetchAvailableProducts = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -273,7 +245,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         order_bumps: formData.order_bumps || [],
         deliverable_url: formData.deliverable_url || null,
         deliverable_type: formData.deliverable_type || null,
-        checkout_template_id: formData.checkout_template_id || null,
+        facebook_pixel: formData.facebook_pixel || null,
+        tiktok_pixel: formData.tiktok_pixel || null,
+        google_analytics: formData.google_analytics || null,
       };
 
       if (product?.id) {
@@ -380,38 +354,47 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Pixel Tracking Section */}
+            <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
+              <div>
+                <Label className="text-base flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Pixels de Rastreamento
+                </Label>
+                <p className="text-sm text-muted-foreground">Configure os pixels para rastrear conversões deste produto</p>
+              </div>
 
               <div className="space-y-3">
-                <Label>Template de Checkout</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Select 
-                      value={formData.checkout_template_id || "default"} 
-                      onValueChange={(value) => setFormData({ ...formData, checkout_template_id: value === "default" ? null : value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um template" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">Checkout Padrão</SelectItem>
-                        {checkoutTemplates.map((template) => (
-                          <SelectItem key={template.id} value={template.id}>
-                            {template.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Escolha um template personalizado ou use o padrão
-                    </p>
-                  </div>
-                  <div>
-                    <CheckoutTemplatePreview 
-                      template={selectedTemplate}
-                      productName={formData.name || "Produto"}
-                      productPrice={formData.price || 97}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="facebook_pixel">Facebook Pixel ID</Label>
+                  <Input
+                    id="facebook_pixel"
+                    value={formData.facebook_pixel || ""}
+                    onChange={(e) => setFormData({ ...formData, facebook_pixel: e.target.value })}
+                    placeholder="Ex: 123456789012345"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="tiktok_pixel">TikTok Pixel ID</Label>
+                  <Input
+                    id="tiktok_pixel"
+                    value={formData.tiktok_pixel || ""}
+                    onChange={(e) => setFormData({ ...formData, tiktok_pixel: e.target.value })}
+                    placeholder="Ex: CXXXXXXXXXXXXXXXXXX"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="google_analytics">Google Analytics ID</Label>
+                  <Input
+                    id="google_analytics"
+                    value={formData.google_analytics || ""}
+                    onChange={(e) => setFormData({ ...formData, google_analytics: e.target.value })}
+                    placeholder="Ex: G-XXXXXXXXXX"
+                  />
                 </div>
               </div>
             </div>
