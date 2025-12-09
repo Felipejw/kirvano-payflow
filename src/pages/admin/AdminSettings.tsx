@@ -138,11 +138,17 @@ export default function AdminSettings() {
         </div>
 
         {/* Taxas e Limites */}
-        <Card className="glass-card">
+        <Card className="glass-card border-primary/20">
           <CardHeader>
-            <CardTitle>Taxas e Limites</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-primary">⚡</span>
+              Taxas e Limites
+            </CardTitle>
             <CardDescription>
-              Configure as taxas da plataforma e limites de operação
+              Configure as taxas da plataforma e limites de operação.
+              <span className="block mt-1 text-primary font-medium">
+                Alterações aplicam imediatamente para toda a plataforma.
+              </span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -159,7 +165,7 @@ export default function AdminSettings() {
                   onChange={(e) => setSettings({ ...settings, platform_fee: Number(e.target.value) })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Porcentagem cobrada sobre cada venda
+                  Porcentagem cobrada sobre cada venda. Atual: <span className="font-medium text-primary">{settings.platform_fee}%</span>
                 </p>
               </div>
 
@@ -174,9 +180,14 @@ export default function AdminSettings() {
                   onChange={(e) => setSettings({ ...settings, min_withdrawal: Number(e.target.value) })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Valor mínimo para solicitar saque
+                  Valor mínimo para solicitar saque. Atual: <span className="font-medium text-primary">R$ {settings.min_withdrawal}</span>
                 </p>
               </div>
+            </div>
+            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+              <p className="text-sm text-primary">
+                💡 Os saques dos vendedores são aprovados manualmente por você na aba <strong>Saques</strong>.
+              </p>
             </div>
           </CardContent>
         </Card>
