@@ -964,16 +964,33 @@ const Checkout = () => {
               </div>
             ) : (
               <div className="space-y-4 sm:space-y-6">
+                {/* Timer - with visible styling */}
                 {timeLeft !== null && timeLeft > 0 && (
-                  <div className="flex items-center justify-center gap-2 text-lg">
-                    <Timer className="h-5 w-5" style={{ color: styles.accentColor }} />
-                    <span className="font-mono font-bold">{formatTime(timeLeft)}</span>
-                    <span className="text-sm" style={{ color: styles.textColor, opacity: 0.7 }}>para expirar</span>
+                  <div 
+                    className="flex items-center justify-center gap-2 text-lg p-3 rounded-lg"
+                    style={{ 
+                      backgroundColor: isLightTheme ? '#fef3cd' : 'hsl(var(--secondary))',
+                      border: isLightTheme ? '1px solid #ffc107' : 'none',
+                    }}
+                  >
+                    <Timer className="h-5 w-5" style={{ color: isLightTheme ? '#856404' : styles.accentColor }} />
+                    <span className="font-mono font-bold" style={{ color: isLightTheme ? '#856404' : styles.accentColor }}>
+                      {formatTime(timeLeft)}
+                    </span>
+                    <span className="text-sm font-medium" style={{ color: isLightTheme ? '#856404' : styles.textColor }}>
+                      para expirar
+                    </span>
                   </div>
                 )}
 
-                {/* QR Code Image */}
-                <div className="bg-white p-3 sm:p-4 rounded-lg mx-auto w-fit">
+                {/* QR Code Image - with background and clear visibility */}
+                <div 
+                  className="p-4 sm:p-6 rounded-lg mx-auto w-fit"
+                  style={{ 
+                    backgroundColor: '#1a1f2e',
+                    border: '2px solid ' + styles.accentColor,
+                  }}
+                >
                   {charge.qr_code_base64 ? (
                     <img 
                       src={charge.qr_code_base64.startsWith('data:') 
@@ -981,20 +998,31 @@ const Checkout = () => {
                         : `data:image/png;base64,${charge.qr_code_base64}`
                       } 
                       alt="QR Code PIX" 
-                      className="w-40 h-40 sm:w-48 sm:h-48"
+                      className="w-44 h-44 sm:w-52 sm:h-52"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                  ) : charge.qr_code ? (
+                    <img 
+                      src={charge.qr_code} 
+                      alt="QR Code PIX" 
+                      className="w-44 h-44 sm:w-52 sm:h-52"
                     />
                   ) : (
-                    <div className="w-40 h-40 sm:w-48 sm:h-48 bg-secondary flex items-center justify-center">
-                      <QrCode className="h-24 w-24 sm:h-28 sm:w-28" style={{ color: styles.accentColor }} />
+                    <div 
+                      className="w-44 h-44 sm:w-52 sm:h-52 flex items-center justify-center"
+                      style={{ backgroundColor: '#2d3748' }}
+                    >
+                      <QrCode className="h-28 w-28 sm:h-32 sm:w-32" style={{ color: styles.accentColor }} />
                     </div>
                   )}
                 </div>
 
+                {/* Copy PIX Code - More visible button */}
                 <div className="space-y-2">
-                  <Label className="text-sm" style={{ color: styles.textColor }}>Código PIX Copia e Cola</Label>
+                  <Label className="text-sm font-medium" style={{ color: styles.textColor }}>Código PIX Copia e Cola</Label>
                   <div className="flex gap-2">
                     <Input
-                      value={charge.copy_paste}
+                      value={charge.copy_paste || ''}
                       readOnly
                       className="font-mono text-xs"
                       style={{ 
@@ -1004,29 +1032,71 @@ const Checkout = () => {
                       }}
                     />
                     <Button
-                      variant="outline"
                       onClick={handleCopyCode}
-                      className="shrink-0"
-                      style={{ borderColor: styles.cardBorder }}
+                      className="shrink-0 px-4 font-medium"
+                      style={{ 
+                        backgroundColor: styles.accentColor,
+                        color: '#ffffff',
+                      }}
                     >
                       {copied ? (
-                        <Check className="h-4 w-4" style={{ color: styles.accentColor }} />
+                        <>
+                          <Check className="h-4 w-4 mr-1" />
+                          Copiado
+                        </>
                       ) : (
-                        <Copy className="h-4 w-4" />
+                        <>
+                          <Copy className="h-4 w-4 mr-1" />
+                          Copiar
+                        </>
                       )}
                     </Button>
                   </div>
                 </div>
 
-                <div className="text-center py-2" style={{ borderTopColor: styles.cardBorder, borderTopWidth: '1px' }}>
-                  <p className="text-lg font-bold" style={{ color: styles.accentColor }}>
+                {/* Total Price */}
+                <div className="text-center py-3" style={{ borderTopColor: styles.cardBorder, borderTopWidth: '1px' }}>
+                  <p className="text-xl font-bold" style={{ color: styles.accentColor }}>
                     {formatCurrency(totalPrice)}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-center gap-2" style={{ color: styles.textColor, opacity: 0.7 }}>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Aguardando pagamento...
+                {/* Waiting for payment */}
+                <div 
+                  className="flex items-center justify-center gap-2 p-3 rounded-lg"
+                  style={{ 
+                    backgroundColor: styles.accentColor + '15',
+                    color: styles.textColor,
+                  }}
+                >
+                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: styles.accentColor }} />
+                  <span className="font-medium">Aguardando pagamento...</span>
+                </div>
+
+                {/* Security Badges for Payment Page */}
+                <div className="pt-4 space-y-3" style={{ borderTopColor: styles.cardBorder, borderTopWidth: '1px' }}>
+                  <div className="flex items-center justify-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ 
+                      backgroundColor: isLightTheme ? '#f0fdf4' : 'hsl(var(--secondary))',
+                      border: isLightTheme ? '1px solid #86efac' : 'none',
+                      color: isLightTheme ? '#166534' : styles.textColor,
+                    }}>
+                      <Shield className="h-4 w-4" style={{ color: styles.accentColor }} />
+                      <span className="font-medium">Pagamento Seguro</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ 
+                      backgroundColor: isLightTheme ? '#f0fdf4' : 'hsl(var(--secondary))',
+                      border: isLightTheme ? '1px solid #86efac' : 'none',
+                      color: isLightTheme ? '#166534' : styles.textColor,
+                    }}>
+                      <Lock className="h-4 w-4" style={{ color: styles.accentColor }} />
+                      <span className="font-medium">Dados Protegidos</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center gap-3">
+                    <img src="https://logospng.org/download/pix/logo-pix-icone-256.png" alt="PIX" className="h-8 w-8 object-contain" />
+                    <span className="text-xs font-medium" style={{ color: styles.textColor }}>Pagamento instantâneo via PIX</span>
+                  </div>
                 </div>
               </div>
             )}
