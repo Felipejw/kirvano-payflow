@@ -215,8 +215,29 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Featured Card - Platform Earnings */}
+        <Card className="glass-card border-primary/50 bg-gradient-to-r from-primary/10 to-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Seu Lucro com Taxas
+            </CardTitle>
+            <CardDescription>
+              Total acumulado de taxas da plataforma
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-4">
+              <span className="text-4xl font-bold text-primary">{formatCurrency(stats.platformFees)}</span>
+              <span className="text-muted-foreground">
+                de {formatCurrency(stats.totalRevenue)} em vendas totais
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Vendedores</CardTitle>
@@ -249,18 +270,8 @@ export default function AdminDashboard() {
 
           <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Taxas Plataforma</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{formatCurrency(stats.platformFees)}</div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Saques Pendentes</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <DollarSign className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-500">{formatCurrency(stats.pendingWithdrawals)}</div>
