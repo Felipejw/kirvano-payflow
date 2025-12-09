@@ -526,6 +526,7 @@ export type Database = {
         Row: {
           allow_affiliates: boolean
           checkout_template_id: string | null
+          checkout_theme: string | null
           commission_rate: number
           content_url: string | null
           cover_url: string | null
@@ -548,6 +549,7 @@ export type Database = {
         Insert: {
           allow_affiliates?: boolean
           checkout_template_id?: string | null
+          checkout_theme?: string | null
           commission_rate?: number
           content_url?: string | null
           cover_url?: string | null
@@ -570,6 +572,7 @@ export type Database = {
         Update: {
           allow_affiliates?: boolean
           checkout_template_id?: string | null
+          checkout_theme?: string | null
           commission_rate?: number
           content_url?: string | null
           cover_url?: string | null

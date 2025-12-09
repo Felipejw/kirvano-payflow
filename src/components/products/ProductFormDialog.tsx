@@ -30,6 +30,7 @@ interface Product {
   facebook_pixel?: string | null;
   tiktok_pixel?: string | null;
   google_analytics?: string | null;
+  checkout_theme?: string | null;
 }
 
 interface ProductFormDialogProps {
@@ -63,6 +64,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     facebook_pixel: "",
     tiktok_pixel: "",
     google_analytics: "",
+    checkout_theme: "dark",
   });
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,6 +164,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         facebook_pixel: product.facebook_pixel || "",
         tiktok_pixel: product.tiktok_pixel || "",
         google_analytics: product.google_analytics || "",
+        checkout_theme: product.checkout_theme || "dark",
       });
     } else {
       setFormData({
@@ -180,6 +183,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         facebook_pixel: "",
         tiktok_pixel: "",
         google_analytics: "",
+        checkout_theme: "dark",
       });
     }
   }, [product, open]);
@@ -248,6 +252,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         facebook_pixel: formData.facebook_pixel || null,
         tiktok_pixel: formData.tiktok_pixel || null,
         google_analytics: formData.google_analytics || null,
+        checkout_theme: formData.checkout_theme || "dark",
       };
 
       if (product?.id) {
@@ -353,6 +358,43 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                     <SelectItem value="draft">Rascunho</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Checkout Theme Section */}
+            <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
+              <div>
+                <Label className="text-base">Tema do Checkout</Label>
+                <p className="text-sm text-muted-foreground">Escolha o estilo visual do checkout deste produto</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div
+                  onClick={() => setFormData({ ...formData, checkout_theme: "dark" })}
+                  className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                    formData.checkout_theme === "dark" 
+                      ? "border-primary bg-primary/10" 
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div className="h-16 rounded bg-[#0a1628] mb-2 flex items-center justify-center">
+                    <div className="w-12 h-3 rounded" style={{ backgroundColor: '#03c753' }} />
+                  </div>
+                  <p className="text-sm font-medium text-center">Escuro</p>
+                </div>
+                <div
+                  onClick={() => setFormData({ ...formData, checkout_theme: "light" })}
+                  className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                    formData.checkout_theme === "light" 
+                      ? "border-primary bg-primary/10" 
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div className="h-16 rounded bg-white mb-2 flex items-center justify-center border">
+                    <div className="w-12 h-3 rounded" style={{ backgroundColor: '#03c753' }} />
+                  </div>
+                  <p className="text-sm font-medium text-center">Claro</p>
+                </div>
               </div>
             </div>
 
