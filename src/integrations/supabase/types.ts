@@ -217,6 +217,138 @@ export type Database = {
         }
         Relationships: []
       }
+      checkout_templates: {
+        Row: {
+          background_color: string | null
+          border_radius: string | null
+          button_color: string | null
+          button_text_color: string | null
+          created_at: string
+          custom_domain: string | null
+          custom_slug: string | null
+          description: string | null
+          domain_verified: boolean | null
+          enable_email_notification: boolean | null
+          enable_sms_notification: boolean | null
+          enable_timer: boolean | null
+          facebook_pixel: string | null
+          favicon_url: string | null
+          font_family: string | null
+          google_analytics: string | null
+          guarantee_days: number | null
+          guarantee_text: string | null
+          id: string
+          layout: string | null
+          logo_url: string | null
+          name: string
+          page_title: string | null
+          primary_color: string | null
+          require_address: boolean | null
+          require_cpf: boolean | null
+          require_phone: boolean | null
+          show_guarantee: boolean | null
+          show_order_summary: boolean | null
+          show_product_description: boolean | null
+          show_product_image: boolean | null
+          show_security_badge: boolean | null
+          show_stock: boolean | null
+          stock_count: number | null
+          stock_text: string | null
+          text_color: string | null
+          tiktok_pixel: string | null
+          timer_minutes: number | null
+          timer_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          background_color?: string | null
+          border_radius?: string | null
+          button_color?: string | null
+          button_text_color?: string | null
+          created_at?: string
+          custom_domain?: string | null
+          custom_slug?: string | null
+          description?: string | null
+          domain_verified?: boolean | null
+          enable_email_notification?: boolean | null
+          enable_sms_notification?: boolean | null
+          enable_timer?: boolean | null
+          facebook_pixel?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          google_analytics?: string | null
+          guarantee_days?: number | null
+          guarantee_text?: string | null
+          id?: string
+          layout?: string | null
+          logo_url?: string | null
+          name: string
+          page_title?: string | null
+          primary_color?: string | null
+          require_address?: boolean | null
+          require_cpf?: boolean | null
+          require_phone?: boolean | null
+          show_guarantee?: boolean | null
+          show_order_summary?: boolean | null
+          show_product_description?: boolean | null
+          show_product_image?: boolean | null
+          show_security_badge?: boolean | null
+          show_stock?: boolean | null
+          stock_count?: number | null
+          stock_text?: string | null
+          text_color?: string | null
+          tiktok_pixel?: string | null
+          timer_minutes?: number | null
+          timer_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          background_color?: string | null
+          border_radius?: string | null
+          button_color?: string | null
+          button_text_color?: string | null
+          created_at?: string
+          custom_domain?: string | null
+          custom_slug?: string | null
+          description?: string | null
+          domain_verified?: boolean | null
+          enable_email_notification?: boolean | null
+          enable_sms_notification?: boolean | null
+          enable_timer?: boolean | null
+          facebook_pixel?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          google_analytics?: string | null
+          guarantee_days?: number | null
+          guarantee_text?: string | null
+          id?: string
+          layout?: string | null
+          logo_url?: string | null
+          name?: string
+          page_title?: string | null
+          primary_color?: string | null
+          require_address?: boolean | null
+          require_cpf?: boolean | null
+          require_phone?: boolean | null
+          show_guarantee?: boolean | null
+          show_order_summary?: boolean | null
+          show_product_description?: boolean | null
+          show_product_image?: boolean | null
+          show_security_badge?: boolean | null
+          show_stock?: boolean | null
+          stock_count?: number | null
+          stock_text?: string | null
+          text_color?: string | null
+          tiktok_pixel?: string | null
+          timer_minutes?: number | null
+          timer_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       members: {
         Row: {
           access_level: string
@@ -334,6 +466,7 @@ export type Database = {
       products: {
         Row: {
           allow_affiliates: boolean
+          checkout_template_id: string | null
           commission_rate: number
           content_url: string | null
           cover_url: string | null
@@ -352,6 +485,7 @@ export type Database = {
         }
         Insert: {
           allow_affiliates?: boolean
+          checkout_template_id?: string | null
           commission_rate?: number
           content_url?: string | null
           cover_url?: string | null
@@ -370,6 +504,7 @@ export type Database = {
         }
         Update: {
           allow_affiliates?: boolean
+          checkout_template_id?: string | null
           commission_rate?: number
           content_url?: string | null
           cover_url?: string | null
@@ -386,7 +521,15 @@ export type Database = {
           type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_checkout_template_id_fkey"
+            columns: ["checkout_template_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

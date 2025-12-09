@@ -27,6 +27,12 @@ interface Product {
   order_bumps?: string[];
   deliverable_url?: string | null;
   deliverable_type?: string | null;
+  checkout_template_id?: string | null;
+}
+
+interface CheckoutTemplate {
+  id: string;
+  name: string;
 }
 
 interface ProductFormDialogProps {
@@ -43,6 +49,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const [coverInputType, setCoverInputType] = useState<'url' | 'upload'>('url');
   const [deliverableInputType, setDeliverableInputType] = useState<'url' | 'upload'>('url');
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
+  const [checkoutTemplates, setCheckoutTemplates] = useState<CheckoutTemplate[]>([]);
   
   const [formData, setFormData] = useState<Product>({
     name: "",
@@ -57,6 +64,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     order_bumps: [],
     deliverable_url: "",
     deliverable_type: "file",
+    checkout_template_id: null,
   });
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,6 +144,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   useEffect(() => {
     if (open) {
       fetchAvailableProducts();
+      fetchCheckoutTemplates();
     }
     
     if (product) {
@@ -153,6 +162,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         order_bumps: product.order_bumps || [],
         deliverable_url: product.deliverable_url || "",
         deliverable_type: product.deliverable_type || "file",
+        checkout_template_id: product.checkout_template_id || null,
       });
     } else {
       setFormData({
@@ -168,9 +178,24 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         order_bumps: [],
         deliverable_url: "",
         deliverable_type: "file",
+        checkout_template_id: null,
       });
     }
   }, [product, open]);
+
+  const fetchCheckoutTemplates = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('checkout_templates')
+      .select('id, name')
+      .eq('user_id', user.id);
+
+    if (data) {
+      setCheckoutTemplates(data);
+    }
+  };
 
   const fetchAvailableProducts = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -233,6 +258,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         order_bumps: formData.order_bumps || [],
         deliverable_url: formData.deliverable_url || null,
         deliverable_type: formData.deliverable_type || null,
+        checkout_template_id: formData.checkout_template_id || null,
       };
 
       if (product?.id) {
@@ -338,6 +364,29 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                     <SelectItem value="draft">Rascunho</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Template de Checkout</Label>
+                <Select 
+                  value={formData.checkout_template_id || "default"} 
+                  onValueChange={(value) => setFormData({ ...formData, checkout_template_id: value === "default" ? null : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Checkout Padrão</SelectItem>
+                    {checkoutTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Escolha um template personalizado ou use o padrão
+                </p>
               </div>
             </div>
 
