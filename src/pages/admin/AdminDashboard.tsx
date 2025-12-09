@@ -14,7 +14,8 @@ import {
   Search,
   Download,
   Eye,
-  Settings
+  Settings,
+  UserCog
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +23,8 @@ import { useNavigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AdminTransactions } from "@/components/admin/AdminTransactions";
+import { AdminWithdrawals } from "@/components/admin/AdminWithdrawals";
 
 interface SellerData {
   user_id: string;
@@ -201,13 +204,13 @@ export default function AdminDashboard() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/admin/users")}>
+              <UserCog className="mr-2 h-4 w-4" />
+              Usuários
+            </Button>
             <Button variant="outline" onClick={() => navigate("/admin/settings")}>
               <Settings className="mr-2 h-4 w-4" />
               Configurações
-            </Button>
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Exportar
             </Button>
           </div>
         </div>
@@ -357,35 +360,11 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="transactions">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Todas as Transações</CardTitle>
-                <CardDescription>
-                  Histórico completo de transações da plataforma
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Em desenvolvimento...
-                </p>
-              </CardContent>
-            </Card>
+            <AdminTransactions />
           </TabsContent>
 
           <TabsContent value="withdrawals">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Gerenciar Saques</CardTitle>
-                <CardDescription>
-                  Aprovar ou rejeitar solicitações de saque
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Em desenvolvimento...
-                </p>
-              </CardContent>
-            </Card>
+            <AdminWithdrawals />
           </TabsContent>
         </Tabs>
       </div>
