@@ -18,7 +18,9 @@ import {
   Zap,
   Star,
   Shield,
-  ArrowRight
+  ArrowRight,
+  AlertTriangle,
+  Clock
 } from "lucide-react";
 
 interface Product {
@@ -42,18 +44,30 @@ interface CheckoutTemplate {
   border_radius: string | null;
   font_family: string | null;
   logo_url: string | null;
+  favicon_url: string | null;
   page_title: string | null;
+  layout: string | null;
   show_product_image: boolean | null;
   show_product_description: boolean | null;
+  show_order_summary: boolean | null;
   require_cpf: boolean | null;
   require_phone: boolean | null;
+  require_address: boolean | null;
   enable_timer: boolean | null;
   timer_minutes: number | null;
   timer_text: string | null;
+  show_stock: boolean | null;
+  stock_count: number | null;
+  stock_text: string | null;
   show_security_badge: boolean | null;
   show_guarantee: boolean | null;
   guarantee_text: string | null;
   guarantee_days: number | null;
+  enable_email_notification: boolean | null;
+  enable_sms_notification: boolean | null;
+  facebook_pixel: string | null;
+  tiktok_pixel: string | null;
+  google_analytics: string | null;
 }
 
 interface OrderBumpProduct {
@@ -110,9 +124,13 @@ const Checkout = () => {
   const [charge, setCharge] = useState<Charge | null>(null);
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerName, setBuyerName] = useState("");
+  const [buyerCpf, setBuyerCpf] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerAddress, setBuyerAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [offerTimeLeft, setOfferTimeLeft] = useState<number | null>(null);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [selectedBumps, setSelectedBumps] = useState<string[]>([]);
   const [showUpsell, setShowUpsell] = useState(false);
@@ -126,6 +144,105 @@ const Checkout = () => {
     return sum + (bump?.price || 0);
   }, 0);
   const totalPrice = basePrice + bumpsTotal + (upsellAccepted ? upsellOffer.price : 0);
+
+  // Offer timer effect
+  useEffect(() => {
+    if (template?.enable_timer && template?.timer_minutes && !charge) {
+      const timerSeconds = template.timer_minutes * 60;
+      setOfferTimeLeft(timerSeconds);
+      
+      const interval = setInterval(() => {
+        setOfferTimeLeft(prev => {
+          if (prev === null || prev <= 0) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [template, charge]);
+
+  // Inject tracking pixels
+  useEffect(() => {
+    if (template) {
+      // Facebook Pixel
+      if (template.facebook_pixel) {
+        const fbScript = document.createElement('script');
+        fbScript.innerHTML = `
+          !function(f,b,e,v,n,t,s)
+          {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+          n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+          if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+          n.queue=[];t=b.createElement(e);t.async=!0;
+          t.src=v;s=b.getElementsByTagName(e)[0];
+          s.parentNode.insertBefore(t,s)}(window, document,'script',
+          'https://connect.facebook.net/en_US/fbevents.js');
+          fbq('init', '${template.facebook_pixel}');
+          fbq('track', 'PageView');
+        `;
+        document.head.appendChild(fbScript);
+      }
+
+      // Google Analytics
+      if (template.google_analytics) {
+        const gaScript = document.createElement('script');
+        gaScript.async = true;
+        gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${template.google_analytics}`;
+        document.head.appendChild(gaScript);
+
+        const gaConfig = document.createElement('script');
+        gaConfig.innerHTML = `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${template.google_analytics}');
+        `;
+        document.head.appendChild(gaConfig);
+      }
+
+      // TikTok Pixel
+      if (template.tiktok_pixel) {
+        const ttScript = document.createElement('script');
+        ttScript.innerHTML = `
+          !function (w, d, t) {
+            w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
+            ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];
+            ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
+            for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
+            ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};
+            ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";
+            ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};
+            var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;
+            var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
+            ttq.load('${template.tiktok_pixel}');
+            ttq.page();
+          }(window, document, 'ttq');
+        `;
+        document.head.appendChild(ttScript);
+      }
+
+      // Update page title
+      if (template.page_title) {
+        document.title = template.page_title;
+      }
+
+      // Update favicon
+      if (template.favicon_url) {
+        const existingFavicon = document.querySelector('link[rel="icon"]');
+        if (existingFavicon) {
+          existingFavicon.setAttribute('href', template.favicon_url);
+        } else {
+          const favicon = document.createElement('link');
+          favicon.rel = 'icon';
+          favicon.href = template.favicon_url;
+          document.head.appendChild(favicon);
+        }
+      }
+    }
+  }, [template]);
 
   useEffect(() => {
     if (productId) {
@@ -229,6 +346,7 @@ const Checkout = () => {
           amount: totalPrice,
           buyer_email: buyerEmail,
           buyer_name: buyerName,
+          buyer_cpf: buyerCpf || undefined,
           product_id: productId,
           affiliate_code: affiliateCode,
           expires_in_minutes: 30,
@@ -322,10 +440,21 @@ const Checkout = () => {
     );
   };
 
-  // Calculate savings percentage
-  const getSavingsPercent = (bump: OrderBumpProduct) => {
-    // If no original price available, show a default discount
-    return 20;
+  const formatCpf = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
+  };
+
+  const formatPhone = (value: string) => {
+    return value
+      .replace(/\D/g, '')
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .replace(/(-\d{4})\d+?$/, '$1');
   };
 
   // Upsell Screen
@@ -428,6 +557,8 @@ const Checkout = () => {
     fontFamily: template?.font_family || 'inherit',
   };
 
+  const isTwoColumn = template?.layout === 'two-column';
+
   return (
     <div 
       className="min-h-screen py-8 px-4"
@@ -438,6 +569,7 @@ const Checkout = () => {
       }}
     >
       <div className="max-w-5xl mx-auto">
+        {/* Header with Logo and Title */}
         <div className="text-center mb-8">
           {template?.logo_url && (
             <img 
@@ -455,58 +587,98 @@ const Checkout = () => {
           <p style={{ color: styles.textColor, opacity: 0.7 }}>Pagamento instantâneo via PIX</p>
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-8">
-          {/* Left Column - Product + Order Bumps */}
-          <div className={`lg:col-span-3 space-y-6 ${charge ? 'hidden lg:block' : ''}`}>
-            {/* Product Info */}
-            <Card 
-              style={{ 
-                borderRadius: styles.borderRadius + 'px',
-                backgroundColor: styles.backgroundColor,
-                borderColor: styles.primaryColor + '30',
-              }}
+        {/* Offer Timer Banner */}
+        {template?.enable_timer && offerTimeLeft !== null && offerTimeLeft > 0 && !charge && (
+          <div 
+            className="mb-6 p-4 rounded-lg flex items-center justify-center gap-3"
+            style={{ 
+              backgroundColor: styles.primaryColor + '20',
+              borderRadius: styles.borderRadius + 'px',
+            }}
+          >
+            <Clock className="h-5 w-5" style={{ color: styles.primaryColor }} />
+            <span style={{ color: styles.textColor }}>
+              {template.timer_text || 'Oferta expira em'}
+            </span>
+            <span 
+              className="font-mono font-bold text-lg"
+              style={{ color: styles.primaryColor }}
             >
-              <CardHeader>
-                <CardTitle style={{ color: styles.textColor }}>Resumo do Pedido</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {product ? (
-                  <div className="flex gap-4">
-                    {(template?.show_product_image !== false) && product.cover_url && (
-                      <img 
-                        src={product.cover_url} 
-                        alt={product.name}
-                        className="w-24 h-24 object-cover shrink-0"
-                        style={{ borderRadius: styles.borderRadius + 'px' }}
-                      />
-                    )}
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold" style={{ color: styles.textColor }}>{product.name}</h3>
-                      {(template?.show_product_description !== false) && (
-                        <p className="text-sm line-clamp-2" style={{ color: styles.textColor, opacity: 0.7 }}>{product.description}</p>
+              {formatTime(offerTimeLeft)}
+            </span>
+          </div>
+        )}
+
+        {/* Stock Warning */}
+        {template?.show_stock && template?.stock_count && !charge && (
+          <div 
+            className="mb-6 p-3 rounded-lg flex items-center justify-center gap-2"
+            style={{ 
+              backgroundColor: '#ef444420',
+              borderRadius: styles.borderRadius + 'px',
+            }}
+          >
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <span className="text-red-500 font-medium">
+              {(template.stock_text || 'Apenas {count} unidades restantes!').replace('{count}', String(template.stock_count))}
+            </span>
+          </div>
+        )}
+
+        <div className={`grid ${isTwoColumn ? 'lg:grid-cols-2' : 'lg:grid-cols-5'} gap-8`}>
+          {/* Left Column - Product + Order Bumps */}
+          <div className={`${isTwoColumn ? '' : 'lg:col-span-3'} space-y-6 ${charge ? 'hidden lg:block' : ''}`}>
+            {/* Product Info */}
+            {(template?.show_order_summary !== false) && (
+              <Card 
+                style={{ 
+                  borderRadius: styles.borderRadius + 'px',
+                  backgroundColor: styles.backgroundColor,
+                  borderColor: styles.primaryColor + '30',
+                }}
+              >
+                <CardHeader>
+                  <CardTitle style={{ color: styles.textColor }}>Resumo do Pedido</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {product ? (
+                    <div className="flex gap-4">
+                      {(template?.show_product_image !== false) && product.cover_url && (
+                        <img 
+                          src={product.cover_url} 
+                          alt={product.name}
+                          className="w-24 h-24 object-cover shrink-0"
+                          style={{ borderRadius: styles.borderRadius + 'px' }}
+                        />
                       )}
-                      <p className="text-xl font-bold mt-2" style={{ color: styles.primaryColor }}>
-                        R$ {product.price.toFixed(2)}
-                      </p>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold" style={{ color: styles.textColor }}>{product.name}</h3>
+                        {(template?.show_product_description !== false) && (
+                          <p className="text-sm line-clamp-2" style={{ color: styles.textColor, opacity: 0.7 }}>{product.description}</p>
+                        )}
+                        <p className="text-xl font-bold mt-2" style={{ color: styles.primaryColor }}>
+                          R$ {product.price.toFixed(2)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-4 items-center">
-                    <div 
-                      className="w-24 h-24 flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: styles.primaryColor + '20', borderRadius: styles.borderRadius + 'px' }}
-                    >
-                      <QrCode className="h-10 w-10" style={{ color: styles.primaryColor }} />
+                  ) : (
+                    <div className="flex gap-4 items-center">
+                      <div 
+                        className="w-24 h-24 flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: styles.primaryColor + '20', borderRadius: styles.borderRadius + 'px' }}
+                      >
+                        <QrCode className="h-10 w-10" style={{ color: styles.primaryColor }} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold" style={{ color: styles.textColor }}>Produto de Demonstração</h3>
+                        <p className="text-sm" style={{ color: styles.textColor, opacity: 0.7 }}>Pagamento via PIX</p>
+                        <p className="text-xl font-bold mt-2" style={{ color: styles.primaryColor }}>R$ 100,00</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold" style={{ color: styles.textColor }}>Produto de Demonstração</h3>
-                      <p className="text-sm" style={{ color: styles.textColor, opacity: 0.7 }}>Pagamento via PIX</p>
-                      <p className="text-xl font-bold mt-2" style={{ color: styles.primaryColor }}>R$ 100,00</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Order Bumps */}
             {!charge && orderBumps.length > 0 && (
@@ -572,7 +744,7 @@ const Checkout = () => {
             )}
           </div>
 
-          <div className="lg:col-span-2">
+          <div className={isTwoColumn ? '' : 'lg:col-span-2'}>
             <Card 
               className="sticky top-4"
               style={{ 
@@ -630,6 +802,68 @@ const Checkout = () => {
                       />
                     </div>
 
+                    {/* CPF Field */}
+                    {template?.require_cpf && (
+                      <div className="space-y-2">
+                        <Label htmlFor="cpf" style={{ color: styles.textColor }}>CPF</Label>
+                        <Input
+                          id="cpf"
+                          placeholder="000.000.000-00"
+                          value={buyerCpf}
+                          onChange={(e) => setBuyerCpf(formatCpf(e.target.value))}
+                          required
+                          maxLength={14}
+                          style={{ 
+                            borderRadius: styles.borderRadius + 'px',
+                            backgroundColor: 'transparent',
+                            borderColor: styles.primaryColor + '40',
+                            color: styles.textColor,
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Phone Field */}
+                    {template?.require_phone && (
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" style={{ color: styles.textColor }}>Telefone</Label>
+                        <Input
+                          id="phone"
+                          placeholder="(00) 00000-0000"
+                          value={buyerPhone}
+                          onChange={(e) => setBuyerPhone(formatPhone(e.target.value))}
+                          required
+                          maxLength={15}
+                          style={{ 
+                            borderRadius: styles.borderRadius + 'px',
+                            backgroundColor: 'transparent',
+                            borderColor: styles.primaryColor + '40',
+                            color: styles.textColor,
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Address Field */}
+                    {template?.require_address && (
+                      <div className="space-y-2">
+                        <Label htmlFor="address" style={{ color: styles.textColor }}>Endereço</Label>
+                        <Input
+                          id="address"
+                          placeholder="Rua, número, bairro, cidade - UF"
+                          value={buyerAddress}
+                          onChange={(e) => setBuyerAddress(e.target.value)}
+                          required
+                          style={{ 
+                            borderRadius: styles.borderRadius + 'px',
+                            backgroundColor: 'transparent',
+                            borderColor: styles.primaryColor + '40',
+                            color: styles.textColor,
+                          }}
+                        />
+                      </div>
+                    )}
+
                     {/* Order Summary */}
                     <div className="pt-4 space-y-2" style={{ borderTopColor: styles.primaryColor + '30', borderTopWidth: '1px' }}>
                       <div className="flex justify-between text-sm">
@@ -683,7 +917,7 @@ const Checkout = () => {
 
                     {template?.show_guarantee && (
                       <div className="text-center text-xs" style={{ color: styles.textColor, opacity: 0.6 }}>
-                        ✓ {template.guarantee_text || `Garantia de ${template.guarantee_days || 7} dias`}
+                        ✓ {template.guarantee_text || `Garantia incondicional de ${template.guarantee_days || 7} dias`}
                       </div>
                     )}
                   </form>
