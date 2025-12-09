@@ -256,6 +256,7 @@ export type Database = {
           stock_count: number | null
           stock_text: string | null
           text_color: string | null
+          theme: string | null
           tiktok_pixel: string | null
           timer_minutes: number | null
           timer_text: string | null
@@ -300,6 +301,7 @@ export type Database = {
           stock_count?: number | null
           stock_text?: string | null
           text_color?: string | null
+          theme?: string | null
           tiktok_pixel?: string | null
           timer_minutes?: number | null
           timer_text?: string | null
@@ -344,6 +346,7 @@ export type Database = {
           stock_count?: number | null
           stock_text?: string | null
           text_color?: string | null
+          theme?: string | null
           tiktok_pixel?: string | null
           timer_minutes?: number | null
           timer_text?: string | null
