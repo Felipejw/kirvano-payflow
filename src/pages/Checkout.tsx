@@ -124,9 +124,10 @@ const upsellOffer: Upsell = {
 };
 
 const Checkout = () => {
-  const { productId: routeProductId } = useParams();
+  const { productId: routeProductId, slug: routeSlug } = useParams();
   const [searchParams] = useSearchParams();
   const productId = routeProductId || searchParams.get("product");
+  const slug = routeSlug;
   const affiliateCode = searchParams.get("ref");
   
   const [product, setProduct] = useState<Product | null>(null);
@@ -313,10 +314,10 @@ const Checkout = () => {
   }, [product, template]);
 
   useEffect(() => {
-    if (productId) {
+    if (productId || slug) {
       fetchProduct();
     }
-  }, [productId]);
+  }, [productId, slug]);
 
   useEffect(() => {
     if (charge && charge.status === 'pending' && !paymentConfirmed) {
@@ -388,14 +389,21 @@ const Checkout = () => {
   }, [charge, paymentConfirmed, toast]);
 
   const fetchProduct = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('products')
       .select('*')
-      .eq('id', productId)
-      .eq('status', 'active')
-      .single();
+      .eq('status', 'active');
 
-    if (error) {
+    // Fetch by slug or productId
+    if (slug) {
+      query = query.eq('custom_slug', slug);
+    } else if (productId) {
+      query = query.eq('id', productId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error || !data) {
       toast({
         title: "Produto não encontrado",
         description: "O produto solicitado não está disponível.",

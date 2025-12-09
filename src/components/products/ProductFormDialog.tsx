@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Link, X, Package, BarChart3 } from "lucide-react";
+import { Upload, Link, X, Package, BarChart3, Globe, Copy, Check, AlertCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Product {
@@ -31,6 +31,9 @@ interface Product {
   tiktok_pixel?: string | null;
   google_analytics?: string | null;
   checkout_theme?: string | null;
+  custom_slug?: string | null;
+  custom_domain?: string | null;
+  domain_verified?: boolean;
 }
 
 interface ProductFormDialogProps {
@@ -47,6 +50,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const [coverInputType, setCoverInputType] = useState<'url' | 'upload'>('url');
   const [deliverableInputType, setDeliverableInputType] = useState<'url' | 'upload'>('url');
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
+  
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [copiedUrl, setCopiedUrl] = useState(false);
   
   const [formData, setFormData] = useState<Product>({
     name: "",
@@ -65,6 +71,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     tiktok_pixel: "",
     google_analytics: "",
     checkout_theme: "dark",
+    custom_slug: "",
+    custom_domain: "",
+    domain_verified: false,
   });
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +174,11 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         tiktok_pixel: product.tiktok_pixel || "",
         google_analytics: product.google_analytics || "",
         checkout_theme: product.checkout_theme || "dark",
+        custom_slug: product.custom_slug || "",
+        custom_domain: product.custom_domain || "",
+        domain_verified: product.domain_verified || false,
       });
+      setSlugError(null);
     } else {
       setFormData({
         name: "",
@@ -184,9 +197,59 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         tiktok_pixel: "",
         google_analytics: "",
         checkout_theme: "dark",
+        custom_slug: "",
+        custom_domain: "",
+        domain_verified: false,
       });
+      setSlugError(null);
     }
   }, [product, open]);
+
+  const validateSlug = (slug: string) => {
+    if (!slug) {
+      setSlugError(null);
+      return true;
+    }
+    const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+    if (!slugRegex.test(slug)) {
+      setSlugError("Use apenas letras minúsculas, números e hífens");
+      return false;
+    }
+    if (slug.length < 3) {
+      setSlugError("Mínimo 3 caracteres");
+      return false;
+    }
+    if (slug.length > 50) {
+      setSlugError("Máximo 50 caracteres");
+      return false;
+    }
+    setSlugError(null);
+    return true;
+  };
+
+  const handleSlugChange = (value: string) => {
+    const formatted = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    setFormData({ ...formData, custom_slug: formatted });
+    validateSlug(formatted);
+  };
+
+  const getPreviewUrl = () => {
+    const baseUrl = window.location.origin;
+    if (formData.custom_domain) {
+      return `https://${formData.custom_domain}/${formData.custom_slug || formData.id || 'seu-produto'}`;
+    }
+    if (formData.custom_slug) {
+      return `${baseUrl}/checkout/s/${formData.custom_slug}`;
+    }
+    return `${baseUrl}/checkout/${formData.id || 'uuid'}`;
+  };
+
+  const copyUrl = async () => {
+    await navigator.clipboard.writeText(getPreviewUrl());
+    setCopiedUrl(true);
+    toast.success("URL copiada!");
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
 
   const fetchAvailableProducts = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -235,6 +298,12 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         return;
       }
 
+      if (formData.custom_slug && !validateSlug(formData.custom_slug)) {
+        toast.error("Slug inválido");
+        setLoading(false);
+        return;
+      }
+
       const productData = {
         name: formData.name,
         description: formData.description || null,
@@ -253,6 +322,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         tiktok_pixel: formData.tiktok_pixel || null,
         google_analytics: formData.google_analytics || null,
         checkout_theme: formData.checkout_theme || "dark",
+        custom_slug: formData.custom_slug || null,
+        custom_domain: formData.custom_domain || null,
+        domain_verified: formData.domain_verified || false,
       };
 
       if (product?.id) {
@@ -467,6 +539,88 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                   />
                 </div>
               )}
+            </div>
+
+            {/* Custom Domain & Slug Section */}
+            <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
+              <div>
+                <Label className="text-base flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  Domínio e URL do Checkout
+                </Label>
+                <p className="text-sm text-muted-foreground">Personalize o link do seu checkout</p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Slug personalizado */}
+                <div className="space-y-2">
+                  <Label htmlFor="custom_slug">Slug Personalizado</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="custom_slug"
+                      value={formData.custom_slug || ""}
+                      onChange={(e) => handleSlugChange(e.target.value)}
+                      placeholder="meu-produto"
+                      className={slugError ? "border-destructive" : ""}
+                    />
+                  </div>
+                  {slugError && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {slugError}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Use apenas letras minúsculas, números e hífens. Ex: meu-curso-digital
+                  </p>
+                </div>
+
+                {/* Domínio personalizado */}
+                <div className="space-y-2">
+                  <Label htmlFor="custom_domain">Domínio Personalizado (opcional)</Label>
+                  <Input
+                    id="custom_domain"
+                    value={formData.custom_domain || ""}
+                    onChange={(e) => setFormData({ ...formData, custom_domain: e.target.value })}
+                    placeholder="checkout.seusite.com"
+                  />
+                  {formData.custom_domain && (
+                    <div className="p-3 bg-muted/50 rounded-lg text-xs space-y-2">
+                      <p className="font-medium">Configuração de DNS necessária:</p>
+                      <p>Adicione um registro A apontando para: <code className="bg-background px-1 py-0.5 rounded">185.158.133.1</code></p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <span>Status:</span>
+                        {formData.domain_verified ? (
+                          <span className="text-green-500 flex items-center gap-1">
+                            <Check className="h-3 w-3" /> Verificado
+                          </span>
+                        ) : (
+                          <span className="text-yellow-500 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" /> Pendente
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* URL Preview */}
+                <div className="space-y-2">
+                  <Label>Pré-visualização da URL</Label>
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <code className="text-xs flex-1 break-all">{getPreviewUrl()}</code>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={copyUrl}
+                    >
+                      {copiedUrl ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Cover Image Section */}
