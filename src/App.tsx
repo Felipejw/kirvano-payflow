@@ -49,6 +49,7 @@ const App = () => (
             <Route path="/admin/withdrawals" element={<AdminWithdrawalsPage />} />
             <Route path="/admin/analytics" element={<AdminAnalytics />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/:slug" element={<Checkout />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
