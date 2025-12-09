@@ -587,7 +587,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                   {formData.custom_domain && (
                     <div className="p-3 bg-muted/50 rounded-lg text-xs space-y-2">
                       <p className="font-medium">Configuração de DNS necessária:</p>
-                      <p>Adicione um registro A apontando para: <code className="bg-background px-1 py-0.5 rounded">185.158.133.1</code></p>
+                      <p>Adicione um registro A apontando para: <code className="bg-background px-1 py-0.5 rounded">72.60.60.102</code></p>
+                      <p className="text-muted-foreground">
+                        Configure o proxy reverso no seu servidor (Nginx/Apache) para redirecionar ao checkout.
+                      </p>
                       <div className="flex items-center gap-2 pt-1">
                         <span>Status:</span>
                         {formData.domain_verified ? (
