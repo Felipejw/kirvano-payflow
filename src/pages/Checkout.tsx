@@ -42,7 +42,6 @@ interface CheckoutTemplate {
   button_color: string | null;
   button_text_color: string | null;
   border_radius: string | null;
-  font_family: string | null;
   logo_url: string | null;
   favicon_url: string | null;
   page_title: string | null;
@@ -50,6 +49,7 @@ interface CheckoutTemplate {
   show_product_image: boolean | null;
   show_product_description: boolean | null;
   show_order_summary: boolean | null;
+  show_order_bump_after_button: boolean | null;
   require_cpf: boolean | null;
   require_phone: boolean | null;
   require_address: boolean | null;
@@ -554,8 +554,9 @@ const Checkout = () => {
     buttonColor: template?.button_color || 'hsl(var(--primary))',
     buttonTextColor: template?.button_text_color || 'hsl(var(--primary-foreground))',
     borderRadius: template?.border_radius || '12',
-    fontFamily: template?.font_family || 'inherit',
   };
+
+  const showOrderBumpAfterButton = template?.show_order_bump_after_button ?? false;
 
   const isTwoColumn = template?.layout === 'two-column';
 
@@ -565,7 +566,6 @@ const Checkout = () => {
       style={{ 
         backgroundColor: styles.backgroundColor,
         color: styles.textColor,
-        fontFamily: styles.fontFamily,
       }}
     >
       <div className="max-w-5xl mx-auto">
@@ -680,8 +680,8 @@ const Checkout = () => {
               </Card>
             )}
 
-            {/* Order Bumps */}
-            {!charge && orderBumps.length > 0 && (
+            {/* Order Bumps - Before Button Position */}
+            {!charge && !showOrderBumpAfterButton && orderBumps.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Gift className="h-5 w-5 text-accent" />
@@ -720,7 +720,7 @@ const Checkout = () => {
                             </span>
                           </div>
                           {bump.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2">{bump.description}</p>
+                            <p className="text-sm text-muted-foreground">{bump.description}</p>
                           )}
                         </div>
                         <div className="text-right">
@@ -907,6 +907,58 @@ const Checkout = () => {
                         </>
                       )}
                     </Button>
+
+                    {/* Order Bumps - After Button Position */}
+                    {showOrderBumpAfterButton && orderBumps.length > 0 && (
+                      <div className="space-y-4 pt-4">
+                        <h3 className="text-base font-semibold flex items-center gap-2">
+                          <Gift className="h-5 w-5 text-accent" />
+                          Adicione ao seu pedido
+                        </h3>
+                        {orderBumps.map((bump) => (
+                          <Card 
+                            key={bump.id}
+                            className={`cursor-pointer transition-all ${
+                              selectedBumps.includes(bump.id) 
+                                ? 'border-accent bg-accent/5' 
+                                : 'glass-card-hover'
+                            }`}
+                            onClick={() => toggleBump(bump.id)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start gap-3">
+                                <Checkbox 
+                                  checked={selectedBumps.includes(bump.id)}
+                                  onCheckedChange={() => toggleBump(bump.id)}
+                                  className="mt-1"
+                                />
+                                {bump.cover_url && (
+                                  <img 
+                                    src={bump.cover_url} 
+                                    alt={bump.name}
+                                    className="w-12 h-12 object-cover rounded-lg shrink-0"
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-sm">{bump.name}</span>
+                                    <span className="text-xs px-2 py-0.5 bg-accent/20 text-accent rounded-full">
+                                      Oferta especial
+                                    </span>
+                                  </div>
+                                  {bump.description && (
+                                    <p className="text-xs text-muted-foreground">{bump.description}</p>
+                                  )}
+                                  <p className="font-bold text-accent text-sm mt-1">
+                                    + R$ {bump.price.toFixed(2)}
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
 
                     {(template?.show_security_badge !== false) && (
                       <div className="flex items-center justify-center gap-2 text-xs" style={{ color: styles.textColor, opacity: 0.6 }}>
