@@ -443,6 +443,37 @@ const Checkout = () => {
 
   const handleCreateCharge = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!buyerName.trim()) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Por favor, informe seu nome completo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!buyerEmail.trim()) {
+      toast({
+        title: "Email obrigatório",
+        description: "Por favor, informe seu email.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(buyerEmail)) {
+      toast({
+        title: "Email inválido",
+        description: "Por favor, informe um email válido.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -1182,7 +1213,7 @@ const Checkout = () => {
             <Button 
               type="submit" 
               className="w-full py-5 sm:py-6 text-base sm:text-lg font-semibold" 
-              disabled={loading || !buyerName || !buyerEmail}
+              disabled={loading}
               onClick={handleCreateCharge}
               style={{ 
                 backgroundColor: styles.buttonColor,

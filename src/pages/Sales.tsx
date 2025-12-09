@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Search, 
   Filter,
@@ -14,7 +16,12 @@ import {
   TrendingUp,
   DollarSign,
   ShoppingCart,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  User,
+  Package,
+  Calendar,
+  CreditCard
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,8 +34,10 @@ interface Sale {
   status: string;
   buyer_email: string;
   buyer_name: string | null;
+  buyer_cpf: string | null;
   created_at: string;
   paid_at: string | null;
+  expires_at: string;
   product: {
     name: string;
     id: string;
@@ -67,6 +76,8 @@ const Sales = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchSales();
@@ -82,8 +93,10 @@ const Sales = () => {
         status,
         buyer_email,
         buyer_name,
+        buyer_cpf,
         created_at,
         paid_at,
+        expires_at,
         products:product_id (
           id,
           name
@@ -98,6 +111,11 @@ const Sales = () => {
       })));
     }
     setLoading(false);
+  };
+
+  const handleSaleClick = (sale: Sale) => {
+    setSelectedSale(sale);
+    setDetailDialogOpen(true);
   };
 
   const filteredSales = sales.filter(sale => {
@@ -246,6 +264,7 @@ const Sales = () => {
                           <th className="text-left p-4 font-medium text-muted-foreground">Valor</th>
                           <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
                           <th className="text-left p-4 font-medium text-muted-foreground">Data</th>
+                          <th className="text-left p-4 font-medium text-muted-foreground w-16">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -254,7 +273,11 @@ const Sales = () => {
                           const StatusIcon = status.icon;
                           
                           return (
-                            <tr key={sale.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                            <tr 
+                              key={sale.id} 
+                              className="border-b border-border/50 hover:bg-secondary/30 transition-colors cursor-pointer"
+                              onClick={() => handleSaleClick(sale)}
+                            >
                               <td className="p-4">
                                 <div>
                                   <p className="font-medium">{sale.buyer_name || "Cliente"}</p>
@@ -280,6 +303,19 @@ const Sales = () => {
                                   {format(new Date(sale.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                                 </p>
                               </td>
+                              <td className="p-4">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSaleClick(sale);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </td>
                             </tr>
                           );
                         })}
@@ -291,6 +327,101 @@ const Sales = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Sale Detail Dialog */}
+        <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Detalhes da Venda</DialogTitle>
+            </DialogHeader>
+            {selectedSale && (
+              <div className="space-y-4">
+                {/* Status */}
+                <div className="flex justify-center">
+                  {(() => {
+                    const status = statusConfig[selectedSale.status as keyof typeof statusConfig] || statusConfig.pending;
+                    const StatusIcon = status.icon;
+                    return (
+                      <Badge variant={status.variant} className="gap-1 text-base px-4 py-2">
+                        <StatusIcon className="h-4 w-4" />
+                        {status.label}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+
+                {/* Amount */}
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-primary">
+                    R$ {Number(selectedSale.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-3 p-4 bg-secondary/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Cliente</p>
+                      <p className="font-medium">{selectedSale.buyer_name || "Não informado"}</p>
+                      <p className="text-sm text-muted-foreground">{selectedSale.buyer_email}</p>
+                      {selectedSale.buyer_cpf && (
+                        <p className="text-xs text-muted-foreground">CPF: {selectedSale.buyer_cpf}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Produto</p>
+                      <p className="font-medium">{selectedSale.product?.name || "Produto removido"}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Criado em</p>
+                      <p className="font-medium">
+                        {format(new Date(selectedSale.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedSale.paid_at && (
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Pago em</p>
+                        <p className="font-medium text-green-500">
+                          {format(new Date(selectedSale.paid_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedSale.status === 'pending' && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Expira em</p>
+                        <p className="font-medium text-yellow-500">
+                          {format(new Date(selectedSale.expires_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground">ID da Cobrança</p>
+                    <p className="font-mono text-xs">{selectedSale.id}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
