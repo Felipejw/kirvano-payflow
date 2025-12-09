@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -9,6 +9,8 @@ import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ConversionFunnel, ConversionChart } from "@/components/dashboard/ConversionMetrics";
 import { WithdrawalManagement } from "@/components/dashboard/WithdrawalManagement";
 import { GeneratePixDialog } from "@/components/dashboard/GeneratePixDialog";
+import { DateRangeFilter, DateRange, DateRangeOption } from "@/components/dashboard/DateRangeFilter";
+import { startOfMonth, endOfDay } from "date-fns";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -37,6 +39,11 @@ interface DashboardStats {
 const Dashboard = () => {
   const [user, setUser] = useState<any>(null);
   const [pixDialogOpen, setPixDialogOpen] = useState(false);
+  const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("currentMonth");
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: startOfMonth(new Date()),
+    to: endOfDay(new Date()),
+  });
   const [stats, setStats] = useState<DashboardStats>({
     totalRevenue: 0,
     totalSales: 0,
@@ -48,6 +55,98 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  const fetchDashboardStats = useCallback(async (userId: string, range: DateRange) => {
+    setLoading(true);
+
+    // Fetch paid transactions within date range
+    const { data: paidTransactions } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('seller_id', userId)
+      .eq('status', 'paid')
+      .gte('created_at', range.from.toISOString())
+      .lte('created_at', range.to.toISOString());
+
+    // Fetch all transactions for conversion calculation within date range
+    const { data: allTransactions } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('seller_id', userId)
+      .gte('created_at', range.from.toISOString())
+      .lte('created_at', range.to.toISOString());
+
+    // Fetch active affiliates
+    const { data: affiliates } = await supabase
+      .from('affiliates')
+      .select('id, product_id, products!inner(seller_id)')
+      .eq('status', 'active');
+
+    // Filter affiliates by seller
+    const sellerAffiliates = affiliates?.filter((a: any) => a.products?.seller_id === userId) || [];
+
+    // Fetch all paid transactions (for balance calculation - not filtered by date)
+    const { data: allPaidTransactions } = await supabase
+      .from('transactions')
+      .select('seller_amount')
+      .eq('seller_id', userId)
+      .eq('status', 'paid');
+
+    // Fetch completed withdrawals (for balance calculation)
+    const { data: withdrawals } = await supabase
+      .from('withdrawals')
+      .select('net_amount')
+      .eq('user_id', userId)
+      .eq('status', 'completed');
+
+    // Calculate stats for selected period
+    const totalRevenue = paidTransactions?.reduce((acc, t) => acc + Number(t.amount), 0) || 0;
+    
+    // Calculate available balance (all time)
+    const totalSellerAmount = allPaidTransactions?.reduce((acc, t) => acc + Number(t.seller_amount), 0) || 0;
+    const totalWithdrawn = withdrawals?.reduce((acc, w) => acc + Number(w.net_amount), 0) || 0;
+
+    // Calculate conversion rate
+    const paidCount = paidTransactions?.length || 0;
+    const totalCount = allTransactions?.length || 1;
+    const conversionRate = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+
+    // Calculate comparison with previous period
+    const periodDuration = range.to.getTime() - range.from.getTime();
+    const previousPeriodEnd = new Date(range.from.getTime() - 1);
+    const previousPeriodStart = new Date(previousPeriodEnd.getTime() - periodDuration);
+
+    const { data: previousPaidTransactions } = await supabase
+      .from('transactions')
+      .select('amount')
+      .eq('seller_id', userId)
+      .eq('status', 'paid')
+      .gte('created_at', previousPeriodStart.toISOString())
+      .lte('created_at', previousPeriodEnd.toISOString());
+
+    const previousRevenue = previousPaidTransactions?.reduce((acc, t) => acc + Number(t.amount), 0) || 0;
+    const previousSalesCount = previousPaidTransactions?.length || 0;
+
+    const revenueChange = previousRevenue > 0 
+      ? ((totalRevenue - previousRevenue) / previousRevenue * 100).toFixed(1)
+      : totalRevenue > 0 ? "100" : "0";
+
+    const salesChange = previousSalesCount > 0 
+      ? ((paidCount - previousSalesCount) / previousSalesCount * 100).toFixed(1)
+      : paidCount > 0 ? "100" : "0";
+
+    setStats({
+      totalRevenue,
+      totalSales: paidCount,
+      availableBalance: totalSellerAmount - totalWithdrawn,
+      activeAffiliates: sellerAffiliates.length,
+      conversionRate: parseFloat(conversionRate.toFixed(1)),
+      revenueChange: `${parseFloat(revenueChange) >= 0 ? '+' : ''}${revenueChange}% vs período anterior`,
+      salesChange: `${parseFloat(salesChange) >= 0 ? '+' : ''}${salesChange}% vs período anterior`,
+    });
+
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -63,112 +162,50 @@ const Dashboard = () => {
         navigate("/auth");
       } else {
         setUser(session.user);
-        fetchDashboardStats(session.user.id);
+        fetchDashboardStats(session.user.id, dateRange);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, fetchDashboardStats, dateRange]);
 
-  const fetchDashboardStats = async (userId: string) => {
-    setLoading(true);
-
-    // Fetch paid transactions
-    const { data: paidTransactions } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('seller_id', userId)
-      .eq('status', 'paid');
-
-    // Fetch all transactions for conversion calculation
-    const { data: allTransactions } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('seller_id', userId);
-
-    // Fetch active affiliates
-    const { data: affiliates } = await supabase
-      .from('affiliates')
-      .select('id, product_id, products!inner(seller_id)')
-      .eq('status', 'active');
-
-    // Filter affiliates by seller
-    const sellerAffiliates = affiliates?.filter((a: any) => a.products?.seller_id === userId) || [];
-
-    // Fetch completed withdrawals
-    const { data: withdrawals } = await supabase
-      .from('withdrawals')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'completed');
-
-    // Calculate stats
-    const totalRevenue = paidTransactions?.reduce((acc, t) => acc + Number(t.amount), 0) || 0;
-    const totalSellerAmount = paidTransactions?.reduce((acc, t) => acc + Number(t.seller_amount), 0) || 0;
-    const totalWithdrawn = withdrawals?.reduce((acc, w) => acc + Number(w.net_amount), 0) || 0;
-
-    // Calculate conversion rate
-    const paidCount = paidTransactions?.length || 0;
-    const totalCount = allTransactions?.length || 1;
-    const conversionRate = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
-
-    // Calculate month over month change (simplified)
-    const now = new Date();
-    const thisMonth = paidTransactions?.filter(t => {
-      const date = new Date(t.created_at);
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-    }) || [];
-    
-    const lastMonth = paidTransactions?.filter(t => {
-      const date = new Date(t.created_at);
-      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1);
-      return date.getMonth() === lastMonthDate.getMonth() && date.getFullYear() === lastMonthDate.getFullYear();
-    }) || [];
-
-    const thisMonthRevenue = thisMonth.reduce((acc, t) => acc + Number(t.amount), 0);
-    const lastMonthRevenue = lastMonth.reduce((acc, t) => acc + Number(t.amount), 0);
-    const revenueChange = lastMonthRevenue > 0 
-      ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1)
-      : "0";
-
-    const salesChange = lastMonth.length > 0 
-      ? ((thisMonth.length - lastMonth.length) / lastMonth.length * 100).toFixed(1)
-      : "0";
-
-    setStats({
-      totalRevenue,
-      totalSales: paidTransactions?.length || 0,
-      availableBalance: totalSellerAmount - totalWithdrawn,
-      activeAffiliates: sellerAffiliates.length,
-      conversionRate: parseFloat(conversionRate.toFixed(1)),
-      revenueChange: `${parseFloat(revenueChange) >= 0 ? '+' : ''}${revenueChange}% este mês`,
-      salesChange: `${parseFloat(salesChange) >= 0 ? '+' : ''}${salesChange}% este mês`,
-    });
-
-    setLoading(false);
+  const handleDateRangeChange = (range: DateRange, option: DateRangeOption) => {
+    setDateRange(range);
+    setDateRangeOption(option);
+    if (user) {
+      fetchDashboardStats(user.id, range);
+    }
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold gradient-text">Dashboard</h1>
-            <p className="text-muted-foreground">Visão geral do seu negócio</p>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold gradient-text">Dashboard</h1>
+              <p className="text-muted-foreground">Visão geral do seu negócio</p>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => setPixDialogOpen(true)}>
+                <QrCode className="h-4 w-4" />
+                <span className="hidden sm:inline">Gerar PIX</span>
+                <span className="sm:hidden">PIX</span>
+              </Button>
+              <Button className="btn-primary-gradient gap-2 flex-1 sm:flex-none" onClick={() => navigate('/dashboard/products')}>
+                <ArrowUpRight className="h-4 w-4" />
+                <span className="hidden sm:inline">Novo Produto</span>
+                <span className="sm:hidden">Novo</span>
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => setPixDialogOpen(true)}>
-              <QrCode className="h-4 w-4" />
-              <span className="hidden sm:inline">Gerar PIX</span>
-              <span className="sm:hidden">PIX</span>
-            </Button>
-            <Button className="btn-primary-gradient gap-2 flex-1 sm:flex-none" onClick={() => navigate('/dashboard/products')}>
-              <ArrowUpRight className="h-4 w-4" />
-              <span className="hidden sm:inline">Novo Produto</span>
-              <span className="sm:hidden">Novo</span>
-            </Button>
-          </div>
+
+          {/* Date Range Filter */}
+          <DateRangeFilter 
+            onRangeChange={handleDateRangeChange}
+            selectedOption={dateRangeOption}
+          />
         </div>
 
         {/* Stats Grid */}
