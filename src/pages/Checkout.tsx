@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { QRCodeSVG } from "qrcode.react";
 import { 
   QrCode, 
   Copy, 
@@ -983,34 +984,27 @@ const Checkout = () => {
                   </div>
                 )}
 
-                {/* QR Code Image - with background and clear visibility */}
+                {/* QR Code - Generated dynamically from copy_paste code */}
                 <div 
                   className="p-4 sm:p-6 rounded-lg mx-auto w-fit"
                   style={{ 
-                    backgroundColor: '#1a1f2e',
+                    backgroundColor: '#ffffff',
                     border: '2px solid ' + styles.accentColor,
                   }}
                 >
-                  {charge.qr_code_base64 ? (
-                    <img 
-                      src={charge.qr_code_base64.startsWith('data:') 
-                        ? charge.qr_code_base64 
-                        : `data:image/png;base64,${charge.qr_code_base64}`
-                      } 
-                      alt="QR Code PIX" 
-                      className="w-44 h-44 sm:w-52 sm:h-52"
-                      style={{ imageRendering: 'pixelated' }}
-                    />
-                  ) : charge.qr_code ? (
-                    <img 
-                      src={charge.qr_code} 
-                      alt="QR Code PIX" 
-                      className="w-44 h-44 sm:w-52 sm:h-52"
+                  {charge.copy_paste ? (
+                    <QRCodeSVG 
+                      value={charge.copy_paste}
+                      size={200}
+                      bgColor="#ffffff"
+                      fgColor="#1a1f2e"
+                      level="M"
+                      includeMargin={false}
                     />
                   ) : (
                     <div 
                       className="w-44 h-44 sm:w-52 sm:h-52 flex items-center justify-center"
-                      style={{ backgroundColor: '#2d3748' }}
+                      style={{ backgroundColor: '#f9fafb' }}
                     >
                       <QrCode className="h-28 w-28 sm:h-32 sm:w-32" style={{ color: styles.accentColor }} />
                     </div>
