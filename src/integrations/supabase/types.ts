@@ -463,6 +463,59 @@ export type Database = {
           },
         ]
       }
+      platform_settings: {
+        Row: {
+          created_at: string
+          default_checkout_template_id: string | null
+          id: string
+          maintenance_mode: boolean
+          min_withdrawal: number
+          pix_enabled: boolean
+          platform_fee: number
+          privacy_url: string | null
+          support_email: string | null
+          support_phone: string | null
+          terms_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_checkout_template_id?: string | null
+          id?: string
+          maintenance_mode?: boolean
+          min_withdrawal?: number
+          pix_enabled?: boolean
+          platform_fee?: number
+          privacy_url?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          terms_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_checkout_template_id?: string | null
+          id?: string
+          maintenance_mode?: boolean
+          min_withdrawal?: number
+          pix_enabled?: boolean
+          platform_fee?: number
+          privacy_url?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          terms_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_settings_default_checkout_template_id_fkey"
+            columns: ["default_checkout_template_id"]
+            isOneToOne: false
+            referencedRelation: "checkout_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           allow_affiliates: boolean

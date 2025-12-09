@@ -17,6 +17,8 @@ import Sales from "./pages/Sales";
 import Finance from "./pages/Finance";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +42,8 @@ const App = () => (
             <Route path="/dashboard/sales" element={<Sales />} />
             <Route path="/dashboard/finance" element={<Finance />} />
             <Route path="/dashboard/settings" element={<Settings />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
