@@ -533,12 +533,15 @@ export type Database = {
           deliverable_type: string | null
           deliverable_url: string | null
           description: string | null
+          facebook_pixel: string | null
+          google_analytics: string | null
           id: string
           name: string
           order_bumps: string[] | null
           price: number
           seller_id: string
           status: string
+          tiktok_pixel: string | null
           type: string
           updated_at: string
         }
@@ -552,12 +555,15 @@ export type Database = {
           deliverable_type?: string | null
           deliverable_url?: string | null
           description?: string | null
+          facebook_pixel?: string | null
+          google_analytics?: string | null
           id?: string
           name: string
           order_bumps?: string[] | null
           price?: number
           seller_id: string
           status?: string
+          tiktok_pixel?: string | null
           type?: string
           updated_at?: string
         }
@@ -571,12 +577,15 @@ export type Database = {
           deliverable_type?: string | null
           deliverable_url?: string | null
           description?: string | null
+          facebook_pixel?: string | null
+          google_analytics?: string | null
           id?: string
           name?: string
           order_bumps?: string[] | null
           price?: number
           seller_id?: string
           status?: string
+          tiktok_pixel?: string | null
           type?: string
           updated_at?: string
         }

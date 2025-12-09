@@ -34,6 +34,9 @@ interface Product {
   cover_url: string;
   order_bumps: string[] | null;
   checkout_template_id: string | null;
+  facebook_pixel: string | null;
+  tiktok_pixel: string | null;
+  google_analytics: string | null;
 }
 
 interface CheckoutTemplate {
@@ -152,14 +155,14 @@ const Checkout = () => {
 
   // Helper function to track Facebook Pixel events
   const trackPixelEvent = (eventName: string, params: object) => {
-    if (template?.facebook_pixel && typeof window !== 'undefined' && (window as any).fbq) {
+    if (product?.facebook_pixel && typeof window !== 'undefined' && (window as any).fbq) {
       (window as any).fbq('track', eventName, params);
     }
   };
 
-  // Track InitiateCheckout when product and template are loaded
+  // Track InitiateCheckout when product is loaded
   useEffect(() => {
-    if (product && template?.facebook_pixel) {
+    if (product?.facebook_pixel) {
       trackPixelEvent('InitiateCheckout', {
         value: product.price,
         currency: 'BRL',
@@ -168,11 +171,11 @@ const Checkout = () => {
         num_items: 1
       });
     }
-  }, [product, template?.facebook_pixel]);
+  }, [product?.facebook_pixel]);
 
   // Track Purchase when payment is confirmed
   useEffect(() => {
-    if (paymentConfirmed && charge && template?.facebook_pixel) {
+    if (paymentConfirmed && charge && product?.facebook_pixel) {
       const allContentIds = [productId, ...selectedBumps];
       if (upsellAccepted) {
         allContentIds.push(upsellOffer.id);
@@ -208,11 +211,11 @@ const Checkout = () => {
     }
   }, [template, charge]);
 
-  // Inject tracking pixels
+  // Inject tracking pixels from product
   useEffect(() => {
-    if (template) {
+    if (product) {
       // Facebook Pixel
-      if (template.facebook_pixel) {
+      if (product.facebook_pixel) {
         // Check if fbq already exists
         if (!(window as any).fbq) {
           // Create and execute the Facebook Pixel base code
@@ -242,15 +245,15 @@ const Checkout = () => {
         }
         
         // Initialize and track PageView
-        (window as any).fbq('init', template.facebook_pixel);
+        (window as any).fbq('init', product.facebook_pixel);
         (window as any).fbq('track', 'PageView');
       }
 
       // Google Analytics
-      if (template.google_analytics) {
+      if (product.google_analytics) {
         const gaScript = document.createElement('script');
         gaScript.async = true;
-        gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${template.google_analytics}`;
+        gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${product.google_analytics}`;
         document.head.appendChild(gaScript);
 
         const gaConfig = document.createElement('script');
@@ -258,13 +261,13 @@ const Checkout = () => {
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', '${template.google_analytics}');
+          gtag('config', '${product.google_analytics}');
         `;
         document.head.appendChild(gaConfig);
       }
 
       // TikTok Pixel
-      if (template.tiktok_pixel) {
+      if (product.tiktok_pixel) {
         const ttScript = document.createElement('script');
         ttScript.innerHTML = `
           !function (w, d, t) {
@@ -277,19 +280,20 @@ const Checkout = () => {
             ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};
             var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;
             var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
-            ttq.load('${template.tiktok_pixel}');
+            ttq.load('${product.tiktok_pixel}');
             ttq.page();
           }(window, document, 'ttq');
         `;
         document.head.appendChild(ttScript);
       }
+    }
 
-      // Update page title
+    // Template-specific settings (title, favicon)
+    if (template) {
       if (template.page_title) {
         document.title = template.page_title;
       }
 
-      // Update favicon
       if (template.favicon_url) {
         const existingFavicon = document.querySelector('link[rel="icon"]');
         if (existingFavicon) {
@@ -302,7 +306,7 @@ const Checkout = () => {
         }
       }
     }
-  }, [template]);
+  }, [product, template]);
 
   useEffect(() => {
     if (productId) {
