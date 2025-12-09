@@ -247,6 +247,7 @@ export type Database = {
           require_cpf: boolean | null
           require_phone: boolean | null
           show_guarantee: boolean | null
+          show_order_bump_after_button: boolean | null
           show_order_summary: boolean | null
           show_product_description: boolean | null
           show_product_image: boolean | null
@@ -290,6 +291,7 @@ export type Database = {
           require_cpf?: boolean | null
           require_phone?: boolean | null
           show_guarantee?: boolean | null
+          show_order_bump_after_button?: boolean | null
           show_order_summary?: boolean | null
           show_product_description?: boolean | null
           show_product_image?: boolean | null
@@ -333,6 +335,7 @@ export type Database = {
           require_cpf?: boolean | null
           require_phone?: boolean | null
           show_guarantee?: boolean | null
+          show_order_bump_after_button?: boolean | null
           show_order_summary?: boolean | null
           show_product_description?: boolean | null
           show_product_image?: boolean | null

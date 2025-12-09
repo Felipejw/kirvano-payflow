@@ -38,7 +38,6 @@ interface CheckoutTemplate {
   button_color: string;
   button_text_color: string;
   border_radius: string;
-  font_family: string;
   logo_url: string | null;
   favicon_url: string | null;
   page_title: string;
@@ -46,6 +45,7 @@ interface CheckoutTemplate {
   show_product_image: boolean;
   show_product_description: boolean;
   show_order_summary: boolean;
+  show_order_bump_after_button: boolean;
   require_cpf: boolean;
   require_phone: boolean;
   require_address: boolean;
@@ -85,7 +85,6 @@ const defaultTemplate: Omit<CheckoutTemplate, 'id'> = {
   button_color: "#00b4d8",
   button_text_color: "#0a1628",
   border_radius: "12",
-  font_family: "Inter",
   logo_url: null,
   favicon_url: null,
   page_title: "Checkout Seguro",
@@ -93,6 +92,7 @@ const defaultTemplate: Omit<CheckoutTemplate, 'id'> = {
   show_product_image: true,
   show_product_description: true,
   show_order_summary: true,
+  show_order_bump_after_button: false,
   require_cpf: true,
   require_phone: true,
   require_address: false,
@@ -192,7 +192,6 @@ export function CheckoutTemplateDialog({ open, onOpenChange, template, onSuccess
       button_color: formData.button_color,
       button_text_color: formData.button_text_color,
       border_radius: formData.border_radius,
-      font_family: formData.font_family,
       logo_url: formData.logo_url,
       favicon_url: formData.favicon_url,
       page_title: formData.page_title,
@@ -200,6 +199,7 @@ export function CheckoutTemplateDialog({ open, onOpenChange, template, onSuccess
       show_product_image: formData.show_product_image,
       show_product_description: formData.show_product_description,
       show_order_summary: formData.show_order_summary,
+      show_order_bump_after_button: formData.show_order_bump_after_button,
       require_cpf: formData.require_cpf,
       require_phone: formData.require_phone,
       require_address: formData.require_address,
@@ -416,37 +416,20 @@ Valor: lovable_verify=${formData.id || 'seu-template-id'}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Fonte</Label>
-                        <Select value={formData.font_family} onValueChange={(v) => updateField("font_family", v)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Inter">Inter</SelectItem>
-                            <SelectItem value="Roboto">Roboto</SelectItem>
-                            <SelectItem value="Poppins">Poppins</SelectItem>
-                            <SelectItem value="Open Sans">Open Sans</SelectItem>
-                            <SelectItem value="Montserrat">Montserrat</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Arredondamento</Label>
-                        <Select value={formData.border_radius} onValueChange={(v) => updateField("border_radius", v)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Sem arredondamento</SelectItem>
-                            <SelectItem value="4">Pequeno (4px)</SelectItem>
-                            <SelectItem value="8">Médio (8px)</SelectItem>
-                            <SelectItem value="12">Grande (12px)</SelectItem>
-                            <SelectItem value="16">Extra grande (16px)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    <div className="space-y-2">
+                      <Label>Arredondamento</Label>
+                      <Select value={formData.border_radius} onValueChange={(v) => updateField("border_radius", v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Sem arredondamento</SelectItem>
+                          <SelectItem value="4">Pequeno (4px)</SelectItem>
+                          <SelectItem value="8">Médio (8px)</SelectItem>
+                          <SelectItem value="12">Grande (12px)</SelectItem>
+                          <SelectItem value="16">Extra grande (16px)</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </CardContent>
                 </Card>
@@ -537,6 +520,16 @@ Valor: lovable_verify=${formData.id || 'seu-template-id'}
                         <Switch
                           checked={formData.show_order_summary}
                           onCheckedChange={(v) => updateField("show_order_summary", v)}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Order Bump após botão</Label>
+                          <p className="text-xs text-muted-foreground">Mostra ofertas adicionais após o botão de compra</p>
+                        </div>
+                        <Switch
+                          checked={formData.show_order_bump_after_button}
+                          onCheckedChange={(v) => updateField("show_order_bump_after_button", v)}
                         />
                       </div>
                     </div>
