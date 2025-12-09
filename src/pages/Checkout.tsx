@@ -319,19 +319,44 @@ const Checkout = () => {
   }, [productId]);
 
   useEffect(() => {
-    if (charge && charge.status === 'pending') {
+    if (charge && charge.status === 'pending' && !paymentConfirmed) {
       const expiresAt = new Date(charge.expires_at).getTime();
       
-      const interval = setInterval(() => {
+      // Timer de expiração
+      const timerInterval = setInterval(() => {
         const now = Date.now();
         const diff = Math.max(0, Math.floor((expiresAt - now) / 1000));
         setTimeLeft(diff);
         
         if (diff === 0) {
-          clearInterval(interval);
+          clearInterval(timerInterval);
         }
       }, 1000);
 
+      // Polling para verificar status a cada 5 segundos (fallback)
+      const pollPaymentStatus = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('pix_charges')
+            .select('status')
+            .eq('id', charge.id)
+            .single();
+          
+          if (!error && data?.status === 'paid') {
+            setPaymentConfirmed(true);
+            toast({
+              title: "Pagamento confirmado!",
+              description: "Seu pagamento foi recebido com sucesso.",
+            });
+          }
+        } catch (error) {
+          console.error('Error polling payment status:', error);
+        }
+      };
+      
+      const pollInterval = setInterval(pollPaymentStatus, 5000);
+
+      // Realtime como canal principal (mais rápido)
       const channel = supabase
         .channel(`charge-${charge.id}`)
         .on(
@@ -345,18 +370,22 @@ const Checkout = () => {
           (payload) => {
             if (payload.new.status === 'paid') {
               setPaymentConfirmed(true);
-              clearInterval(interval);
+              toast({
+                title: "Pagamento confirmado!",
+                description: "Seu pagamento foi recebido com sucesso.",
+              });
             }
           }
         )
         .subscribe();
 
       return () => {
-        clearInterval(interval);
+        clearInterval(timerInterval);
+        clearInterval(pollInterval);
         supabase.removeChannel(channel);
       };
     }
-  }, [charge]);
+  }, [charge, paymentConfirmed, toast]);
 
   const fetchProduct = async () => {
     const { data, error } = await supabase
