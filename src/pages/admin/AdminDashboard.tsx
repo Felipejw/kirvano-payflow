@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,11 @@ import {
   TrendingUp,
   Package,
   Search,
-  Download,
   Eye,
   Settings,
-  UserCog
+  UserCog,
+  Radio,
+  RefreshCw
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +58,10 @@ export default function AdminDashboard() {
   const [sellers, setSellers] = useState<SellerData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [isLive, setIsLive] = useState(true);
+  const [newTransactionAlert, setNewTransactionAlert] = useState(false);
+  const [newWithdrawalAlert, setNewWithdrawalAlert] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
@@ -72,36 +77,26 @@ export default function AdminDashboard() {
     }
   }, [isAdmin, roleLoading, navigate, toast]);
 
-  useEffect(() => {
-    if (isAdmin) {
-      fetchAdminData();
-    }
-  }, [isAdmin]);
-
-  const fetchAdminData = async () => {
+  const fetchAdminData = useCallback(async () => {
     try {
-      // Fetch all profiles (sellers)
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("*");
 
       if (profilesError) throw profilesError;
 
-      // Fetch all transactions
       const { data: transactions, error: transactionsError } = await supabase
         .from("transactions")
         .select("*");
 
       if (transactionsError) throw transactionsError;
 
-      // Fetch all products
       const { data: products, error: productsError } = await supabase
         .from("products")
         .select("*");
 
       if (productsError) throw productsError;
 
-      // Fetch pending withdrawals
       const { data: withdrawals, error: withdrawalsError } = await supabase
         .from("withdrawals")
         .select("*")
@@ -109,21 +104,20 @@ export default function AdminDashboard() {
 
       if (withdrawalsError) throw withdrawalsError;
 
-      // Calculate stats
-      const totalRevenue = transactions?.reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
-      const platformFees = transactions?.reduce((sum, t) => sum + Number(t.platform_fee || 0), 0) || 0;
+      const paidTransactions = transactions?.filter(t => t.status === 'paid') || [];
+      const totalRevenue = paidTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      const platformFees = paidTransactions.reduce((sum, t) => sum + Number(t.platform_fee || 0), 0);
       const pendingWithdrawalsAmount = withdrawals?.reduce((sum, w) => sum + Number(w.amount || 0), 0) || 0;
 
       setStats({
         totalSellers: profiles?.length || 0,
         totalRevenue,
-        totalTransactions: transactions?.length || 0,
+        totalTransactions: paidTransactions.length,
         platformFees,
         pendingWithdrawals: pendingWithdrawalsAmount,
         activeProducts: products?.filter(p => p.status === "active").length || 0
       });
 
-      // Build seller data with aggregates
       const sellerMap = new Map<string, SellerData>();
       
       profiles?.forEach(profile => {
@@ -154,6 +148,7 @@ export default function AdminDashboard() {
       });
 
       setSellers(Array.from(sellerMap.values()));
+      setLastUpdate(new Date());
     } catch (error) {
       console.error("Error fetching admin data:", error);
       toast({
@@ -164,7 +159,59 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchAdminData();
+    }
+  }, [isAdmin, fetchAdminData]);
+
+  // Real-time subscriptions
+  useEffect(() => {
+    if (!isAdmin || !isLive) return;
+
+    const transactionsChannel = supabase
+      .channel('admin-transactions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions' },
+        (payload) => {
+          console.log('Transaction update:', payload);
+          setNewTransactionAlert(true);
+          fetchAdminData();
+          toast({
+            title: "Nova transação!",
+            description: "Os dados foram atualizados automaticamente",
+          });
+          setTimeout(() => setNewTransactionAlert(false), 3000);
+        }
+      )
+      .subscribe();
+
+    const withdrawalsChannel = supabase
+      .channel('admin-withdrawals')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'withdrawals' },
+        (payload) => {
+          console.log('Withdrawal update:', payload);
+          setNewWithdrawalAlert(true);
+          fetchAdminData();
+          toast({
+            title: "Atualização de saque!",
+            description: "Os dados foram atualizados automaticamente",
+          });
+          setTimeout(() => setNewWithdrawalAlert(false), 3000);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(transactionsChannel);
+      supabase.removeChannel(withdrawalsChannel);
+    };
+  }, [isAdmin, isLive, fetchAdminData, toast]);
 
   const filteredSellers = sellers.filter(seller =>
     seller.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -203,7 +250,22 @@ export default function AdminDashboard() {
               Visão geral da plataforma
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {/* Live indicator */}
+            <div className="flex items-center gap-2 mr-4">
+              <Button
+                variant={isLive ? "default" : "outline"}
+                size="sm"
+                onClick={() => setIsLive(!isLive)}
+                className={isLive ? "bg-green-600 hover:bg-green-700" : ""}
+              >
+                <Radio className={`h-4 w-4 mr-1 ${isLive ? "animate-pulse" : ""}`} />
+                {isLive ? "AO VIVO" : "PAUSADO"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={fetchAdminData}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
             <Button variant="outline" onClick={() => navigate("/admin/users")}>
               <UserCog className="mr-2 h-4 w-4" />
               Usuários
@@ -213,6 +275,12 @@ export default function AdminDashboard() {
               Configurações
             </Button>
           </div>
+        </div>
+
+        {/* Last update indicator */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className={`h-2 w-2 rounded-full ${isLive ? "bg-green-500 animate-pulse" : "bg-muted"}`}></span>
+          Última atualização: {format(lastUpdate, "HH:mm:ss", { locale: ptBR })}
         </div>
 
         {/* Featured Card - Platform Earnings */}
@@ -258,23 +326,29 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className={`glass-card transition-all duration-300 ${newTransactionAlert ? "ring-2 ring-primary animate-pulse" : ""}`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Transações</CardTitle>
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalTransactions}</div>
+              {newTransactionAlert && (
+                <Badge className="mt-2 bg-primary animate-bounce">Nova!</Badge>
+              )}
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className={`glass-card transition-all duration-300 ${newWithdrawalAlert ? "ring-2 ring-yellow-500 animate-pulse" : ""}`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Saques Pendentes</CardTitle>
               <DollarSign className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-500">{formatCurrency(stats.pendingWithdrawals)}</div>
+              {newWithdrawalAlert && (
+                <Badge className="mt-2 bg-yellow-500 animate-bounce">Novo!</Badge>
+              )}
             </CardContent>
           </Card>
 
