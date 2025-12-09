@@ -145,6 +145,44 @@ const Checkout = () => {
   }, 0);
   const totalPrice = basePrice + bumpsTotal + (upsellAccepted ? upsellOffer.price : 0);
 
+  // Helper function to track Facebook Pixel events
+  const trackPixelEvent = (eventName: string, params: object) => {
+    if (template?.facebook_pixel && typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', eventName, params);
+    }
+  };
+
+  // Track InitiateCheckout when product and template are loaded
+  useEffect(() => {
+    if (product && template?.facebook_pixel) {
+      trackPixelEvent('InitiateCheckout', {
+        value: product.price,
+        currency: 'BRL',
+        content_ids: [product.id],
+        content_type: 'product',
+        num_items: 1
+      });
+    }
+  }, [product, template?.facebook_pixel]);
+
+  // Track Purchase when payment is confirmed
+  useEffect(() => {
+    if (paymentConfirmed && charge && template?.facebook_pixel) {
+      const allContentIds = [productId, ...selectedBumps];
+      if (upsellAccepted) {
+        allContentIds.push(upsellOffer.id);
+      }
+      trackPixelEvent('Purchase', {
+        value: totalPrice,
+        currency: 'BRL',
+        content_ids: allContentIds,
+        content_type: 'product',
+        num_items: allContentIds.length,
+        transaction_id: charge.external_id
+      });
+    }
+  }, [paymentConfirmed]);
+
   // Offer timer effect
   useEffect(() => {
     if (template?.enable_timer && template?.timer_minutes && !charge) {
@@ -356,6 +394,17 @@ const Checkout = () => {
       if (error) throw error;
 
       setCharge(data);
+      
+      // Track AddPaymentInfo event
+      const allContentIds = [productId, ...selectedBumps];
+      trackPixelEvent('AddPaymentInfo', {
+        value: totalPrice,
+        currency: 'BRL',
+        content_ids: allContentIds,
+        content_type: 'product',
+        num_items: allContentIds.length
+      });
+      
       toast({
         title: "Cobrança PIX criada!",
         description: "Escaneie o QR Code ou copie o código para pagar.",
