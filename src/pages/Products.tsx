@@ -37,6 +37,11 @@ interface Product {
   cover_url: string | null;
   content_url: string | null;
   created_at: string;
+  allow_affiliates?: boolean;
+  order_bumps?: string[];
+  deliverable_url?: string | null;
+  deliverable_type?: string | null;
+  checkout_template_id?: string | null;
 }
 
 const typeLabels = {
