@@ -12,7 +12,9 @@ import {
   Trash2,
   Filter,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Link
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +44,9 @@ interface Product {
   deliverable_url?: string | null;
   deliverable_type?: string | null;
   checkout_template_id?: string | null;
+  custom_slug?: string | null;
+  custom_domain?: string | null;
+  domain_verified?: boolean;
 }
 
 const typeLabels = {
@@ -115,8 +120,25 @@ const Products = () => {
     setDialogOpen(true);
   };
 
-  const openCheckout = (productId: string) => {
-    window.open(`/checkout/${productId}`, '_blank');
+  const getCheckoutUrl = (product: Product) => {
+    const baseUrl = window.location.origin;
+    if (product.custom_domain && product.domain_verified) {
+      return `https://${product.custom_domain}/${product.custom_slug || product.id}`;
+    }
+    if (product.custom_slug) {
+      return `${baseUrl}/checkout/s/${product.custom_slug}`;
+    }
+    return `${baseUrl}/checkout/${product.id}`;
+  };
+
+  const openCheckout = (product: Product) => {
+    window.open(getCheckoutUrl(product), '_blank');
+  };
+
+  const copyCheckoutUrl = async (product: Product) => {
+    const url = getCheckoutUrl(product);
+    await navigator.clipboard.writeText(url);
+    toast.success("Link copiado!");
   };
 
   const filteredProducts = products.filter(product =>
@@ -212,9 +234,13 @@ const Products = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openCheckout(product.id)}>
+                          <DropdownMenuItem onClick={() => openCheckout(product)}>
                             <ExternalLink className="h-4 w-4 mr-2" />
                             Ver Checkout
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => copyCheckoutUrl(product)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copiar Link
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEdit(product)}>
                             <Edit className="h-4 w-4 mr-2" />
@@ -240,6 +266,21 @@ const Products = () => {
                       </span>
                     </div>
 
+                    {/* Custom URL Preview */}
+                    {(product.custom_slug || product.custom_domain) && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded px-2 py-1">
+                        <Link className="h-3 w-3" />
+                        <span className="truncate">
+                          {product.custom_domain 
+                            ? `${product.custom_domain}/${product.custom_slug || ''}` 
+                            : `/s/${product.custom_slug}`}
+                        </span>
+                        {product.custom_domain && !product.domain_verified && (
+                          <Badge variant="warning" className="text-[10px] px-1 py-0">Pendente</Badge>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between pt-2 border-t border-border/50">
                       <div>
                         <p className="text-lg font-bold">
@@ -251,7 +292,16 @@ const Products = () => {
                           variant="ghost" 
                           size="icon" 
                           className="h-8 w-8"
-                          onClick={() => openCheckout(product.id)}
+                          onClick={() => copyCheckoutUrl(product)}
+                          title="Copiar link"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => openCheckout(product)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>

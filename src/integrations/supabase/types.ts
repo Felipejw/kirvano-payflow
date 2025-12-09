@@ -531,9 +531,12 @@ export type Database = {
           content_url: string | null
           cover_url: string | null
           created_at: string
+          custom_domain: string | null
+          custom_slug: string | null
           deliverable_type: string | null
           deliverable_url: string | null
           description: string | null
+          domain_verified: boolean | null
           facebook_pixel: string | null
           google_analytics: string | null
           id: string
@@ -554,9 +557,12 @@ export type Database = {
           content_url?: string | null
           cover_url?: string | null
           created_at?: string
+          custom_domain?: string | null
+          custom_slug?: string | null
           deliverable_type?: string | null
           deliverable_url?: string | null
           description?: string | null
+          domain_verified?: boolean | null
           facebook_pixel?: string | null
           google_analytics?: string | null
           id?: string
@@ -577,9 +583,12 @@ export type Database = {
           content_url?: string | null
           cover_url?: string | null
           created_at?: string
+          custom_domain?: string | null
+          custom_slug?: string | null
           deliverable_type?: string | null
           deliverable_url?: string | null
           description?: string | null
+          domain_verified?: boolean | null
           facebook_pixel?: string | null
           google_analytics?: string | null
           id?: string
