@@ -11,7 +11,7 @@ import Products from "./pages/Products";
 import Transactions from "./pages/Transactions";
 import Affiliates from "./pages/Affiliates";
 import Checkout from "./pages/Checkout";
-import CheckoutSettings from "./pages/CheckoutSettings";
+
 import CheckoutTemplates from "./pages/CheckoutTemplates";
 import Sales from "./pages/Sales";
 import Finance from "./pages/Finance";
@@ -41,7 +41,7 @@ const App = () => (
             <Route path="/dashboard/products" element={<Products />} />
             <Route path="/dashboard/transactions" element={<Transactions />} />
             <Route path="/dashboard/affiliates" element={<Affiliates />} />
-            <Route path="/dashboard/checkout" element={<CheckoutSettings />} />
+            
             <Route path="/dashboard/checkout/templates" element={<CheckoutTemplates />} />
             <Route path="/dashboard/sales" element={<Sales />} />
             <Route path="/dashboard/finance" element={<Finance />} />

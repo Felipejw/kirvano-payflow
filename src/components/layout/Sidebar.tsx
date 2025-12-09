@@ -27,7 +27,6 @@ const sellerMenuItems = [
   { icon: CreditCard, label: "Transações", path: "/dashboard/transactions" },
   { icon: Users, label: "Afiliados", path: "/dashboard/affiliates" },
   { icon: Wallet, label: "Financeiro", path: "/dashboard/finance" },
-  { icon: Palette, label: "Checkout", path: "/dashboard/checkout" },
   { icon: Palette, label: "Templates", path: "/dashboard/checkout/templates" },
 ];
 

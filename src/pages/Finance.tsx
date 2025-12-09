@@ -296,14 +296,7 @@ const Finance = () => {
                   />
                 </div>
                 
-                <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                  <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    Saques são aprovados manualmente pelo administrador em até 2 dias úteis.
-                  </p>
-                </div>
-                
-                <Button 
+                <Button
                   variant="gradient" 
                   className="w-full" 
                   onClick={handleWithdraw}
@@ -394,15 +387,6 @@ const Finance = () => {
                     <p className="text-sm text-muted-foreground">Valor mínimo para solicitar</p>
                   </div>
                   <Badge variant="secondary" className="text-lg px-3 py-1">R$ {platformSettings.min_withdrawal}</Badge>
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
-                  <div>
-                    <p className="font-medium">Total em taxas</p>
-                    <p className="text-sm text-muted-foreground">Valor acumulado</p>
-                  </div>
-                  <p className="font-bold text-destructive">
-                    R$ {financeData.platformFees.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
                 </div>
               </div>
             </CardContent>
