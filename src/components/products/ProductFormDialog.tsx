@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Link, X, Package, BarChart3, Globe, Copy, Check, AlertCircle } from "lucide-react";
+import { Upload, Link, X, Package, BarChart3, Globe, Copy, Check, AlertCircle, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Product {
@@ -53,6 +53,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   
   const [slugError, setSlugError] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
   
   const [formData, setFormData] = useState<Product>({
     name: "",
@@ -250,6 +251,42 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     toast.success("URL copiada!");
     setTimeout(() => setCopiedUrl(false), 2000);
   };
+
+  const verifyDomain = async () => {
+    if (!formData.custom_domain) {
+      toast.error("Digite um domínio primeiro");
+      return;
+    }
+
+    setVerifyingDomain(true);
+    try {
+      // Using a DNS lookup service to check if domain points to the correct IP
+      const response = await fetch(`https://dns.google/resolve?name=${formData.custom_domain}&type=A`);
+      const data = await response.json();
+      
+      if (data.Answer && data.Answer.length > 0) {
+        const ips = data.Answer.map((record: { data: string }) => record.data);
+        const targetIp = "72.60.60.102";
+        
+        if (ips.includes(targetIp)) {
+          setFormData({ ...formData, domain_verified: true });
+          toast.success("Domínio verificado com sucesso! Apontando para o servidor correto.");
+        } else {
+          setFormData({ ...formData, domain_verified: false });
+          toast.error(`Domínio apontando para ${ips.join(', ')} ao invés de ${targetIp}`);
+        }
+      } else {
+        setFormData({ ...formData, domain_verified: false });
+        toast.error("Não foi possível resolver o domínio. Verifique a configuração de DNS.");
+      }
+    } catch (error) {
+      console.error("Error verifying domain:", error);
+      toast.error("Erro ao verificar domínio. Tente novamente.");
+    } finally {
+      setVerifyingDomain(false);
+    }
+  };
+
 
   const fetchAvailableProducts = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -585,23 +622,36 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                     placeholder="checkout.seusite.com"
                   />
                   {formData.custom_domain && (
-                    <div className="p-3 bg-muted/50 rounded-lg text-xs space-y-2">
+                    <div className="p-3 bg-muted/50 rounded-lg text-xs space-y-3">
                       <p className="font-medium">Configuração de DNS necessária:</p>
                       <p>Adicione um registro A apontando para: <code className="bg-background px-1 py-0.5 rounded">72.60.60.102</code></p>
                       <p className="text-muted-foreground">
                         Configure o proxy reverso no seu servidor (Nginx/Apache) para redirecionar ao checkout.
                       </p>
-                      <div className="flex items-center gap-2 pt-1">
-                        <span>Status:</span>
-                        {formData.domain_verified ? (
-                          <span className="text-green-500 flex items-center gap-1">
-                            <Check className="h-3 w-3" /> Verificado
-                          </span>
-                        ) : (
-                          <span className="text-yellow-500 flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" /> Pendente
-                          </span>
-                        )}
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex items-center gap-2">
+                          <span>Status:</span>
+                          {formData.domain_verified ? (
+                            <span className="text-green-500 flex items-center gap-1">
+                              <Check className="h-3 w-3" /> Verificado
+                            </span>
+                          ) : (
+                            <span className="text-yellow-500 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" /> Pendente
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={verifyDomain}
+                          disabled={verifyingDomain}
+                          className="h-7 text-xs gap-1"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${verifyingDomain ? 'animate-spin' : ''}`} />
+                          {verifyingDomain ? 'Verificando...' : 'Verificar DNS'}
+                        </Button>
                       </div>
                     </div>
                   )}
