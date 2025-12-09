@@ -67,7 +67,25 @@ interface CheckoutTemplate {
   custom_domain: string | null;
   custom_slug: string | null;
   domain_verified: boolean;
+  theme: string;
 }
+
+const themePresets = {
+  dark: {
+    background_color: "#0a1628",
+    text_color: "#ffffff",
+    primary_color: "#00b4d8",
+    button_color: "#00b4d8",
+    button_text_color: "#0a1628"
+  },
+  light: {
+    background_color: "#ffffff",
+    text_color: "#1a1a2e",
+    primary_color: "#00b4d8",
+    button_color: "#00b4d8",
+    button_text_color: "#ffffff"
+  }
+};
 
 interface CheckoutTemplateDialogProps {
   open: boolean;
@@ -114,6 +132,7 @@ const defaultTemplate: Omit<CheckoutTemplate, 'id'> = {
   custom_domain: null,
   custom_slug: null,
   domain_verified: false,
+  theme: "dark",
 };
 
 export function CheckoutTemplateDialog({ open, onOpenChange, template, onSuccess }: CheckoutTemplateDialogProps) {
@@ -328,6 +347,36 @@ Valor: lovable_verify=${formData.id || 'seu-template-id'}
 
               {/* Appearance Tab */}
               <TabsContent value="appearance" className="space-y-4">
+                {/* Theme Selector */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Tema</CardTitle>
+                    <CardDescription>Escolha um tema base para seu checkout</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Select 
+                      value={formData.theme || 'dark'} 
+                      onValueChange={(v) => {
+                        updateField("theme", v);
+                        const preset = themePresets[v as keyof typeof themePresets];
+                        if (preset) {
+                          Object.entries(preset).forEach(([key, value]) => {
+                            updateField(key as keyof CheckoutTemplate, value);
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tema" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dark">🌙 Tema Escuro</SelectItem>
+                        <SelectItem value="light">☀️ Tema Claro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Cores</CardTitle>
