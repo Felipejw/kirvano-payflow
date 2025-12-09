@@ -391,19 +391,19 @@ export default function AdminSettings() {
                 </AlertDialogContent>
               </AlertDialog>
 
-              {/* Delete PIX Charges */}
+              {/* Delete Sales (PIX Charges) */}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" className="w-full justify-start gap-2 border-destructive/50 hover:bg-destructive/10">
                     <ShoppingCart className="h-4 w-4 text-destructive" />
-                    <span>Excluir Cobranças PIX</span>
+                    <span>Excluir Vendas</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Excluir Todas as Cobranças PIX</AlertDialogTitle>
+                    <AlertDialogTitle>Excluir Todas as Vendas</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta ação irá remover <strong>todas as cobranças PIX</strong> do sistema.
+                      Esta ação irá remover <strong>todas as vendas (cobranças PIX)</strong> do sistema.
                       Esta ação não pode ser desfeita.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
