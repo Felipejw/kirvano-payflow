@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, Link, X, Package } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { CheckoutTemplatePreview } from "@/components/checkout/CheckoutTemplatePreview";
 
 interface Product {
   id?: string;
@@ -30,9 +31,21 @@ interface Product {
   checkout_template_id?: string | null;
 }
 
-interface CheckoutTemplate {
+interface CheckoutTemplateData {
   id: string;
   name: string;
+  primary_color?: string;
+  background_color?: string;
+  text_color?: string;
+  button_color?: string;
+  button_text_color?: string;
+  border_radius?: string;
+  enable_timer?: boolean;
+  timer_text?: string;
+  show_security_badge?: boolean;
+  show_guarantee?: boolean;
+  guarantee_text?: string;
+  logo_url?: string;
 }
 
 interface ProductFormDialogProps {
@@ -49,7 +62,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const [coverInputType, setCoverInputType] = useState<'url' | 'upload'>('url');
   const [deliverableInputType, setDeliverableInputType] = useState<'url' | 'upload'>('url');
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
-  const [checkoutTemplates, setCheckoutTemplates] = useState<CheckoutTemplate[]>([]);
+  const [checkoutTemplates, setCheckoutTemplates] = useState<CheckoutTemplateData[]>([]);
   
   const [formData, setFormData] = useState<Product>({
     name: "",
@@ -189,13 +202,15 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
     const { data } = await supabase
       .from('checkout_templates')
-      .select('id, name')
+      .select('id, name, primary_color, background_color, text_color, button_color, button_text_color, border_radius, enable_timer, timer_text, show_security_badge, show_guarantee, guarantee_text, logo_url')
       .eq('user_id', user.id);
 
     if (data) {
       setCheckoutTemplates(data);
     }
   };
+
+  const selectedTemplate = checkoutTemplates.find(t => t.id === formData.checkout_template_id) || null;
 
   const fetchAvailableProducts = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -366,27 +381,38 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                 </Select>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label>Template de Checkout</Label>
-                <Select 
-                  value={formData.checkout_template_id || "default"} 
-                  onValueChange={(value) => setFormData({ ...formData, checkout_template_id: value === "default" ? null : value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Checkout Padrão</SelectItem>
-                    {checkoutTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Escolha um template personalizado ou use o padrão
-                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Select 
+                      value={formData.checkout_template_id || "default"} 
+                      onValueChange={(value) => setFormData({ ...formData, checkout_template_id: value === "default" ? null : value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Checkout Padrão</SelectItem>
+                        {checkoutTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Escolha um template personalizado ou use o padrão
+                    </p>
+                  </div>
+                  <div>
+                    <CheckoutTemplatePreview 
+                      template={selectedTemplate}
+                      productName={formData.name || "Produto"}
+                      productPrice={formData.price || 97}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

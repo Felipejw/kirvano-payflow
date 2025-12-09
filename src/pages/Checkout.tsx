@@ -28,6 +28,32 @@ interface Product {
   price: number;
   cover_url: string;
   order_bumps: string[] | null;
+  checkout_template_id: string | null;
+}
+
+interface CheckoutTemplate {
+  id: string;
+  name: string;
+  primary_color: string | null;
+  background_color: string | null;
+  text_color: string | null;
+  button_color: string | null;
+  button_text_color: string | null;
+  border_radius: string | null;
+  font_family: string | null;
+  logo_url: string | null;
+  page_title: string | null;
+  show_product_image: boolean | null;
+  show_product_description: boolean | null;
+  require_cpf: boolean | null;
+  require_phone: boolean | null;
+  enable_timer: boolean | null;
+  timer_minutes: number | null;
+  timer_text: string | null;
+  show_security_badge: boolean | null;
+  show_guarantee: boolean | null;
+  guarantee_text: string | null;
+  guarantee_days: number | null;
 }
 
 interface OrderBumpProduct {
@@ -79,6 +105,7 @@ const Checkout = () => {
   const affiliateCode = searchParams.get("ref");
   
   const [product, setProduct] = useState<Product | null>(null);
+  const [template, setTemplate] = useState<CheckoutTemplate | null>(null);
   const [orderBumps, setOrderBumps] = useState<OrderBumpProduct[]>([]);
   const [charge, setCharge] = useState<Charge | null>(null);
   const [buyerEmail, setBuyerEmail] = useState("");
@@ -164,6 +191,19 @@ const Checkout = () => {
     }
 
     setProduct(data);
+
+    // Fetch checkout template if assigned
+    if (data.checkout_template_id) {
+      const { data: templateData } = await supabase
+        .from('checkout_templates')
+        .select('*')
+        .eq('id', data.checkout_template_id)
+        .single();
+
+      if (templateData) {
+        setTemplate(templateData);
+      }
+    }
 
     // Fetch order bumps if they exist
     if (data.order_bumps && data.order_bumps.length > 0) {
@@ -377,49 +417,91 @@ const Checkout = () => {
     );
   }
 
+  // Template styling
+  const styles = {
+    backgroundColor: template?.background_color || 'hsl(var(--background))',
+    textColor: template?.text_color || 'hsl(var(--foreground))',
+    primaryColor: template?.primary_color || 'hsl(var(--primary))',
+    buttonColor: template?.button_color || 'hsl(var(--primary))',
+    buttonTextColor: template?.button_text_color || 'hsl(var(--primary-foreground))',
+    borderRadius: template?.border_radius || '12',
+    fontFamily: template?.font_family || 'inherit',
+  };
+
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
+    <div 
+      className="min-h-screen py-8 px-4"
+      style={{ 
+        backgroundColor: styles.backgroundColor,
+        color: styles.textColor,
+        fontFamily: styles.fontFamily,
+      }}
+    >
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold gradient-text mb-2">Checkout Seguro</h1>
-          <p className="text-muted-foreground">Pagamento instantâneo via PIX</p>
+          {template?.logo_url && (
+            <img 
+              src={template.logo_url} 
+              alt="Logo" 
+              className="h-10 mx-auto mb-4 object-contain"
+            />
+          )}
+          <h1 
+            className="text-3xl font-bold mb-2"
+            style={{ color: styles.primaryColor }}
+          >
+            {template?.page_title || 'Checkout Seguro'}
+          </h1>
+          <p style={{ color: styles.textColor, opacity: 0.7 }}>Pagamento instantâneo via PIX</p>
         </div>
 
         <div className="grid lg:grid-cols-5 gap-8">
           {/* Left Column - Product + Order Bumps */}
           <div className={`lg:col-span-3 space-y-6 ${charge ? 'hidden lg:block' : ''}`}>
             {/* Product Info */}
-            <Card className="glass-card">
+            <Card 
+              style={{ 
+                borderRadius: styles.borderRadius + 'px',
+                backgroundColor: styles.backgroundColor,
+                borderColor: styles.primaryColor + '30',
+              }}
+            >
               <CardHeader>
-                <CardTitle>Resumo do Pedido</CardTitle>
+                <CardTitle style={{ color: styles.textColor }}>Resumo do Pedido</CardTitle>
               </CardHeader>
               <CardContent>
                 {product ? (
                   <div className="flex gap-4">
-                    {product.cover_url && (
+                    {(template?.show_product_image !== false) && product.cover_url && (
                       <img 
                         src={product.cover_url} 
                         alt={product.name}
-                        className="w-24 h-24 object-cover rounded-lg shrink-0"
+                        className="w-24 h-24 object-cover shrink-0"
+                        style={{ borderRadius: styles.borderRadius + 'px' }}
                       />
                     )}
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold">{product.name}</h3>
-                      <p className="text-muted-foreground text-sm line-clamp-2">{product.description}</p>
-                      <p className="text-xl font-bold gradient-text mt-2">
+                      <h3 className="text-lg font-semibold" style={{ color: styles.textColor }}>{product.name}</h3>
+                      {(template?.show_product_description !== false) && (
+                        <p className="text-sm line-clamp-2" style={{ color: styles.textColor, opacity: 0.7 }}>{product.description}</p>
+                      )}
+                      <p className="text-xl font-bold mt-2" style={{ color: styles.primaryColor }}>
                         R$ {product.price.toFixed(2)}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <div className="flex gap-4 items-center">
-                    <div className="w-24 h-24 bg-secondary rounded-lg flex items-center justify-center shrink-0">
-                      <QrCode className="h-10 w-10 text-muted-foreground" />
+                    <div 
+                      className="w-24 h-24 flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: styles.primaryColor + '20', borderRadius: styles.borderRadius + 'px' }}
+                    >
+                      <QrCode className="h-10 w-10" style={{ color: styles.primaryColor }} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold">Produto de Demonstração</h3>
-                      <p className="text-muted-foreground text-sm">Pagamento via PIX</p>
-                      <p className="text-xl font-bold gradient-text mt-2">R$ 100,00</p>
+                      <h3 className="text-lg font-semibold" style={{ color: styles.textColor }}>Produto de Demonstração</h3>
+                      <p className="text-sm" style={{ color: styles.textColor, opacity: 0.7 }}>Pagamento via PIX</p>
+                      <p className="text-xl font-bold mt-2" style={{ color: styles.primaryColor }}>R$ 100,00</p>
                     </div>
                   </div>
                 )}
@@ -490,15 +572,21 @@ const Checkout = () => {
             )}
           </div>
 
-          {/* Right Column - Payment */}
           <div className="lg:col-span-2">
-            <Card className="glass-card sticky top-4">
+            <Card 
+              className="sticky top-4"
+              style={{ 
+                borderRadius: styles.borderRadius + 'px',
+                backgroundColor: styles.backgroundColor,
+                borderColor: styles.primaryColor + '30',
+              }}
+            >
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5 text-primary" />
+                <CardTitle className="flex items-center gap-2" style={{ color: styles.textColor }}>
+                  <QrCode className="h-5 w-5" style={{ color: styles.primaryColor }} />
                   {charge ? 'Pague com PIX' : 'Finalizar Compra'}
                 </CardTitle>
-                <CardDescription>
+                <CardDescription style={{ color: styles.textColor, opacity: 0.7 }}>
                   {charge 
                     ? 'Escaneie o QR Code ou copie o código'
                     : 'Preencha seus dados para pagar'
@@ -509,17 +597,23 @@ const Checkout = () => {
                 {!charge ? (
                   <form onSubmit={handleCreateCharge} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Nome completo</Label>
+                      <Label htmlFor="name" style={{ color: styles.textColor }}>Nome completo</Label>
                       <Input
                         id="name"
                         placeholder="Seu nome"
                         value={buyerName}
                         onChange={(e) => setBuyerName(e.target.value)}
                         required
+                        style={{ 
+                          borderRadius: styles.borderRadius + 'px',
+                          backgroundColor: 'transparent',
+                          borderColor: styles.primaryColor + '40',
+                          color: styles.textColor,
+                        }}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email" style={{ color: styles.textColor }}>Email</Label>
                       <Input
                         id="email"
                         type="email"
@@ -527,34 +621,45 @@ const Checkout = () => {
                         value={buyerEmail}
                         onChange={(e) => setBuyerEmail(e.target.value)}
                         required
+                        style={{ 
+                          borderRadius: styles.borderRadius + 'px',
+                          backgroundColor: 'transparent',
+                          borderColor: styles.primaryColor + '40',
+                          color: styles.textColor,
+                        }}
                       />
                     </div>
 
                     {/* Order Summary */}
-                    <div className="pt-4 border-t border-border space-y-2">
+                    <div className="pt-4 space-y-2" style={{ borderTopColor: styles.primaryColor + '30', borderTopWidth: '1px' }}>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Produto</span>
-                        <span>R$ {basePrice.toFixed(2)}</span>
+                        <span style={{ color: styles.textColor, opacity: 0.7 }}>Produto</span>
+                        <span style={{ color: styles.textColor }}>R$ {basePrice.toFixed(2)}</span>
                       </div>
                       {selectedBumps.map(bumpId => {
                         const bump = orderBumps.find(b => b.id === bumpId);
                         return bump && (
                           <div key={bumpId} className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">{bump.name}</span>
-                            <span className="text-accent">R$ {bump.price.toFixed(2)}</span>
+                            <span style={{ color: styles.textColor, opacity: 0.7 }}>{bump.name}</span>
+                            <span style={{ color: styles.primaryColor }}>R$ {bump.price.toFixed(2)}</span>
                           </div>
                         );
                       })}
-                      <div className="flex justify-between font-bold pt-2 border-t border-border">
-                        <span>Total</span>
-                        <span className="gradient-text text-xl">R$ {totalPrice.toFixed(2)}</span>
+                      <div className="flex justify-between font-bold pt-2" style={{ borderTopColor: styles.primaryColor + '30', borderTopWidth: '1px' }}>
+                        <span style={{ color: styles.textColor }}>Total</span>
+                        <span className="text-xl" style={{ color: styles.primaryColor }}>R$ {totalPrice.toFixed(2)}</span>
                       </div>
                     </div>
 
                     <Button 
                       type="submit" 
-                      className="w-full btn-success-gradient py-6 text-lg" 
+                      className="w-full py-6 text-lg font-semibold" 
                       disabled={loading}
+                      style={{ 
+                        backgroundColor: styles.buttonColor,
+                        color: styles.buttonTextColor,
+                        borderRadius: styles.borderRadius + 'px',
+                      }}
                     >
                       {loading ? (
                         <>
@@ -569,10 +674,18 @@ const Checkout = () => {
                       )}
                     </Button>
 
-                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                      <Shield className="h-4 w-4" />
-                      Pagamento 100% seguro
-                    </div>
+                    {(template?.show_security_badge !== false) && (
+                      <div className="flex items-center justify-center gap-2 text-xs" style={{ color: styles.textColor, opacity: 0.6 }}>
+                        <Shield className="h-4 w-4" />
+                        Pagamento 100% seguro
+                      </div>
+                    )}
+
+                    {template?.show_guarantee && (
+                      <div className="text-center text-xs" style={{ color: styles.textColor, opacity: 0.6 }}>
+                        ✓ {template.guarantee_text || `Garantia de ${template.guarantee_days || 7} dias`}
+                      </div>
+                    )}
                   </form>
                 ) : (
                   <div className="space-y-6">
