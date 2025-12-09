@@ -38,6 +38,8 @@ interface ProductFormDialogProps {
 
 export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: ProductFormDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingDeliverable, setUploadingDeliverable] = useState(false);
   const [coverInputType, setCoverInputType] = useState<'url' | 'upload'>('url');
   const [deliverableInputType, setDeliverableInputType] = useState<'url' | 'upload'>('url');
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
@@ -56,6 +58,80 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     deliverable_url: "",
     deliverable_type: "file",
   });
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Máximo 5MB.");
+      return;
+    }
+
+    setUploadingCover(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/products/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('checkout-assets')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('checkout-assets')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, cover_url: publicUrl });
+      toast.success("Imagem enviada com sucesso!");
+    } catch (error: any) {
+      console.error('Error uploading cover:', error);
+      toast.error(error.message || "Erro ao enviar imagem");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const handleDeliverableUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Máximo 50MB.");
+      return;
+    }
+
+    setUploadingDeliverable(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/deliverables/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('checkout-assets')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('checkout-assets')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, deliverable_url: publicUrl, deliverable_type: 'file' });
+      toast.success("Arquivo enviado com sucesso!");
+    } catch (error: any) {
+      console.error('Error uploading deliverable:', error);
+      toast.error(error.message || "Erro ao enviar arquivo");
+    } finally {
+      setUploadingDeliverable(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -296,7 +372,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
             {/* Cover Image Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>Imagem de Capa</Label>
+                <Label>Imagem do Produto</Label>
                 <div className="flex gap-2">
                   <Button
                     type="button"
@@ -329,12 +405,31 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                   placeholder="https://exemplo.com/imagem.jpg"
                 />
               ) : (
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Arraste uma imagem ou clique para selecionar</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG até 5MB</p>
-                  <input type="file" accept="image/*" className="hidden" />
-                </div>
+                <label className="block cursor-pointer">
+                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                    {uploadingCover ? (
+                      <p className="text-sm text-muted-foreground">Enviando...</p>
+                    ) : formData.cover_url ? (
+                      <div className="space-y-2">
+                        <img src={formData.cover_url} alt="Preview" className="h-20 mx-auto object-contain rounded" />
+                        <p className="text-xs text-muted-foreground">Clique para trocar a imagem</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">Clique para selecionar uma imagem</p>
+                        <p className="text-xs text-muted-foreground mt-1">PNG, JPG até 5MB</p>
+                      </>
+                    )}
+                  </div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleCoverUpload}
+                    disabled={uploadingCover}
+                  />
+                </label>
               )}
             </div>
 
@@ -377,12 +472,31 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                   placeholder="https://exemplo.com/arquivo.pdf"
                 />
               ) : (
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Arraste um arquivo ou clique para selecionar</p>
-                  <p className="text-xs text-muted-foreground mt-1">PDF, ZIP, MP4 até 50MB</p>
-                  <input type="file" className="hidden" />
-                </div>
+                <label className="block cursor-pointer">
+                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                    {uploadingDeliverable ? (
+                      <p className="text-sm text-muted-foreground">Enviando...</p>
+                    ) : formData.deliverable_url ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-primary font-medium">Arquivo enviado ✓</p>
+                        <p className="text-xs text-muted-foreground break-all">{formData.deliverable_url.split('/').pop()}</p>
+                        <p className="text-xs text-muted-foreground">Clique para trocar o arquivo</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">Clique para selecionar um arquivo</p>
+                        <p className="text-xs text-muted-foreground mt-1">PDF, ZIP, MP4 até 50MB</p>
+                      </>
+                    )}
+                  </div>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    onChange={handleDeliverableUpload}
+                    disabled={uploadingDeliverable}
+                  />
+                </label>
               )}
             </div>
 
