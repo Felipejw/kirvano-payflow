@@ -44,7 +44,10 @@ interface Withdrawal {
   completed_at: string | null;
 }
 
-const PLATFORM_FEE_RATE = 0.07; // 7%
+interface PlatformSettings {
+  platform_fee: number;
+  min_withdrawal: number;
+}
 
 const Finance = () => {
   const [financeData, setFinanceData] = useState<FinanceData>({
@@ -55,6 +58,7 @@ const Finance = () => {
     affiliateFees: 0,
   });
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings>({ platform_fee: 5, min_withdrawal: 50 });
   const [loading, setLoading] = useState(true);
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -63,8 +67,20 @@ const Finance = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    fetchPlatformSettings();
     fetchFinanceData();
   }, []);
+
+  const fetchPlatformSettings = async () => {
+    const { data } = await supabase
+      .from('platform_settings')
+      .select('platform_fee, min_withdrawal')
+      .single();
+    
+    if (data) {
+      setPlatformSettings(data);
+    }
+  };
 
   const fetchFinanceData = async () => {
     setLoading(true);
@@ -129,8 +145,8 @@ const Finance = () => {
       return;
     }
     
-    if (amount < 10) {
-      toast.error("Valor mínimo para saque é R$ 10,00");
+    if (amount < platformSettings.min_withdrawal) {
+      toast.error(`Valor mínimo para saque é R$ ${platformSettings.min_withdrawal.toFixed(2)}`);
       return;
     }
     
@@ -173,7 +189,7 @@ const Finance = () => {
       toast.error("Erro ao solicitar saque");
       console.error(error);
     } else {
-      toast.success(`Saque de R$ ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} solicitado!`);
+      toast.success(`Saque de R$ ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} solicitado! Aguarde aprovação do administrador.`);
       setWithdrawDialogOpen(false);
       setWithdrawAmount("");
       setPixKey("");
@@ -239,7 +255,7 @@ const Finance = () => {
                       className="pl-10"
                       value={withdrawAmount}
                       onChange={(e) => setWithdrawAmount(e.target.value)}
-                      min={10}
+                      min={platformSettings.min_withdrawal}
                     />
                   </div>
                   <div className="flex gap-2">
@@ -251,7 +267,7 @@ const Finance = () => {
                     >
                       Sacar tudo
                     </Button>
-                    <span className="text-xs text-muted-foreground self-center">Mínimo: R$ 10,00</span>
+                    <span className="text-xs text-muted-foreground self-center">Mínimo: R$ {platformSettings.min_withdrawal.toFixed(2)}</span>
                   </div>
                 </div>
                 
@@ -280,13 +296,20 @@ const Finance = () => {
                   />
                 </div>
                 
+                <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Saques são aprovados manualmente pelo administrador em até 2 dias úteis.
+                  </p>
+                </div>
+                
                 <Button 
                   variant="gradient" 
                   className="w-full" 
                   onClick={handleWithdraw}
                   disabled={submitting}
                 >
-                  {submitting ? "Processando..." : "Confirmar Saque"}
+                  {submitting ? "Processando..." : "Solicitar Saque"}
                 </Button>
               </div>
             </DialogContent>
@@ -363,7 +386,14 @@ const Finance = () => {
                     <p className="font-medium">Taxa por transação</p>
                     <p className="text-sm text-muted-foreground">Cobrada em cada venda</p>
                   </div>
-                  <Badge variant="secondary" className="text-lg px-3 py-1">7%</Badge>
+                  <Badge variant="secondary" className="text-lg px-3 py-1">{platformSettings.platform_fee}%</Badge>
+                </div>
+                <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
+                  <div>
+                    <p className="font-medium">Saque mínimo</p>
+                    <p className="text-sm text-muted-foreground">Valor mínimo para solicitar</p>
+                  </div>
+                  <Badge variant="secondary" className="text-lg px-3 py-1">R$ {platformSettings.min_withdrawal}</Badge>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
                   <div>
