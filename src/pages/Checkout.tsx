@@ -127,6 +127,9 @@ const Checkout = () => {
   const { productId: routeProductId, slug: routeSlug } = useParams();
   const [searchParams] = useSearchParams();
   const productId = routeProductId || searchParams.get("product");
+  
+  // Detect if this is a direct slug route (e.g., /:slug from custom domain)
+  const isDirectSlugRoute = !routeProductId && routeSlug && !window.location.pathname.includes('/checkout/');
   const slug = routeSlug;
   const affiliateCode = searchParams.get("ref");
   
