@@ -381,9 +381,17 @@ serve(async (req) => {
             .update({ status: 'paid', paid_at: new Date().toISOString() })
             .eq('id', charge.id);
 
+          // Fetch platform fee from settings
+          const { data: platformSettings } = await supabase
+            .from('platform_settings')
+            .select('platform_fee')
+            .single();
+          
+          const platformFeeRate = platformSettings?.platform_fee ?? 5;
+
           // Calculate amounts
           const amount = Number(charge.amount);
-          const platformFee = amount * 0.05;
+          const platformFee = amount * (platformFeeRate / 100);
           let affiliateAmount = 0;
           let sellerAmount = amount - platformFee;
 
@@ -550,8 +558,16 @@ serve(async (req) => {
         });
       }
 
+      // Fetch platform fee from settings
+      const { data: platformSettings } = await supabase
+        .from('platform_settings')
+        .select('platform_fee')
+        .single();
+      
+      const platformFeeRate = platformSettings?.platform_fee ?? 5;
+
       const amount = Number(charge.amount);
-      const platformFee = amount * 0.05;
+      const platformFee = amount * (platformFeeRate / 100);
       let affiliateAmount = 0;
       let sellerAmount = amount - platformFee;
 
