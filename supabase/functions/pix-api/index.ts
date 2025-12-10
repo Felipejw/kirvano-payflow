@@ -41,7 +41,6 @@ async function getBspayToken(): Promise<string> {
     throw new Error('BSPAY credentials not configured');
   }
   
-  // Create Basic Auth header
   const credentials = `${clientId}:${clientSecret}`;
   const base64Credentials = btoa(credentials);
   
@@ -167,6 +166,91 @@ const generateExternalId = () => {
   return `PIX${timestamp}${random}`.toUpperCase();
 };
 
+// Generate a random password for new users
+const generateRandomPassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
+
+// Create or get existing user and create membership
+async function createMembershipForBuyer(
+  supabase: any,
+  buyerEmail: string,
+  buyerName: string | null,
+  productId: string,
+  transactionId: string
+): Promise<{ userId: string; isNewUser: boolean; password?: string }> {
+  console.log('Creating membership for buyer:', buyerEmail, 'product:', productId);
+  
+  // Check if user already exists
+  const { data: existingUsers } = await supabase.auth.admin.listUsers();
+  const existingUser = existingUsers?.users?.find((u: any) => u.email === buyerEmail);
+  
+  let userId: string;
+  let isNewUser = false;
+  let password: string | undefined;
+  
+  if (existingUser) {
+    userId = existingUser.id;
+    console.log('Existing user found:', userId);
+  } else {
+    // Create new user
+    password = generateRandomPassword();
+    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+      email: buyerEmail,
+      password: password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: buyerName || 'Cliente',
+      },
+    });
+    
+    if (createError) {
+      console.error('Error creating user:', createError);
+      throw new Error(`Failed to create user: ${createError.message}`);
+    }
+    
+    userId = newUser.user.id;
+    isNewUser = true;
+    console.log('New user created:', userId);
+  }
+  
+  // Check if membership already exists
+  const { data: existingMembership } = await supabase
+    .from('members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('product_id', productId)
+    .maybeSingle();
+  
+  if (!existingMembership) {
+    // Create membership
+    const { error: memberError } = await supabase
+      .from('members')
+      .insert({
+        user_id: userId,
+        product_id: productId,
+        transaction_id: transactionId,
+        access_level: 'full',
+      });
+    
+    if (memberError) {
+      console.error('Error creating membership:', memberError);
+      throw new Error(`Failed to create membership: ${memberError.message}`);
+    }
+    
+    console.log('Membership created for user:', userId);
+  } else {
+    console.log('Membership already exists for user:', userId);
+  }
+  
+  return { userId, isNewUser, password };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -255,7 +339,6 @@ serve(async (req) => {
       const expiresInMinutes = body.expires_in_minutes || 30;
       const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
       
-      // Webhook URL for BSPAY callbacks
       const webhookUrl = body.webhook_url || `${supabaseUrl}/functions/v1/pix-api/webhook`;
 
       let pixCode: string;
@@ -263,7 +346,6 @@ serve(async (req) => {
       let bspayTransactionId: string | null = null;
 
       try {
-        // Get BSPAY token and create QR Code
         const token = await getBspayToken();
         const bspayResult = await createBspayQRCode(
           token,
@@ -285,7 +367,6 @@ serve(async (req) => {
         console.log('BSPAY charge created successfully:', bspayTransactionId);
       } catch (bspayError) {
         console.error('BSPAY error, using fallback:', bspayError);
-        // Fallback to simulated PIX if BSPAY fails
         pixCode = `00020126580014BR.GOV.BCB.PIX0136pixpay@example.com5204000053039865404${body.amount.toFixed(2)}5802BR5913PIXPAY6009SAO PAULO62070503***6304`;
         qrCodeBase64 = `data:image/svg+xml;base64,${btoa(`
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
@@ -296,7 +377,6 @@ serve(async (req) => {
         `)}`;
       }
 
-      // Check for affiliate
       let affiliateId: string | null = null;
       if (body.affiliate_code) {
         const { data: affiliate } = await supabase
@@ -367,7 +447,6 @@ serve(async (req) => {
       if (requestBody.transactionType === 'RECEIVEPIX' && requestBody.status === 'PAID') {
         const transactionId = requestBody.transactionId || requestBody.external_id;
         
-        // Find the charge
         const { data: charge, error: fetchError } = await supabase
           .from('pix_charges')
           .select('*, products(*), affiliates(*)')
@@ -375,13 +454,11 @@ serve(async (req) => {
           .single();
 
         if (charge && charge.status === 'pending') {
-          // Update charge status
           await supabase
             .from('pix_charges')
             .update({ status: 'paid', paid_at: new Date().toISOString() })
             .eq('id', charge.id);
 
-          // Fetch platform fee from settings
           const { data: platformSettings } = await supabase
             .from('platform_settings')
             .select('platform_fee')
@@ -389,7 +466,6 @@ serve(async (req) => {
           
           const platformFeeRate = platformSettings?.platform_fee ?? 5;
 
-          // Calculate amounts
           const amount = Number(charge.amount);
           const platformFee = amount * (platformFeeRate / 100);
           let affiliateAmount = 0;
@@ -410,7 +486,7 @@ serve(async (req) => {
           }
 
           // Create transaction
-          await supabase
+          const { data: transaction } = await supabase
             .from('transactions')
             .insert({
               charge_id: charge.id,
@@ -422,7 +498,25 @@ serve(async (req) => {
               affiliate_amount: affiliateAmount,
               platform_fee: platformFee,
               status: 'paid',
-            });
+            })
+            .select()
+            .single();
+
+          // Create membership for buyer
+          if (charge.product_id && charge.buyer_email) {
+            try {
+              const membershipResult = await createMembershipForBuyer(
+                supabase,
+                charge.buyer_email,
+                charge.buyer_name,
+                charge.product_id,
+                transaction?.id
+              );
+              console.log('Membership created:', membershipResult);
+            } catch (memberError) {
+              console.error('Error creating membership:', memberError);
+            }
+          }
 
           // Send user webhooks
           const { data: webhooks } = await supabase
@@ -494,14 +588,12 @@ serve(async (req) => {
         });
       }
 
-      // If pending, check BSPAY for updates
       if (charge.status === 'pending') {
         try {
           const token = await getBspayToken();
           const bspayTransaction = await getBspayTransaction(token, charge.external_id);
           
           if (bspayTransaction.status === 'PAID') {
-            // Update local status
             await supabase
               .from('pix_charges')
               .update({ status: 'paid', paid_at: new Date().toISOString() })
@@ -558,7 +650,6 @@ serve(async (req) => {
         });
       }
 
-      // Fetch platform fee from settings
       const { data: platformSettings } = await supabase
         .from('platform_settings')
         .select('platform_fee')
@@ -600,6 +691,22 @@ serve(async (req) => {
         })
         .select()
         .single();
+
+      // Create membership for buyer
+      if (charge.product_id && charge.buyer_email) {
+        try {
+          const membershipResult = await createMembershipForBuyer(
+            supabase,
+            charge.buyer_email,
+            charge.buyer_name,
+            charge.product_id,
+            transaction?.id
+          );
+          console.log('Membership created via manual confirm:', membershipResult);
+        } catch (memberError) {
+          console.error('Error creating membership:', memberError);
+        }
+      }
 
       console.log('Payment confirmed manually:', charge.external_id);
 

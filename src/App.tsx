@@ -21,6 +21,9 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTransactionsPage from "./pages/admin/AdminTransactionsPage";
 import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import MembersArea from "./pages/members/MembersArea";
+import MembersLogin from "./pages/members/MembersLogin";
+import MemberProduct from "./pages/members/MemberProduct";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +52,9 @@ const App = () => (
             <Route path="/admin/withdrawals" element={<AdminWithdrawalsPage />} />
             <Route path="/admin/analytics" element={<AdminAnalytics />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/members" element={<MembersArea />} />
+            <Route path="/members/login" element={<MembersLogin />} />
+            <Route path="/members/product/:productId" element={<MemberProduct />} />
             <Route path="/:slug" element={<Checkout />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
