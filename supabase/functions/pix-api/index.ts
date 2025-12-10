@@ -1,6 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// SECURITY: Use service role client for database operations
+// This is required since RLS now restricts pix_charges updates to service role only
+const createServiceClient = () => {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  return createClient(supabaseUrl, supabaseServiceKey);
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
@@ -613,109 +621,13 @@ serve(async (req) => {
       });
     }
 
-    // POST /charges/:id/confirm - Manual payment confirmation (for testing)
+    // SECURITY: Manual /confirm endpoint has been removed
+    // Payment confirmations should only happen via verified BSPAY webhooks
     if (req.method === 'POST' && path.includes('/confirm')) {
-      const chargeId = path.replace('/charges/', '').replace('/confirm', '');
-      
-      const { data: charge, error: fetchError } = await supabase
-        .from('pix_charges')
-        .select('*, products(*), affiliates(*)')
-        .or(`id.eq.${chargeId},external_id.eq.${chargeId}`)
-        .single();
-
-      if (fetchError || !charge) {
-        return new Response(JSON.stringify({ error: 'Charge not found' }), {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (charge.status !== 'pending') {
-        return new Response(JSON.stringify({ error: 'Charge is not pending' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const { error: updateError } = await supabase
-        .from('pix_charges')
-        .update({ status: 'paid', paid_at: new Date().toISOString() })
-        .eq('id', charge.id);
-
-      if (updateError) {
-        console.error('Error updating charge:', updateError);
-        return new Response(JSON.stringify({ error: 'Failed to confirm payment' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const { data: platformSettings } = await supabase
-        .from('platform_settings')
-        .select('platform_fee')
-        .single();
-      
-      const platformFeeRate = platformSettings?.platform_fee ?? 5;
-
-      const amount = Number(charge.amount);
-      const platformFee = amount * (platformFeeRate / 100);
-      let affiliateAmount = 0;
-      let sellerAmount = amount - platformFee;
-
-      if (charge.affiliate_id && charge.affiliates) {
-        const commissionRate = charge.affiliates.commission_rate || 10;
-        affiliateAmount = amount * (commissionRate / 100);
-        sellerAmount = amount - platformFee - affiliateAmount;
-
-        await supabase
-          .from('affiliates')
-          .update({
-            total_sales: charge.affiliates.total_sales + 1,
-            total_earnings: Number(charge.affiliates.total_earnings) + affiliateAmount,
-          })
-          .eq('id', charge.affiliate_id);
-      }
-
-      const { data: transaction } = await supabase
-        .from('transactions')
-        .insert({
-          charge_id: charge.id,
-          product_id: charge.product_id,
-          seller_id: charge.products?.seller_id,
-          affiliate_id: charge.affiliate_id,
-          amount,
-          seller_amount: sellerAmount,
-          affiliate_amount: affiliateAmount,
-          platform_fee: platformFee,
-          status: 'paid',
-        })
-        .select()
-        .single();
-
-      // Create membership for buyer
-      if (charge.product_id && charge.buyer_email) {
-        try {
-          const membershipResult = await createMembershipForBuyer(
-            supabase,
-            charge.buyer_email,
-            charge.buyer_name,
-            charge.product_id,
-            transaction?.id
-          );
-          console.log('Membership created via manual confirm:', membershipResult);
-        } catch (memberError) {
-          console.error('Error creating membership:', memberError);
-        }
-      }
-
-      console.log('Payment confirmed manually:', charge.external_id);
-
       return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'Payment confirmed',
-        transaction_id: transaction?.id,
+        error: 'Manual payment confirmation is not allowed. Payments are confirmed automatically via webhook.' 
       }), {
-        status: 200,
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
