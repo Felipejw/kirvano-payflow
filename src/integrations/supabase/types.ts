@@ -614,34 +614,49 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          average_revenue: string | null
+          company_name: string | null
           created_at: string
+          document_number: string | null
+          document_type: string | null
           email: string | null
           full_name: string | null
           id: string
           phone: string | null
           pix_key: string | null
+          sales_niche: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          average_revenue?: string | null
+          company_name?: string | null
           created_at?: string
+          document_number?: string | null
+          document_type?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
           pix_key?: string | null
+          sales_niche?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          average_revenue?: string | null
+          company_name?: string | null
           created_at?: string
+          document_number?: string | null
+          document_type?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
           pix_key?: string | null
+          sales_niche?: string | null
           updated_at?: string
           user_id?: string
         }

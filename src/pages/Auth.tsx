@@ -6,14 +6,44 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+
+const SALES_NICHES = [
+  "Cursos Online",
+  "E-books",
+  "Mentorias",
+  "Software/SaaS",
+  "Serviços Digitais",
+  "Produtos Físicos",
+  "Dropshipping",
+  "Marketing Digital",
+  "Finanças",
+  "Saúde e Bem-estar",
+  "Desenvolvimento Pessoal",
+  "Outros",
+];
+
+const REVENUE_RANGES = [
+  "Ainda não faturei",
+  "Até R$ 5.000/mês",
+  "R$ 5.000 a R$ 20.000/mês",
+  "R$ 20.000 a R$ 50.000/mês",
+  "R$ 50.000 a R$ 100.000/mês",
+  "Acima de R$ 100.000/mês",
+];
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [documentType, setDocumentType] = useState<"cpf" | "cnpj">("cpf");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [salesNiche, setSalesNiche] = useState("");
+  const [averageRevenue, setAverageRevenue] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -35,9 +65,64 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, "").slice(0, 11);
+    return numbers
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  };
+
+  const formatCNPJ = (value: string) => {
+    const numbers = value.replace(/\D/g, "").slice(0, 14);
+    return numbers
+      .replace(/(\d{2})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1/$2")
+      .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+  };
+
+  const handleDocumentChange = (value: string) => {
+    if (documentType === "cpf") {
+      setDocumentNumber(formatCPF(value));
+    } else {
+      setDocumentNumber(formatCNPJ(value));
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Validate document number
+    const cleanDocument = documentNumber.replace(/\D/g, "");
+    if (documentType === "cpf" && cleanDocument.length !== 11) {
+      toast({
+        title: "CPF inválido",
+        description: "O CPF deve conter 11 dígitos.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+    if (documentType === "cnpj" && cleanDocument.length !== 14) {
+      toast({
+        title: "CNPJ inválido",
+        description: "O CNPJ deve conter 14 dígitos.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+    if (documentType === "cnpj" && !companyName.trim()) {
+      toast({
+        title: "Razão Social obrigatória",
+        description: "Para CNPJ, informe a razão social da empresa.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
 
     try {
       const { error } = await supabase.auth.signUp({
@@ -47,6 +132,11 @@ const Auth = () => {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
             full_name: fullName,
+            document_type: documentType,
+            document_number: cleanDocument,
+            company_name: documentType === "cnpj" ? companyName : null,
+            sales_niche: salesNiche,
+            average_revenue: averageRevenue,
           },
         },
       });
@@ -179,12 +269,93 @@ const Auth = () => {
                     <Input
                       id="fullName"
                       type="text"
-                      placeholder="Seu nome"
+                      placeholder="Seu nome completo"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <Label>Tipo de documento</Label>
+                    <Select 
+                      value={documentType} 
+                      onValueChange={(value: "cpf" | "cnpj") => {
+                        setDocumentType(value);
+                        setDocumentNumber("");
+                        if (value === "cpf") setCompanyName("");
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cpf">CPF (Pessoa Física)</SelectItem>
+                        <SelectItem value="cnpj">CNPJ (Pessoa Jurídica)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="documentNumber">
+                      {documentType === "cpf" ? "CPF" : "CNPJ"}
+                    </Label>
+                    <Input
+                      id="documentNumber"
+                      type="text"
+                      placeholder={documentType === "cpf" ? "000.000.000-00" : "00.000.000/0000-00"}
+                      value={documentNumber}
+                      onChange={(e) => handleDocumentChange(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {documentType === "cnpj" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="companyName">Razão Social</Label>
+                      <Input
+                        id="companyName"
+                        type="text"
+                        placeholder="Nome da empresa"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label>Nicho de vendas</Label>
+                    <Select value={salesNiche} onValueChange={setSalesNiche} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione seu nicho" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SALES_NICHES.map((niche) => (
+                          <SelectItem key={niche} value={niche}>
+                            {niche}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Média de faturamento</Label>
+                    <Select value={averageRevenue} onValueChange={setAverageRevenue} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione sua faixa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REVENUE_RANGES.map((range) => (
+                          <SelectItem key={range} value={range}>
+                            {range}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="registerEmail">Email</Label>
                     <Input
