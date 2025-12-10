@@ -18,7 +18,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
-
+import gateflowLogo from "@/assets/gateflow-logo.png";
 const sellerMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Package, label: "Produtos", path: "/dashboard/products" },
@@ -78,16 +78,12 @@ export function Sidebar() {
         <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
           {!collapsed && (
             <Link to="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">P</span>
-              </div>
-              <span className="font-bold text-xl gradient-text">PixPay</span>
+              <img src={gateflowLogo} alt="Gateflow" className="h-8 w-auto" />
+              <span className="font-bold text-xl gradient-text">Gateflow</span>
             </Link>
           )}
           {collapsed && (
-            <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center mx-auto">
-              <span className="text-primary-foreground font-bold text-lg">P</span>
-            </div>
+            <img src={gateflowLogo} alt="Gateflow" className="h-8 w-auto mx-auto" />
           )}
           <Button 
             variant="ghost" 

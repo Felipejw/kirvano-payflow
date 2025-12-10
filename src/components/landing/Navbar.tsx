@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import gateflowLogo from "@/assets/gateflow-logo.png";
 
 const navItems = [
   { label: "Funcionalidades", href: "#features" },
@@ -18,9 +19,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">G</span>
-            </div>
+            <img src={gateflowLogo} alt="Gateflow" className="h-8 w-auto" />
             <span className="font-bold text-xl">Gateflow</span>
           </Link>
 
