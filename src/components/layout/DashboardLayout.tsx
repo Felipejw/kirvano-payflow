@@ -1,13 +1,49 @@
+import { useEffect, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Bell, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+interface Profile {
+  full_name: string | null;
+  email: string | null;
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  
+  // Initialize notifications
+  useNotifications();
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data) {
+        setProfile(data);
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
+
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Usuário';
+  const displayEmail = profile?.email || user?.email || '';
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
@@ -34,8 +70,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium">João Silva</p>
-                <p className="text-xs text-muted-foreground">Administrador</p>
+                <p className="text-sm font-medium">{displayName}</p>
+                <p className="text-xs text-muted-foreground truncate max-w-[150px]">{displayEmail}</p>
               </div>
               <Button variant="ghost" size="icon" className="rounded-full bg-secondary">
                 <User className="h-5 w-5" />
