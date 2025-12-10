@@ -5,7 +5,6 @@ import { Link } from "react-router-dom";
 
 const navItems = [
   { label: "Funcionalidades", href: "#features" },
-  { label: "API PIX", href: "#api" },
   { label: "Preços", href: "#pricing" },
   { label: "Documentação", href: "#docs" },
 ];
@@ -20,9 +19,9 @@ export function Navbar() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">P</span>
+              <span className="text-primary-foreground font-bold text-lg">G</span>
             </div>
-            <span className="font-bold text-xl">PixPay</span>
+            <span className="font-bold text-xl">Gateflow</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -40,9 +39,11 @@ export function Navbar() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-4">
-            <Button variant="ghost">Entrar</Button>
-            <Link to="/dashboard">
-              <Button variant="gradient">Dashboard</Button>
+            <Link to="/auth">
+              <Button variant="ghost">Cadastrar-se</Button>
+            </Link>
+            <Link to="/auth">
+              <Button variant="gradient">Entrar</Button>
             </Link>
           </div>
 
@@ -72,9 +73,11 @@ export function Navbar() {
                 </a>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Button variant="ghost" className="justify-start">Entrar</Button>
-                <Link to="/dashboard">
-                  <Button variant="gradient" className="w-full">Dashboard</Button>
+                <Link to="/auth">
+                  <Button variant="ghost" className="justify-start w-full">Cadastrar-se</Button>
+                </Link>
+                <Link to="/auth">
+                  <Button variant="gradient" className="w-full">Entrar</Button>
                 </Link>
               </div>
             </div>

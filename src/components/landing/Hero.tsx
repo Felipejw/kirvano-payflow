@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, QrCode, Shield, Zap } from "lucide-react";
+import { ArrowRight, Play, Ban, Wallet, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export function Hero() {
@@ -16,29 +16,28 @@ export function Hero() {
       <div className="relative z-10 container mx-auto px-4 py-20">
         <div className="max-w-5xl mx-auto text-center">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8 animate-fade-in">
-            <Zap className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-primary">Plataforma de Pagamentos PIX #1 do Brasil</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 mb-8 animate-fade-in">
+            <span className="text-sm font-bold text-accent">Taxa de apenas 4,99%</span>
           </div>
 
           {/* Main Heading */}
           <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6 animate-slide-up">
-            Gateway de Pagamentos
+            Venda Produtos Digitais
             <br />
-            <span className="gradient-text">Completo e Escalável</span>
+            <span className="gradient-text">com PIX Instantâneo</span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-10 animate-slide-up animation-delay-100">
-            Gerencie vendas, processe pagamentos PIX e disponibilize sua API 
-            para terceiros. Tudo em uma única plataforma.
+            A plataforma mais completa para infoprodutores. Checkout otimizado, 
+            sistema de afiliados e área de membros em um só lugar.
           </p>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-slide-up animation-delay-200">
-            <Link to="/dashboard">
+            <Link to="/auth">
               <Button variant="gradient" size="xl" className="group">
-                Acessar Dashboard
+                Começar Agora
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
@@ -48,19 +47,19 @@ export function Hero() {
             </Button>
           </div>
 
-          {/* Feature Pills */}
+          {/* Feature Pills - Diferenciais */}
           <div className="flex flex-wrap items-center justify-center gap-4 animate-slide-up animation-delay-300">
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/50 border border-border/50">
-              <QrCode className="h-5 w-5 text-primary" />
-              <span className="text-sm">PIX Instantâneo</span>
+              <Ban className="h-5 w-5 text-destructive" />
+              <span className="text-sm font-medium">0 Estorno</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/50 border border-border/50">
-              <Shield className="h-5 w-5 text-accent" />
-              <span className="text-sm">Antifraude Integrado</span>
+              <Wallet className="h-5 w-5 text-accent" />
+              <span className="text-sm font-medium">Sem Taxa de Saque</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/50 border border-border/50">
-              <Zap className="h-5 w-5 text-yellow-500" />
-              <span className="text-sm">API em Milissegundos</span>
+              <Clock className="h-5 w-5 text-primary" />
+              <span className="text-sm font-medium">Saque a Qualquer Hora</span>
             </div>
           </div>
         </div>
@@ -76,7 +75,7 @@ export function Hero() {
                 <div className="h-3 w-3 rounded-full bg-accent/50" />
                 <div className="flex-1 flex justify-center">
                   <div className="px-4 py-1 rounded-full bg-secondary text-xs text-muted-foreground">
-                    pixpay.com.br/dashboard
+                    gateflow.store/dashboard
                   </div>
                 </div>
               </div>

@@ -6,7 +6,7 @@ const footerLinks = {
     { label: "Funcionalidades", href: "#" },
     { label: "Preços", href: "#" },
     { label: "Integrações", href: "#" },
-    { label: "API PIX", href: "#" },
+    { label: "Checkout", href: "#" },
   ],
   Empresa: [
     { label: "Sobre", href: "#" },
@@ -37,12 +37,12 @@ export function Footer() {
           <div className="col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
               <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">P</span>
+                <span className="text-primary-foreground font-bold text-lg">G</span>
               </div>
-              <span className="font-bold text-xl">PixPay</span>
+              <span className="font-bold text-xl">Gateflow</span>
             </Link>
             <p className="text-sm text-muted-foreground mb-4 max-w-xs">
-              Gateway de pagamentos completo para escalar seu negócio digital com PIX.
+              Gateway de pagamentos completo para vender seus produtos digitais com PIX. Taxa de 4,99%, 0 estorno e saque imediato.
             </p>
             <div className="flex items-center gap-4">
               <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -79,7 +79,7 @@ export function Footer() {
 
         <div className="border-t border-border mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2024 PixPay. Todos os direitos reservados.
+            © 2024 Gateflow. Todos os direitos reservados.
           </p>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Feito com</span>
