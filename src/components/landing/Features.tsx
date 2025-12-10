@@ -1,8 +1,6 @@
 import { 
   Package, 
   Users, 
-  Shield, 
-  Zap,
   Wallet,
   ShoppingCart,
   BarChart3,
@@ -11,6 +9,7 @@ import {
   Clock
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const features = [
   {
@@ -64,6 +63,9 @@ const features = [
 ];
 
 export function Features() {
+  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.2 });
+  const { ref: gridRef, isVisible: gridVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.1 });
+
   return (
     <section id="features" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
@@ -73,7 +75,12 @@ export function Features() {
       <div className="absolute bottom-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '3s' }} />
       
       <div className="container mx-auto px-4 relative z-10">
-        <div className="text-center mb-16 animate-fade-in">
+        <div 
+          ref={headerRef}
+          className={`text-center mb-16 transition-all duration-700 ${
+            headerVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}
+        >
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             Tudo que você precisa para
             <br />
@@ -84,13 +91,15 @@ export function Features() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (
             <Card 
               key={feature.title} 
               variant="glass"
-              className="group hover:border-primary/30 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 cursor-pointer animate-fade-in"
-              style={{ animationDelay: `${index * 100}ms` }}
+              className={`group hover:border-primary/30 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 cursor-pointer ${
+                gridVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+              }`}
+              style={{ transitionDelay: `${index * 80}ms` }}
             >
               <CardContent className="p-6">
                 <div className={`p-3 rounded-xl bg-secondary/50 w-fit mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 ${feature.color}`}>

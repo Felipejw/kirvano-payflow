@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const stats = [
   { value: 150, suffix: "M+", label: "Transações Processadas", prefix: "R$ " },
@@ -7,10 +8,12 @@ const stats = [
   { value: 2, suffix: "s", label: "Tempo Médio de Resposta", prefix: "<" },
 ];
 
-function AnimatedNumber({ value, suffix, prefix }: { value: number; suffix: string; prefix: string }) {
+function AnimatedNumber({ value, suffix, prefix, shouldAnimate }: { value: number; suffix: string; prefix: string; shouldAnimate: boolean }) {
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
+    if (!shouldAnimate) return;
+    
     const duration = 2000;
     const steps = 60;
     const increment = value / steps;
@@ -23,7 +26,7 @@ function AnimatedNumber({ value, suffix, prefix }: { value: number; suffix: stri
     }, duration / steps);
 
     return () => clearInterval(timer);
-  }, [value]);
+  }, [value, shouldAnimate]);
 
   return (
     <span className="gradient-text">
@@ -33,8 +36,10 @@ function AnimatedNumber({ value, suffix, prefix }: { value: number; suffix: stri
 }
 
 export function Stats() {
+  const { ref, isVisible } = useScrollReveal<HTMLElement>({ threshold: 0.3 });
+
   return (
-    <section className="py-24 relative border-y border-border/50 overflow-hidden">
+    <section ref={ref} className="py-24 relative border-y border-border/50 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent" />
       <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--primary)/0.03)_1px,transparent_1px)] bg-[size:100px_1px]" />
       
@@ -43,11 +48,13 @@ export function Stats() {
           {stats.map((stat, index) => (
             <div 
               key={stat.label} 
-              className="text-center group hover:scale-105 transition-transform duration-300 cursor-default animate-fade-in"
-              style={{ animationDelay: `${index * 150}ms` }}
+              className={`text-center group hover:scale-105 transition-all duration-500 cursor-default ${
+                isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+              }`}
+              style={{ transitionDelay: `${index * 150}ms` }}
             >
               <div className="text-4xl md:text-5xl font-bold mb-2 group-hover:scale-110 transition-transform">
-                <AnimatedNumber value={stat.value} suffix={stat.suffix} prefix={stat.prefix} />
+                <AnimatedNumber value={stat.value} suffix={stat.suffix} prefix={stat.prefix} shouldAnimate={isVisible} />
               </div>
               <p className="text-muted-foreground group-hover:text-foreground transition-colors">{stat.label}</p>
             </div>

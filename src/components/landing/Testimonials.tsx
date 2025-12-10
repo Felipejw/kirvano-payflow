@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Star, Quote, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const testimonials = [
   {
@@ -48,6 +49,10 @@ const stats = [
 export const Testimonials = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  
+  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.2 });
+  const { ref: statsRef, isVisible: statsVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.2 });
+  const { ref: carouselRef, isVisible: carouselVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.2 });
 
   useEffect(() => {
     if (!isAutoPlaying) return;
@@ -77,7 +82,12 @@ export const Testimonials = () => {
 
       <div className="container mx-auto px-4 relative">
         {/* Section header */}
-        <div className="text-center mb-16 animate-fade-in">
+        <div 
+          ref={headerRef}
+          className={`text-center mb-16 transition-all duration-700 ${
+            headerVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}
+        >
           <span className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium mb-4">
             <Star className="h-4 w-4 fill-primary" />
             Cases de Sucesso
@@ -91,12 +101,14 @@ export const Testimonials = () => {
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
+        <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
           {stats.map((stat, index) => (
             <div 
               key={stat.label}
-              className="text-center p-6 bg-background/50 backdrop-blur-sm rounded-2xl border border-border/50 hover:border-primary/50 transition-all duration-300 hover:scale-105 hover:shadow-lg group"
-              style={{ animationDelay: `${index * 100}ms` }}
+              className={`text-center p-6 bg-background/50 backdrop-blur-sm rounded-2xl border border-border/50 hover:border-primary/50 transition-all duration-500 hover:scale-105 hover:shadow-lg group ${
+                statsVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'
+              }`}
+              style={{ transitionDelay: `${index * 100}ms` }}
             >
               <div className="text-2xl md:text-3xl font-bold text-primary mb-1 group-hover:scale-110 transition-transform">
                 {stat.value}
@@ -107,7 +119,12 @@ export const Testimonials = () => {
         </div>
 
         {/* Testimonials carousel */}
-        <div className="relative max-w-4xl mx-auto">
+        <div 
+          ref={carouselRef}
+          className={`relative max-w-4xl mx-auto transition-all duration-700 ${
+            carouselVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+          }`}
+        >
           <div className="overflow-hidden">
             <div 
               className="flex transition-transform duration-500 ease-out"
