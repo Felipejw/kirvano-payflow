@@ -14,12 +14,13 @@ import {
   UserCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
+import { useSidebar } from "@/contexts/SidebarContext";
 import gateflowLogo from "@/assets/gateflow-logo.png";
+
 const sellerMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Package, label: "Produtos", path: "/dashboard/products" },
@@ -44,12 +45,11 @@ const bottomMenuItems = [
 ];
 
 export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggle } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
   const { signOut } = useAuth();
-  const [viewMode, setViewMode] = useState<"seller" | "admin">("seller");
 
   // Determine which menu items to show based on current path
   const isOnAdminRoute = location.pathname.startsWith("/admin");
@@ -90,7 +90,7 @@ export function Sidebar() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={toggle}
             className={cn("text-muted-foreground", collapsed && "mx-auto")}
           >
             {collapsed ? <Menu className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}

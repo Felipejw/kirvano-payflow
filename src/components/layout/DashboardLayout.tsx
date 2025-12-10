@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useSidebar } from "@/contexts/SidebarContext";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,6 +20,7 @@ interface Profile {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user } = useAuth();
+  const { collapsed } = useSidebar();
   const [profile, setProfile] = useState<Profile | null>(null);
   
   // Initialize notifications
@@ -49,7 +52,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <Sidebar />
       
       {/* Main Content */}
-      <div className="pl-64 transition-all duration-300">
+      <div className={cn(
+        "transition-all duration-300",
+        collapsed ? "pl-20" : "pl-64"
+      )}>
         {/* Top Header */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-xl px-6">
           <div className="flex items-center gap-4 flex-1 max-w-xl">
