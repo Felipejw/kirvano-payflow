@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, Ban, Wallet, Clock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import dashboardPreview from "@/assets/dashboard-preview.png";
 
 export function Hero() {
   return (
@@ -88,29 +87,6 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Dashboard Preview */}
-        <div className="mt-20 relative animate-slide-up" style={{ animationDelay: '400ms' }}>
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
-          <div className="glass-card p-2 max-w-5xl mx-auto shadow-glow-primary hover:shadow-glow-accent transition-shadow duration-500 group">
-            <div className="bg-secondary rounded-lg overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-3 bg-card border-b border-border">
-                <div className="h-3 w-3 rounded-full bg-destructive/50 group-hover:bg-destructive transition-colors" />
-                <div className="h-3 w-3 rounded-full bg-yellow-500/50 group-hover:bg-yellow-500 transition-colors" />
-                <div className="h-3 w-3 rounded-full bg-accent/50 group-hover:bg-accent transition-colors" />
-                <div className="flex-1 flex justify-center">
-                  <div className="px-4 py-1 rounded-full bg-secondary text-xs text-muted-foreground">
-                    gateflow.store/dashboard
-                  </div>
-                </div>
-              </div>
-              <img 
-                src={dashboardPreview} 
-                alt="Dashboard PixPay - Painel de controle para infoprodutores" 
-                className="w-full h-auto"
-              />
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );
