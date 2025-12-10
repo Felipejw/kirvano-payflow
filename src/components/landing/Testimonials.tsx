@@ -43,7 +43,7 @@ const stats = [
   { value: "R$ 12M+", label: "Processados" },
   { value: "2.500+", label: "Produtores" },
   { value: "99.9%", label: "Uptime" },
-  { value: "0", label: "Chargebacks" },
+  { value: "0", label: "Estorno" },
 ];
 
 export const Testimonials = () => {
