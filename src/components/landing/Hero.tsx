@@ -62,10 +62,6 @@ export function Hero() {
                 <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] group-hover:animate-shimmer" />
               </Button>
             </Link>
-            <Button variant="glass" size="xl" className="gap-2 group">
-              <Play className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              Ver Demo
-            </Button>
           </div>
 
           {/* Feature Pills - Diferenciais */}
