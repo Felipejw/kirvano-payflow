@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, Ban, Wallet, Clock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
+import dashboardPreview from "@/assets/dashboard-preview.png";
 
 export function Hero() {
   return (
@@ -102,21 +103,11 @@ export function Hero() {
                   </div>
                 </div>
               </div>
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-4 gap-4">
-                  {[...Array(4)].map((_, i) => (
-                    <div 
-                      key={i} 
-                      className="h-24 rounded-lg bg-card/50 border border-border/30 group-hover:border-primary/20 transition-all duration-300"
-                      style={{ animationDelay: `${i * 100}ms` }}
-                    />
-                  ))}
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2 h-64 rounded-lg bg-card/50 border border-border/30 group-hover:border-primary/20 transition-all duration-300" />
-                  <div className="h-64 rounded-lg bg-card/50 border border-border/30 group-hover:border-primary/20 transition-all duration-300" />
-                </div>
-              </div>
+              <img 
+                src={dashboardPreview} 
+                alt="Dashboard PixPay - Painel de controle para infoprodutores" 
+                className="w-full h-auto"
+              />
             </div>
           </div>
         </div>
