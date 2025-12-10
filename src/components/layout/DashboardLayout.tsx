@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sidebar } from "./Sidebar";
-import { Bell, Search, User } from "lucide-react";
+import { Bell, Search, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,7 +20,7 @@ interface Profile {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user } = useAuth();
-  const { collapsed } = useSidebar();
+  const { collapsed, isMobile, setMobileOpen } = useSidebar();
   const [profile, setProfile] = useState<Profile | null>(null);
   
   // Initialize notifications
@@ -54,21 +54,33 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main Content */}
       <div className={cn(
         "transition-all duration-300",
-        collapsed ? "pl-20" : "pl-64"
+        isMobile ? "pl-0" : (collapsed ? "pl-20" : "pl-64")
       )}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-xl px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-xl px-4 md:px-6 gap-4">
+          {/* Mobile menu button */}
+          {isMobile && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setMobileOpen(true)}
+              className="shrink-0"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
+          
           <div className="flex items-center gap-4 flex-1 max-w-xl">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Buscar transações, produtos, afiliados..." 
+                placeholder={isMobile ? "Buscar..." : "Buscar transações, produtos, afiliados..."} 
                 className="pl-10 bg-secondary/50 border-transparent focus:border-primary"
               />
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-accent" />
@@ -87,7 +99,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="p-6">
+        <main className="p-4 md:p-6">
           {children}
         </main>
       </div>
