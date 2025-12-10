@@ -493,13 +493,20 @@ serve(async (req) => {
               .eq('id', charge.affiliate_id);
           }
 
+          // Get seller_id from product or use null (admin will need to assign)
+          const sellerId = charge.products?.seller_id || null;
+          
+          if (!sellerId) {
+            console.warn('Transaction created without seller_id - product_id was:', charge.product_id);
+          }
+
           // Create transaction
           const { data: transaction } = await supabase
             .from('transactions')
             .insert({
               charge_id: charge.id,
               product_id: charge.product_id,
-              seller_id: charge.products?.seller_id,
+              seller_id: sellerId,
               affiliate_id: charge.affiliate_id,
               amount,
               seller_amount: sellerAmount,
