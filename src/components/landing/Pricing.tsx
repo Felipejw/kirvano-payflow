@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Zap, Ban, Wallet, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const features = [
   "Checkout customizável",
@@ -21,6 +22,9 @@ const differentials = [
 ];
 
 export function Pricing() {
+  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.2 });
+  const { ref: cardRef, isVisible: cardVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.2 });
+
   return (
     <section id="pricing" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-accent/5 via-transparent to-transparent" />
@@ -30,7 +34,12 @@ export function Pricing() {
       <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
       
       <div className="container mx-auto px-4 relative z-10">
-        <div className="text-center mb-16 animate-fade-in">
+        <div 
+          ref={headerRef}
+          className={`text-center mb-16 transition-all duration-700 ${
+            headerVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}
+        >
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             Preço simples e
             <br />
@@ -41,7 +50,13 @@ export function Pricing() {
           </p>
         </div>
 
-        <div className="max-w-xl mx-auto animate-fade-in" style={{ animationDelay: '200ms' }}>
+        <div 
+          ref={cardRef}
+          className={`max-w-xl mx-auto transition-all duration-700 ${
+            cardVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'
+          }`}
+          style={{ transitionDelay: '200ms' }}
+        >
           <Card 
             variant="glass"
             className="relative border-primary/50 shadow-glow-primary hover:shadow-glow-accent transition-all duration-500 group"
@@ -71,8 +86,10 @@ export function Pricing() {
                 {differentials.map((diff, index) => (
                   <div 
                     key={diff.text} 
-                    className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] transition-all duration-300 cursor-default group/item"
-                    style={{ animationDelay: `${index * 100}ms` }}
+                    className={`flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] transition-all duration-300 cursor-default group/item ${
+                      cardVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
+                    }`}
+                    style={{ transitionDelay: `${400 + index * 100}ms` }}
                   >
                     <diff.icon className="h-5 w-5 text-accent shrink-0 group-hover/item:scale-110 transition-transform" />
                     <span className="text-sm font-medium">{diff.text}</span>
@@ -87,8 +104,10 @@ export function Pricing() {
                   {features.map((feature, index) => (
                     <div 
                       key={feature} 
-                      className="flex items-start gap-2 hover:translate-x-1 transition-transform cursor-default"
-                      style={{ animationDelay: `${index * 50}ms` }}
+                      className={`flex items-start gap-2 hover:translate-x-1 transition-all duration-300 cursor-default ${
+                        cardVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+                      }`}
+                      style={{ transitionDelay: `${600 + index * 50}ms` }}
                     >
                       <Check className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                       <span className="text-sm">{feature}</span>
