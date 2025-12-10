@@ -34,17 +34,22 @@ function AnimatedNumber({ value, suffix, prefix }: { value: number; suffix: stri
 
 export function Stats() {
   return (
-    <section className="py-24 relative border-y border-border/50">
+    <section className="py-24 relative border-y border-border/50 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--primary)/0.03)_1px,transparent_1px)] bg-[size:100px_1px]" />
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="text-4xl md:text-5xl font-bold mb-2">
+          {stats.map((stat, index) => (
+            <div 
+              key={stat.label} 
+              className="text-center group hover:scale-105 transition-transform duration-300 cursor-default animate-fade-in"
+              style={{ animationDelay: `${index * 150}ms` }}
+            >
+              <div className="text-4xl md:text-5xl font-bold mb-2 group-hover:scale-110 transition-transform">
                 <AnimatedNumber value={stat.value} suffix={stat.suffix} prefix={stat.prefix} />
               </div>
-              <p className="text-muted-foreground">{stat.label}</p>
+              <p className="text-muted-foreground group-hover:text-foreground transition-colors">{stat.label}</p>
             </div>
           ))}
         </div>

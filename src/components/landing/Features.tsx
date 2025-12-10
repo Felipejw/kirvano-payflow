@@ -65,11 +65,15 @@ const features = [
 
 export function Features() {
   return (
-    <section id="features" className="py-24 relative">
+    <section id="features" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
       
+      {/* Animated background elements */}
+      <div className="absolute top-20 right-10 w-72 h-72 bg-accent/5 rounded-full blur-3xl animate-float" />
+      <div className="absolute bottom-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '3s' }} />
+      
       <div className="container mx-auto px-4 relative z-10">
-        <div className="text-center mb-16">
+        <div className="text-center mb-16 animate-fade-in">
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             Tudo que você precisa para
             <br />
@@ -85,14 +89,14 @@ export function Features() {
             <Card 
               key={feature.title} 
               variant="glass"
-              className="group hover:border-primary/30 transition-all duration-300 cursor-pointer"
+              className="group hover:border-primary/30 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 cursor-pointer animate-fade-in"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <CardContent className="p-6">
-                <div className={`p-3 rounded-xl bg-secondary/50 w-fit mb-4 group-hover:scale-110 transition-transform duration-300 ${feature.color}`}>
+                <div className={`p-3 rounded-xl bg-secondary/50 w-fit mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 ${feature.color}`}>
                   <feature.icon className="h-6 w-6" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">{feature.title}</h3>
                 <p className="text-sm text-muted-foreground">{feature.description}</p>
               </CardContent>
             </Card>
