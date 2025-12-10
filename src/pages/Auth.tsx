@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import gateflowLogo from "@/assets/gateflow-logo.png";
 
 const SALES_NICHES = [
   "Cursos Online",
@@ -210,10 +211,8 @@ const Auth = () => {
 
         <Card className="glass-card">
           <CardHeader className="text-center">
-            <div className="h-12 w-12 rounded-xl bg-gradient-primary flex items-center justify-center mx-auto mb-4">
-              <span className="text-primary-foreground font-bold text-2xl">P</span>
-            </div>
-            <CardTitle className="text-2xl gradient-text">PixPay</CardTitle>
+            <img src={gateflowLogo} alt="Gateflow" className="h-12 w-auto mx-auto mb-4" />
+            <CardTitle className="text-2xl gradient-text">Gateflow</CardTitle>
             <CardDescription>Acesse sua conta ou crie uma nova</CardDescription>
           </CardHeader>
           <CardContent>
