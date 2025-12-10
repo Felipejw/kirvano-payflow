@@ -24,6 +24,7 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import MembersArea from "./pages/members/MembersArea";
 import MembersLogin from "./pages/members/MembersLogin";
 import MemberProduct from "./pages/members/MemberProduct";
+import Clients from "./pages/Clients";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/dashboard/sales" element={<Sales />} />
             <Route path="/dashboard/finance" element={<Finance />} />
             <Route path="/dashboard/settings" element={<Settings />} />
+            <Route path="/dashboard/clients" element={<Clients />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/transactions" element={<AdminTransactionsPage />} />

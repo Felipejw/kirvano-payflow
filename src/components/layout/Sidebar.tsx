@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   Menu,
   Shield,
-  TrendingUp
+  TrendingUp,
+  UserCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -24,7 +25,8 @@ const sellerMenuItems = [
   { icon: Package, label: "Produtos", path: "/dashboard/products" },
   { icon: ShoppingCart, label: "Vendas", path: "/dashboard/sales" },
   { icon: CreditCard, label: "Transações", path: "/dashboard/transactions" },
-  { icon: Users, label: "Afiliados", path: "/dashboard/affiliates" },
+  { icon: Users, label: "Clientes", path: "/dashboard/clients" },
+  { icon: UserCheck, label: "Afiliados", path: "/dashboard/affiliates" },
   { icon: Wallet, label: "Financeiro", path: "/dashboard/finance" },
 ];
 
