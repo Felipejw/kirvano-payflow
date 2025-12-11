@@ -45,14 +45,13 @@ interface Transaction {
   affiliate_amount: number;
   status: string;
   created_at: string;
+  paid_at: string | null;
+  buyer_name: string | null;
+  buyer_email: string;
+  buyer_cpf: string | null;
+  buyer_phone: string | null;
   product?: {
     name: string;
-  } | null;
-  charge?: {
-    buyer_name: string | null;
-    buyer_email: string;
-    buyer_cpf: string | null;
-    paid_at: string | null;
   } | null;
 }
 
@@ -120,19 +119,70 @@ const Transactions = () => {
     
     if (!user) return;
 
+    // Fetch from pix_charges to get ALL orders (paid and pending)
+    const { data: products } = await supabase
+      .from('products')
+      .select('id, name')
+      .eq('seller_id', user.id);
+
+    if (!products || products.length === 0) {
+      setTransactions([]);
+      setLoading(false);
+      return;
+    }
+
+    const productIds = products.map(p => p.id);
+    const productMap = Object.fromEntries(products.map(p => [p.id, p.name]));
+
+    const { data: platformSettings } = await supabase
+      .from('platform_settings')
+      .select('platform_fee')
+      .single();
+    
+    const platformFeeRate = (platformSettings?.platform_fee ?? 5) / 100;
+
     const { data, error } = await supabase
-      .from('transactions')
+      .from('pix_charges')
       .select(`
-        *,
-        product:products(name),
-        charge:pix_charges(buyer_name, buyer_email, buyer_cpf, paid_at)
+        id,
+        amount,
+        status,
+        buyer_email,
+        buyer_name,
+        buyer_cpf,
+        buyer_phone,
+        created_at,
+        paid_at,
+        product_id
       `)
-      .eq('seller_id', user.id)
+      .in('product_id', productIds)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      setTransactions(data);
-      calculateStats(data);
+      const mappedTransactions: Transaction[] = data.map(charge => {
+        const amount = Number(charge.amount);
+        const platformFee = charge.status === 'paid' ? amount * platformFeeRate : 0;
+        const sellerAmount = charge.status === 'paid' ? amount - platformFee : 0;
+        
+        return {
+          id: charge.id,
+          amount: amount,
+          seller_amount: sellerAmount,
+          platform_fee: platformFee,
+          affiliate_amount: 0,
+          status: charge.status,
+          created_at: charge.created_at,
+          paid_at: charge.paid_at,
+          buyer_name: charge.buyer_name,
+          buyer_email: charge.buyer_email,
+          buyer_cpf: charge.buyer_cpf,
+          buyer_phone: charge.buyer_phone,
+          product: charge.product_id ? { name: productMap[charge.product_id] || 'Produto não especificado' } : null
+        };
+      });
+      
+      setTransactions(mappedTransactions);
+      calculateStats(mappedTransactions);
     }
     setLoading(false);
   };
@@ -216,8 +266,8 @@ const Transactions = () => {
     const search = searchTerm.toLowerCase();
     return (
       t.id.toLowerCase().includes(search) ||
-      t.charge?.buyer_email?.toLowerCase().includes(search) ||
-      t.charge?.buyer_name?.toLowerCase().includes(search) ||
+      t.buyer_email?.toLowerCase().includes(search) ||
+      t.buyer_name?.toLowerCase().includes(search) ||
       t.product?.name?.toLowerCase().includes(search)
     );
   });
@@ -249,7 +299,7 @@ const Transactions = () => {
       const statusInfo = statusConfig[tx.status as keyof typeof statusConfig] || statusConfig.pending;
       return [
         tx.id.substring(0, 8) + "...",
-        tx.charge?.buyer_name || "—",
+        tx.buyer_name || "—",
         tx.product?.name || "—",
         `R$ ${Number(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         `R$ ${Number(tx.platform_fee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
@@ -492,8 +542,8 @@ const Transactions = () => {
                           </td>
                           <td>
                             <div>
-                              <p className="font-medium">{tx.charge?.buyer_name || "—"}</p>
-                              <p className="text-xs text-muted-foreground">{tx.charge?.buyer_email || "—"}</p>
+                              <p className="font-medium">{tx.buyer_name || "—"}</p>
+                              <p className="text-xs text-muted-foreground">{tx.buyer_email || "—"}</p>
                             </div>
                           </td>
                           <td className="max-w-[200px]">
@@ -571,15 +621,19 @@ const Transactions = () => {
                   <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-secondary/30">
                     <div>
                       <p className="text-xs text-muted-foreground">Nome</p>
-                      <p className="font-medium">{selectedTransaction.charge?.buyer_name || "—"}</p>
+                      <p className="font-medium">{selectedTransaction.buyer_name || "—"}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">CPF</p>
-                      <p className="font-medium">{selectedTransaction.charge?.buyer_cpf || "—"}</p>
+                      <p className="font-medium">{selectedTransaction.buyer_cpf || "—"}</p>
                     </div>
-                    <div className="col-span-2">
+                    <div>
                       <p className="text-xs text-muted-foreground">E-mail</p>
-                      <p className="font-medium">{selectedTransaction.charge?.buyer_email || "—"}</p>
+                      <p className="font-medium">{selectedTransaction.buyer_email || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Telefone</p>
+                      <p className="font-medium">{selectedTransaction.buyer_phone || "—"}</p>
                     </div>
                   </div>
                 </div>
@@ -646,11 +700,11 @@ const Transactions = () => {
                         {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                       </p>
                     </div>
-                    {selectedTransaction.charge?.paid_at && (
+                    {selectedTransaction.paid_at && (
                       <div>
                         <p className="text-xs text-muted-foreground">Pago em</p>
                         <p className="font-medium">
-                          {format(new Date(selectedTransaction.charge.paid_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          {format(new Date(selectedTransaction.paid_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                         </p>
                       </div>
                     )}

@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Mail, User, Calendar, ShoppingBag, CreditCard, Clock } from "lucide-react";
+import { Mail, User, Calendar, ShoppingBag, CreditCard, Clock, Phone } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -59,16 +59,25 @@ export function ClientDetailDialog({ client, open, onOpenChange }: ClientDetailD
             {/* Client Info */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-3 rounded-lg bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Telefone</p>
+                <p className="text-sm flex items-center gap-1">
+                  {client.buyer_phone ? (
+                    <>
+                      <Phone className="h-3 w-3" />
+                      {client.buyer_phone}
+                    </>
+                  ) : (
+                    "-"
+                  )}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">CPF</p>
                 <p className="font-mono text-sm">{client.buyer_cpf || "-"}</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/30">
-                <p className="text-xs text-muted-foreground mb-1">Total Pedidos</p>
-                <p className="font-medium">{client.total_orders}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Pedidos Pagos</p>
-                <p className="font-medium text-emerald-500">{client.paid_orders}</p>
+                <p className="font-medium text-emerald-500">{client.paid_orders} / {client.total_orders}</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Total Gasto</p>

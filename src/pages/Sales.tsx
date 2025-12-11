@@ -35,6 +35,7 @@ interface Sale {
   buyer_email: string;
   buyer_name: string | null;
   buyer_cpf: string | null;
+  buyer_phone: string | null;
   created_at: string;
   paid_at: string | null;
   expires_at: string;
@@ -94,6 +95,7 @@ const Sales = () => {
         buyer_email,
         buyer_name,
         buyer_cpf,
+        buyer_phone,
         created_at,
         paid_at,
         expires_at,
@@ -285,7 +287,7 @@ const Sales = () => {
                                 </div>
                               </td>
                               <td className="p-4">
-                                <p className="text-sm">{sale.product?.name || "Produto removido"}</p>
+                                <p className="text-sm">{sale.product?.name || "Produto não especificado"}</p>
                               </td>
                               <td className="p-4">
                                 <p className="font-semibold">
@@ -365,6 +367,9 @@ const Sales = () => {
                       <p className="text-xs text-muted-foreground">Cliente</p>
                       <p className="font-medium">{selectedSale.buyer_name || "Não informado"}</p>
                       <p className="text-sm text-muted-foreground">{selectedSale.buyer_email}</p>
+                      {selectedSale.buyer_phone && (
+                        <p className="text-xs text-muted-foreground">Tel: {selectedSale.buyer_phone}</p>
+                      )}
                       {selectedSale.buyer_cpf && (
                         <p className="text-xs text-muted-foreground">CPF: {selectedSale.buyer_cpf}</p>
                       )}
@@ -375,7 +380,7 @@ const Sales = () => {
                     <Package className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Produto</p>
-                      <p className="font-medium">{selectedSale.product?.name || "Produto removido"}</p>
+                      <p className="font-medium">{selectedSale.product?.name || "Produto não especificado"}</p>
                     </div>
                   </div>
 

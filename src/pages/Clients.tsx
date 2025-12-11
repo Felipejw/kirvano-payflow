@@ -15,12 +15,14 @@ export interface ClientData {
   buyer_email: string;
   buyer_name: string | null;
   buyer_cpf: string | null;
+  buyer_phone: string | null;
   total_orders: number;
   paid_orders: number;
   total_spent: number;
   last_order: string;
   first_order: string;
   orders: OrderData[];
+  products_purchased: string[];
 }
 
 export interface OrderData {
@@ -37,6 +39,7 @@ export default function Clients() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [productFilter, setProductFilter] = useState<string>("all");
   const [selectedClient, setSelectedClient] = useState<ClientData | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
@@ -44,14 +47,14 @@ export default function Clients() {
   const { data: chargesData, isLoading } = useQuery({
     queryKey: ["seller-clients", user?.id],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!user?.id) return { charges: [], products: [] };
 
       const { data: products } = await supabase
         .from("products")
         .select("id, name")
         .eq("seller_id", user.id);
 
-      if (!products || products.length === 0) return [];
+      if (!products || products.length === 0) return { charges: [], products: [] };
 
       const productIds = products.map((p) => p.id);
       const productMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
@@ -64,21 +67,27 @@ export default function Clients() {
 
       if (error) throw error;
 
-      return (charges || []).map((charge) => ({
-        ...charge,
-        product_name: productMap[charge.product_id || ""] || "Produto desconhecido",
-      }));
+      return {
+        charges: (charges || []).map((charge) => ({
+          ...charge,
+          product_name: productMap[charge.product_id || ""] || "Produto não especificado",
+        })),
+        products: products
+      };
     },
     enabled: !!user?.id,
   });
 
+  const chargesList = chargesData?.charges || [];
+  const productsList = chargesData?.products || [];
+
   // Aggregate clients from charges
   const clients = useMemo(() => {
-    if (!chargesData || chargesData.length === 0) return [];
+    if (!chargesList || chargesList.length === 0) return [];
 
     const clientMap = new Map<string, ClientData>();
 
-    chargesData.forEach((charge) => {
+    chargesList.forEach((charge: any) => {
       const email = charge.buyer_email;
       if (!email) return;
 
@@ -104,17 +113,26 @@ export default function Clients() {
           existing.first_order = charge.created_at;
         }
         existing.orders.push(order);
+        if (charge.status === "paid" && charge.product_id && !existing.products_purchased.includes(charge.product_id)) {
+          existing.products_purchased.push(charge.product_id);
+        }
+        // Update phone if not set
+        if (!existing.buyer_phone && charge.buyer_phone) {
+          existing.buyer_phone = charge.buyer_phone;
+        }
       } else {
         clientMap.set(email, {
           buyer_email: email,
           buyer_name: charge.buyer_name,
           buyer_cpf: charge.buyer_cpf,
+          buyer_phone: charge.buyer_phone,
           total_orders: 1,
           paid_orders: charge.status === "paid" ? 1 : 0,
           total_spent: charge.status === "paid" ? Number(charge.amount) : 0,
           last_order: charge.created_at,
           first_order: charge.created_at,
           orders: [order],
+          products_purchased: charge.status === "paid" && charge.product_id ? [charge.product_id] : [],
         });
       }
     });
@@ -122,7 +140,7 @@ export default function Clients() {
     return Array.from(clientMap.values()).sort(
       (a, b) => new Date(b.last_order).getTime() - new Date(a.last_order).getTime()
     );
-  }, [chargesData]);
+  }, [chargesList]);
 
   // Filter clients
   const filteredClients = useMemo(() => {
@@ -131,16 +149,21 @@ export default function Clients() {
         searchTerm === "" ||
         client.buyer_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.buyer_cpf?.includes(searchTerm);
+        client.buyer_cpf?.includes(searchTerm) ||
+        client.buyer_phone?.includes(searchTerm);
 
       const matchesStatus =
         statusFilter === "all" ||
         (statusFilter === "paid" && client.paid_orders > 0) ||
         (statusFilter === "abandoned" && client.paid_orders === 0);
 
-      return matchesSearch && matchesStatus;
+      const matchesProduct =
+        productFilter === "all" ||
+        client.products_purchased.includes(productFilter);
+
+      return matchesSearch && matchesStatus && matchesProduct;
     });
-  }, [clients, searchTerm, statusFilter]);
+  }, [clients, searchTerm, statusFilter, productFilter]);
 
   const handleViewClient = (client: ClientData) => {
     setSelectedClient(client);
@@ -176,13 +199,26 @@ export default function Clients() {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filtrar por status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os clientes</SelectItem>
               <SelectItem value="paid">Compraram</SelectItem>
               <SelectItem value="abandoned">Abandonaram</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={productFilter} onValueChange={setProductFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filtrar por produto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os produtos</SelectItem>
+              {productsList.map((product: any) => (
+                <SelectItem key={product.id} value={product.id}>
+                  {product.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

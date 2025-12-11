@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Eye, Mail, User } from "lucide-react";
+import { Eye, Mail, User, Phone } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -28,7 +28,7 @@ export function ClientsTable({ clients, isLoading, onViewClient }: ClientsTableP
           <TableHeader>
             <TableRow className="bg-muted/30">
               <TableHead>Cliente</TableHead>
-              <TableHead>CPF</TableHead>
+              <TableHead>Telefone</TableHead>
               <TableHead className="text-center">Pedidos</TableHead>
               <TableHead className="text-right">Total Gasto</TableHead>
               <TableHead>Último Pedido</TableHead>
@@ -72,7 +72,7 @@ export function ClientsTable({ clients, isLoading, onViewClient }: ClientsTableP
         <TableHeader>
           <TableRow className="bg-muted/30">
             <TableHead>Cliente</TableHead>
-            <TableHead>CPF</TableHead>
+            <TableHead>Telefone</TableHead>
             <TableHead className="text-center">Pedidos</TableHead>
             <TableHead className="text-right">Total Gasto</TableHead>
             <TableHead>Último Pedido</TableHead>
@@ -99,8 +99,15 @@ export function ClientsTable({ clients, isLoading, onViewClient }: ClientsTableP
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="font-mono text-sm">
-                {client.buyer_cpf || "-"}
+              <TableCell>
+                {client.buyer_phone ? (
+                  <div className="flex items-center gap-1 text-sm">
+                    <Phone className="h-3 w-3 text-muted-foreground" />
+                    {client.buyer_phone}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
               </TableCell>
               <TableCell className="text-center">
                 <span className="font-medium">{client.paid_orders}</span>
