@@ -43,26 +43,25 @@ export default function Clients() {
   const [selectedClient, setSelectedClient] = useState<ClientData | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
-  // Fetch all charges for seller's products
+  // Fetch all charges for seller by seller_id
   const { data: chargesData, isLoading } = useQuery({
     queryKey: ["seller-clients", user?.id],
     queryFn: async () => {
       if (!user?.id) return { charges: [], products: [] };
 
+      // Fetch products for name mapping
       const { data: products } = await supabase
         .from("products")
         .select("id, name")
         .eq("seller_id", user.id);
 
-      if (!products || products.length === 0) return { charges: [], products: [] };
+      const productMap = Object.fromEntries((products || []).map((p) => [p.id, p.name]));
 
-      const productIds = products.map((p) => p.id);
-      const productMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
-
+      // Fetch charges by seller_id (includes all charges)
       const { data: charges, error } = await supabase
         .from("pix_charges")
         .select("*")
-        .in("product_id", productIds)
+        .eq("seller_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -70,9 +69,9 @@ export default function Clients() {
       return {
         charges: (charges || []).map((charge) => ({
           ...charge,
-          product_name: productMap[charge.product_id || ""] || "Produto não especificado",
+          product_name: charge.product_id ? (productMap[charge.product_id] || "Produto não especificado") : "Produto não especificado",
         })),
-        products: products
+        products: products || []
       };
     },
     enabled: !!user?.id,
