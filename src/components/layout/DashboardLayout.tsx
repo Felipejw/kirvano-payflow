@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useSalesNotifications } from "@/hooks/useSalesNotifications";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   
   // Initialize notifications
   useNotifications();
+  
+  // Real-time sales notifications
+  useSalesNotifications(user?.id);
 
   useEffect(() => {
     const fetchProfile = async () => {
