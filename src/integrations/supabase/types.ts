@@ -407,6 +407,7 @@ export type Database = {
           buyer_cpf: string | null
           buyer_email: string
           buyer_name: string | null
+          buyer_phone: string | null
           copy_paste: string | null
           created_at: string
           expires_at: string
@@ -424,6 +425,7 @@ export type Database = {
           buyer_cpf?: string | null
           buyer_email: string
           buyer_name?: string | null
+          buyer_phone?: string | null
           copy_paste?: string | null
           created_at?: string
           expires_at: string
@@ -441,6 +443,7 @@ export type Database = {
           buyer_cpf?: string | null
           buyer_email?: string
           buyer_name?: string | null
+          buyer_phone?: string | null
           copy_paste?: string | null
           created_at?: string
           expires_at?: string

@@ -19,6 +19,7 @@ interface CreateChargeRequest {
   buyer_email: string;
   buyer_name?: string;
   buyer_document?: string;
+  buyer_phone?: string;
   product_id?: string;
   affiliate_code?: string;
   expires_in_minutes?: number;
@@ -406,6 +407,8 @@ serve(async (req) => {
           product_id: body.product_id || null,
           buyer_email: body.buyer_email,
           buyer_name: body.buyer_name || null,
+          buyer_cpf: body.buyer_document || null,
+          buyer_phone: body.buyer_phone || null,
           amount: body.amount,
           status: 'pending',
           qr_code: pixCode,

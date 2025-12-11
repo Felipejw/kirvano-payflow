@@ -10,7 +10,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Transactions from "./pages/Transactions";
-import Affiliates from "./pages/Affiliates";
+
 import Checkout from "./pages/Checkout";
 import Sales from "./pages/Sales";
 import Finance from "./pages/Finance";
@@ -45,7 +45,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/dashboard/products" element={<Products />} />
               <Route path="/dashboard/transactions" element={<Transactions />} />
-              <Route path="/dashboard/affiliates" element={<Affiliates />} />
+              
               <Route path="/dashboard/sales" element={<Sales />} />
               <Route path="/dashboard/finance" element={<Finance />} />
               <Route path="/dashboard/settings" element={<Settings />} />
