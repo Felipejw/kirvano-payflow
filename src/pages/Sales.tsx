@@ -86,6 +86,13 @@ const Sales = () => {
 
   const fetchSales = async () => {
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('pix_charges')
       .select(`
@@ -99,11 +106,13 @@ const Sales = () => {
         created_at,
         paid_at,
         expires_at,
+        seller_id,
         products:product_id (
           id,
           name
         )
       `)
+      .eq('seller_id', user.id)
       .order('created_at', { ascending: false });
 
     if (!error && data) {

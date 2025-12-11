@@ -417,6 +417,7 @@ export type Database = {
           product_id: string | null
           qr_code: string | null
           qr_code_base64: string | null
+          seller_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
         }
         Insert: {
@@ -435,6 +436,7 @@ export type Database = {
           product_id?: string | null
           qr_code?: string | null
           qr_code_base64?: string | null
+          seller_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
         }
         Update: {
@@ -453,6 +455,7 @@ export type Database = {
           product_id?: string | null
           qr_code?: string | null
           qr_code_base64?: string | null
+          seller_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
         }
         Relationships: [

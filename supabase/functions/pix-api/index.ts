@@ -400,11 +400,28 @@ serve(async (req) => {
         }
       }
 
+      // Get seller_id from product
+      let sellerId: string | null = null;
+      if (body.product_id) {
+        const { data: productData } = await supabase
+          .from('products')
+          .select('seller_id')
+          .eq('id', body.product_id)
+          .single();
+        
+        if (productData) {
+          sellerId = productData.seller_id;
+        }
+      }
+
+      console.log('Creating charge with product_id:', body.product_id, 'seller_id:', sellerId);
+
       const { data: charge, error } = await supabase
         .from('pix_charges')
         .insert({
           external_id: bspayTransactionId || externalId,
           product_id: body.product_id || null,
+          seller_id: sellerId,
           buyer_email: body.buyer_email,
           buyer_name: body.buyer_name || null,
           buyer_cpf: body.buyer_document || null,

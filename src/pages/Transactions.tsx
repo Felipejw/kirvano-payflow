@@ -119,20 +119,13 @@ const Transactions = () => {
     
     if (!user) return;
 
-    // Fetch from pix_charges to get ALL orders (paid and pending)
+    // Fetch products for name mapping
     const { data: products } = await supabase
       .from('products')
       .select('id, name')
       .eq('seller_id', user.id);
 
-    if (!products || products.length === 0) {
-      setTransactions([]);
-      setLoading(false);
-      return;
-    }
-
-    const productIds = products.map(p => p.id);
-    const productMap = Object.fromEntries(products.map(p => [p.id, p.name]));
+    const productMap = Object.fromEntries((products || []).map(p => [p.id, p.name]));
 
     const { data: platformSettings } = await supabase
       .from('platform_settings')
@@ -141,6 +134,7 @@ const Transactions = () => {
     
     const platformFeeRate = (platformSettings?.platform_fee ?? 5) / 100;
 
+    // Fetch charges by seller_id (includes all charges, even those without product_id)
     const { data, error } = await supabase
       .from('pix_charges')
       .select(`
@@ -153,9 +147,10 @@ const Transactions = () => {
         buyer_phone,
         created_at,
         paid_at,
-        product_id
+        product_id,
+        seller_id
       `)
-      .in('product_id', productIds)
+      .eq('seller_id', user.id)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -177,7 +172,7 @@ const Transactions = () => {
           buyer_email: charge.buyer_email,
           buyer_cpf: charge.buyer_cpf,
           buyer_phone: charge.buyer_phone,
-          product: charge.product_id ? { name: productMap[charge.product_id] || 'Produto não especificado' } : null
+          product: charge.product_id ? { name: productMap[charge.product_id] || 'Produto não especificado' } : { name: 'Produto não especificado' }
         };
       });
       

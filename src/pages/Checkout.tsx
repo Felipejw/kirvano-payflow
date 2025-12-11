@@ -487,7 +487,7 @@ const Checkout = () => {
           buyer_name: buyerName,
           buyer_document: buyerCpf || undefined,
           buyer_phone: buyerPhone || undefined,
-          product_id: productId,
+          product_id: product?.id, // Use product.id from fetched product, not URL param
           affiliate_code: affiliateCode,
           expires_in_minutes: 30,
         },
