@@ -10,6 +10,7 @@ import { useSidebar } from "@/contexts/SidebarContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -83,6 +84,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
+            <ThemeToggle />
             <NotificationCenter />
             
             <div className="flex items-center gap-3">
