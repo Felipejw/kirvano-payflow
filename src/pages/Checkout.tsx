@@ -494,11 +494,74 @@ const Checkout = () => {
       return;
     }
 
-    // WhatsApp obrigatório
-    if (!buyerPhone.trim()) {
+    // WhatsApp obrigatório e validação de formato brasileiro
+    const phoneDigits = buyerPhone.replace(/\D/g, '');
+    if (!phoneDigits) {
       toast({
         title: "WhatsApp obrigatório",
         description: "Por favor, informe seu número de WhatsApp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validar formato brasileiro: 11 dígitos (DDD + 9 dígitos do celular)
+    // DDDs válidos: 11-99 (exceto alguns inválidos como 00, 01, etc.)
+    const validDDDs = [
+      '11', '12', '13', '14', '15', '16', '17', '18', '19', // SP
+      '21', '22', '24', // RJ
+      '27', '28', // ES
+      '31', '32', '33', '34', '35', '37', '38', // MG
+      '41', '42', '43', '44', '45', '46', // PR
+      '47', '48', '49', // SC
+      '51', '53', '54', '55', // RS
+      '61', // DF
+      '62', '64', // GO
+      '63', // TO
+      '65', '66', // MT
+      '67', // MS
+      '68', // AC
+      '69', // RO
+      '71', '73', '74', '75', '77', // BA
+      '79', // SE
+      '81', '87', // PE
+      '82', // AL
+      '83', // PB
+      '84', // RN
+      '85', '88', // CE
+      '86', '89', // PI
+      '91', '93', '94', // PA
+      '92', '97', // AM
+      '95', // RR
+      '96', // AP
+      '98', '99' // MA
+    ];
+
+    const ddd = phoneDigits.substring(0, 2);
+    const phoneNumber = phoneDigits.substring(2);
+
+    if (phoneDigits.length !== 11) {
+      toast({
+        title: "WhatsApp inválido",
+        description: "O número deve ter 11 dígitos (DDD + 9 dígitos).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validDDDs.includes(ddd)) {
+      toast({
+        title: "DDD inválido",
+        description: "Por favor, informe um DDD válido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!phoneNumber.startsWith('9')) {
+      toast({
+        title: "WhatsApp inválido",
+        description: "Números de celular devem começar com 9.",
         variant: "destructive",
       });
       return;
