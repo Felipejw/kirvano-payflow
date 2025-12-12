@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CheckCircle } from "lucide-react";
@@ -6,8 +6,15 @@ import { useNotificationStore, SaleNotification } from "@/stores/notificationSto
 
 export function useSalesNotifications(userId: string | undefined) {
   const { addNotification, playSound, soundEnabled } = useNotificationStore();
+  const processedIds = useRef<Set<string>>(new Set());
 
   const handleNewSale = useCallback((newRecord: any) => {
+    // Prevent duplicate notifications
+    if (processedIds.current.has(newRecord.id)) {
+      return;
+    }
+    processedIds.current.add(newRecord.id);
+    
     const amount = Number(newRecord.amount).toLocaleString('pt-BR', {
       style: 'currency',
       currency: 'BRL',
@@ -47,8 +54,11 @@ export function useSalesNotifications(userId: string | undefined) {
   useEffect(() => {
     if (!userId) return;
 
+    // Use unique channel name per user to avoid conflicts
+    const channelName = `pix-sales-${userId}`;
+    
     const channel = supabase
-      .channel('sales-notifications')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -63,6 +73,23 @@ export function useSalesNotifications(userId: string | undefined) {
           
           // Check if status changed to 'paid'
           if (oldRecord?.status !== 'paid' && newRecord?.status === 'paid') {
+            handleNewSale(newRecord);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'pix_charges',
+          filter: `seller_id=eq.${userId}`,
+        },
+        async (payload) => {
+          const newRecord = payload.new as any;
+          
+          // If inserted already as paid (edge case)
+          if (newRecord?.status === 'paid') {
             handleNewSale(newRecord);
           }
         }
