@@ -26,7 +26,8 @@ import {
   Clock,
   ChevronDown,
   CreditCard,
-  Lock
+  Lock,
+  MessageCircle
 } from "lucide-react";
 
 interface Product {
@@ -1041,7 +1042,10 @@ const Checkout = () => {
 
                 {/* WhatsApp Field - Sempre obrigatório */}
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm" style={{ color: styles.textColor }}>WhatsApp</Label>
+                  <Label htmlFor="phone" className="text-sm flex items-center gap-1.5" style={{ color: styles.textColor }}>
+                    <MessageCircle className="h-4 w-4 text-green-500" />
+                    WhatsApp
+                  </Label>
                   <Input
                     id="phone"
                     placeholder="(00) 00000-0000"
