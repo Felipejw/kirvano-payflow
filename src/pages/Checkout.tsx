@@ -493,11 +493,11 @@ const Checkout = () => {
       return;
     }
 
-    // Telefone obrigatório
+    // WhatsApp obrigatório
     if (!buyerPhone.trim()) {
       toast({
-        title: "Telefone obrigatório",
-        description: "Por favor, informe seu número de telefone.",
+        title: "WhatsApp obrigatório",
+        description: "Por favor, informe seu número de WhatsApp.",
         variant: "destructive",
       });
       return;
@@ -1039,27 +1039,25 @@ const Checkout = () => {
                   </div>
                 )}
 
-                {/* Phone Field */}
-                {template?.require_phone && (
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm" style={{ color: styles.textColor }}>Telefone</Label>
-                    <Input
-                      id="phone"
-                      placeholder="(00) 00000-0000"
-                      value={buyerPhone}
-                      onChange={(e) => setBuyerPhone(formatPhone(e.target.value))}
-                      required
-                      maxLength={15}
-                      className="text-sm sm:text-base"
-                      style={{ 
-                        borderRadius: styles.borderRadius + 'px',
-                        backgroundColor: isLightTheme ? '#f9fafb' : 'transparent',
-                        borderColor: styles.cardBorder,
-                        color: styles.textColor,
-                      }}
-                    />
-                  </div>
-                )}
+                {/* WhatsApp Field - Sempre obrigatório */}
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm" style={{ color: styles.textColor }}>WhatsApp</Label>
+                  <Input
+                    id="phone"
+                    placeholder="(00) 00000-0000"
+                    value={buyerPhone}
+                    onChange={(e) => setBuyerPhone(formatPhone(e.target.value))}
+                    required
+                    maxLength={15}
+                    className="text-sm sm:text-base"
+                    style={{ 
+                      borderRadius: styles.borderRadius + 'px',
+                      backgroundColor: isLightTheme ? '#f9fafb' : 'transparent',
+                      borderColor: styles.cardBorder,
+                      color: styles.textColor,
+                    }}
+                  />
+                </div>
 
                 {/* Address Field */}
                 {template?.require_address && (
