@@ -27,7 +27,7 @@ const Settings = () => {
     phone: "",
     pix_key: "",
   });
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState("system");
   const [notifications, setNotifications] = useState({
     email_sales: true,
     email_withdrawals: true,
@@ -38,9 +38,8 @@ const Settings = () => {
   useEffect(() => {
     fetchProfile();
     // Load theme from localStorage
-    const savedTheme = localStorage.getItem("theme") || "dark";
+    const savedTheme = localStorage.getItem("theme") || "system";
     setTheme(savedTheme);
-    document.documentElement.classList.toggle("dark", savedTheme === "dark");
   }, []);
 
   const fetchProfile = async () => {
@@ -215,7 +214,7 @@ const Settings = () => {
                       </div>
                       <div className="text-center">
                         <p className="font-semibold">Escuro</p>
-                        <p className="text-sm text-muted-foreground">Tema padrão</p>
+                        <p className="text-sm text-muted-foreground">Ideal para ambientes escuros</p>
                       </div>
                     </div>
                   </button>
@@ -234,7 +233,7 @@ const Settings = () => {
                       </div>
                       <div className="text-center">
                         <p className="font-semibold">Claro</p>
-                        <p className="text-sm text-muted-foreground">Modo claro</p>
+                        <p className="text-sm text-muted-foreground">Ideal para ambientes claros</p>
                       </div>
                     </div>
                   </button>
@@ -253,7 +252,7 @@ const Settings = () => {
                       </div>
                       <div className="text-center">
                         <p className="font-semibold">Sistema</p>
-                        <p className="text-sm text-muted-foreground">Automático</p>
+                        <p className="text-sm text-muted-foreground">Segue configuração do dispositivo</p>
                       </div>
                     </div>
                   </button>
