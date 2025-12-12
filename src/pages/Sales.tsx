@@ -45,6 +45,8 @@ interface Sale {
     id: string;
   } | null;
   order_bump_products?: { id: string; name: string }[];
+  platform_fee?: number;
+  seller_amount?: number;
 }
 
 const statusConfig = {
@@ -119,6 +121,23 @@ const Sales = () => {
       .order('created_at', { ascending: false });
 
     if (!error && data) {
+      // Fetch transactions to get platform_fee for each charge
+      const chargeIds = data.map(item => item.id);
+      let transactionMap: Record<string, { platform_fee: number; seller_amount: number }> = {};
+      
+      if (chargeIds.length > 0) {
+        const { data: transactions } = await supabase
+          .from('transactions')
+          .select('charge_id, platform_fee, seller_amount')
+          .in('charge_id', chargeIds);
+        
+        if (transactions) {
+          transactionMap = Object.fromEntries(
+            transactions.map(t => [t.charge_id, { platform_fee: t.platform_fee, seller_amount: t.seller_amount }])
+          );
+        }
+      }
+
       // Fetch order bump product names if there are any
       const allBumpIds = data.flatMap(item => item.order_bumps || []);
       const uniqueBumpIds = [...new Set(allBumpIds)];
@@ -135,14 +154,19 @@ const Sales = () => {
         }
       }
 
-      setSales(data.map(item => ({
-        ...item,
-        product: item.products as { id: string; name: string } | null,
-        order_bump_products: (item.order_bumps || []).map(id => ({
-          id,
-          name: bumpProductMap[id] || 'Produto adicional'
-        }))
-      })));
+      setSales(data.map(item => {
+        const txData = transactionMap[item.id];
+        return {
+          ...item,
+          product: item.products as { id: string; name: string } | null,
+          order_bump_products: (item.order_bumps || []).map(id => ({
+            id,
+            name: bumpProductMap[id] || 'Produto adicional'
+          })),
+          platform_fee: txData?.platform_fee,
+          seller_amount: txData?.seller_amount,
+        };
+      }));
     }
     setLoading(false);
   };
@@ -294,11 +318,13 @@ const Sales = () => {
                       <thead>
                         <tr className="border-b border-border">
                           <th className="text-left p-4 font-medium text-muted-foreground">Cliente</th>
-                          <th className="text-left p-4 font-medium text-muted-foreground">Telefone</th>
+                          <th className="text-left p-4 font-medium text-muted-foreground hidden md:table-cell">Telefone</th>
                           <th className="text-left p-4 font-medium text-muted-foreground">Produto</th>
                           <th className="text-left p-4 font-medium text-muted-foreground">Valor</th>
+                          <th className="text-left p-4 font-medium text-muted-foreground hidden lg:table-cell">Taxa</th>
+                          <th className="text-left p-4 font-medium text-muted-foreground hidden lg:table-cell">Líquido</th>
                           <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
-                          <th className="text-left p-4 font-medium text-muted-foreground">Data</th>
+                          <th className="text-left p-4 font-medium text-muted-foreground hidden sm:table-cell">Data</th>
                           <th className="text-left p-4 font-medium text-muted-foreground w-16">Ações</th>
                         </tr>
                       </thead>
@@ -319,7 +345,7 @@ const Sales = () => {
                                   <p className="text-sm text-muted-foreground">{sale.buyer_email}</p>
                                 </div>
                               </td>
-                              <td className="p-4">
+                              <td className="p-4 hidden md:table-cell">
                                 <p className="text-sm text-muted-foreground">{sale.buyer_phone || "-"}</p>
                               </td>
                               <td className="p-4">
@@ -337,13 +363,31 @@ const Sales = () => {
                                   R$ {Number(sale.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </p>
                               </td>
+                              <td className="p-4 hidden lg:table-cell">
+                                {sale.platform_fee !== undefined ? (
+                                  <p className="text-sm text-destructive">
+                                    - R$ {Number(sale.platform_fee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </p>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">-</p>
+                                )}
+                              </td>
+                              <td className="p-4 hidden lg:table-cell">
+                                {sale.seller_amount !== undefined ? (
+                                  <p className="text-sm font-medium text-green-500">
+                                    R$ {Number(sale.seller_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </p>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">-</p>
+                                )}
+                              </td>
                               <td className="p-4">
                                 <Badge variant={status.variant} className="gap-1">
                                   <StatusIcon className="h-3 w-3" />
                                   {status.label}
                                 </Badge>
                               </td>
-                              <td className="p-4">
+                              <td className="p-4 hidden sm:table-cell">
                                 <p className="text-sm text-muted-foreground">
                                   {format(new Date(sale.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                                 </p>
@@ -396,10 +440,21 @@ const Sales = () => {
                 </div>
 
                 {/* Amount */}
-                <div className="text-center">
+                <div className="text-center space-y-1">
                   <p className="text-3xl font-bold text-primary">
                     R$ {Number(selectedSale.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
+                  {selectedSale.platform_fee !== undefined && selectedSale.seller_amount !== undefined && (
+                    <div className="flex items-center justify-center gap-3 text-sm">
+                      <span className="text-destructive">
+                        Taxa: R$ {Number(selectedSale.platform_fee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-green-500">
+                        Líquido: R$ {Number(selectedSale.seller_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Details */}
