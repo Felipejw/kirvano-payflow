@@ -39,10 +39,12 @@ interface Sale {
   created_at: string;
   paid_at: string | null;
   expires_at: string;
+  order_bumps: string[] | null;
   product: {
     name: string;
     id: string;
   } | null;
+  order_bump_products?: { id: string; name: string }[];
 }
 
 const statusConfig = {
@@ -107,6 +109,7 @@ const Sales = () => {
         paid_at,
         expires_at,
         seller_id,
+        order_bumps,
         products:product_id (
           id,
           name
@@ -116,9 +119,29 @@ const Sales = () => {
       .order('created_at', { ascending: false });
 
     if (!error && data) {
+      // Fetch order bump product names if there are any
+      const allBumpIds = data.flatMap(item => item.order_bumps || []);
+      const uniqueBumpIds = [...new Set(allBumpIds)];
+      
+      let bumpProductMap: Record<string, string> = {};
+      if (uniqueBumpIds.length > 0) {
+        const { data: bumpProducts } = await supabase
+          .from('products')
+          .select('id, name')
+          .in('id', uniqueBumpIds);
+        
+        if (bumpProducts) {
+          bumpProductMap = Object.fromEntries(bumpProducts.map(p => [p.id, p.name]));
+        }
+      }
+
       setSales(data.map(item => ({
         ...item,
-        product: item.products as { id: string; name: string } | null
+        product: item.products as { id: string; name: string } | null,
+        order_bump_products: (item.order_bumps || []).map(id => ({
+          id,
+          name: bumpProductMap[id] || 'Produto adicional'
+        }))
       })));
     }
     setLoading(false);
@@ -271,6 +294,7 @@ const Sales = () => {
                       <thead>
                         <tr className="border-b border-border">
                           <th className="text-left p-4 font-medium text-muted-foreground">Cliente</th>
+                          <th className="text-left p-4 font-medium text-muted-foreground">Telefone</th>
                           <th className="text-left p-4 font-medium text-muted-foreground">Produto</th>
                           <th className="text-left p-4 font-medium text-muted-foreground">Valor</th>
                           <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
@@ -296,7 +320,17 @@ const Sales = () => {
                                 </div>
                               </td>
                               <td className="p-4">
-                                <p className="text-sm">{sale.product?.name || "Produto não especificado"}</p>
+                                <p className="text-sm text-muted-foreground">{sale.buyer_phone || "-"}</p>
+                              </td>
+                              <td className="p-4">
+                                <div>
+                                  <p className="text-sm">{sale.product?.name || "Produto não especificado"}</p>
+                                  {sale.order_bump_products && sale.order_bump_products.length > 0 && (
+                                    <p className="text-xs text-primary">
+                                      + {sale.order_bump_products.length} adicional{sale.order_bump_products.length > 1 ? 'is' : ''}
+                                    </p>
+                                  )}
+                                </div>
                               </td>
                               <td className="p-4">
                                 <p className="font-semibold">
@@ -388,8 +422,16 @@ const Sales = () => {
                   <div className="flex items-center gap-3">
                     <Package className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-xs text-muted-foreground">Produto</p>
+                      <p className="text-xs text-muted-foreground">Produto Principal</p>
                       <p className="font-medium">{selectedSale.product?.name || "Produto não especificado"}</p>
+                      {selectedSale.order_bump_products && selectedSale.order_bump_products.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs text-muted-foreground">Order Bumps:</p>
+                          {selectedSale.order_bump_products.map((bump, idx) => (
+                            <p key={bump.id} className="text-sm text-primary">• {bump.name}</p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -465,6 +465,16 @@ const Checkout = () => {
       });
       return;
     }
+
+    // Telefone obrigatório
+    if (!buyerPhone.trim()) {
+      toast({
+        title: "Telefone obrigatório",
+        description: "Por favor, informe seu número de telefone.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -486,10 +496,11 @@ const Checkout = () => {
           buyer_email: buyerEmail,
           buyer_name: buyerName,
           buyer_document: buyerCpf || undefined,
-          buyer_phone: buyerPhone || undefined,
-          product_id: product?.id, // Use product.id from fetched product, not URL param
+          buyer_phone: buyerPhone,
+          product_id: product?.id,
           affiliate_code: affiliateCode,
           expires_in_minutes: 30,
+          order_bumps: selectedBumps.length > 0 ? selectedBumps : undefined,
         },
       });
 

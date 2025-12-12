@@ -413,6 +413,7 @@ export type Database = {
           expires_at: string
           external_id: string
           id: string
+          order_bumps: string[] | null
           paid_at: string | null
           product_id: string | null
           qr_code: string | null
@@ -432,6 +433,7 @@ export type Database = {
           expires_at: string
           external_id: string
           id?: string
+          order_bumps?: string[] | null
           paid_at?: string | null
           product_id?: string | null
           qr_code?: string | null
@@ -451,6 +453,7 @@ export type Database = {
           expires_at?: string
           external_id?: string
           id?: string
+          order_bumps?: string[] | null
           paid_at?: string | null
           product_id?: string | null
           qr_code?: string | null
