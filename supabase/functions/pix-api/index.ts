@@ -25,6 +25,7 @@ interface CreateChargeRequest {
   expires_in_minutes?: number;
   webhook_url?: string;
   description?: string;
+  order_bumps?: string[];
 }
 
 interface ChargeResponse {
@@ -433,6 +434,7 @@ serve(async (req) => {
           copy_paste: pixCode,
           affiliate_id: affiliateId,
           expires_at: expiresAt.toISOString(),
+          order_bumps: body.order_bumps || [],
         })
         .select()
         .single();
