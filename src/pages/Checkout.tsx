@@ -161,34 +161,61 @@ const Checkout = () => {
   }, 0);
   const totalPrice = basePrice + bumpsTotal + (upsellAccepted ? upsellOffer.price : 0);
 
-  // Helper function to track Facebook Pixel events
-  const trackPixelEvent = (eventName: string, params: object) => {
+  // Helper function to track events on all pixels (Facebook, TikTok, Google Analytics)
+  const trackAllPixels = (eventName: string, params: Record<string, any>) => {
+    // Facebook Pixel
     if (product?.facebook_pixel && typeof window !== 'undefined' && (window as any).fbq) {
       (window as any).fbq('track', eventName, params);
     }
+
+    // TikTok Pixel
+    if (product?.tiktok_pixel && typeof window !== 'undefined' && (window as any).ttq) {
+      (window as any).ttq.track(eventName, params);
+    }
+
+    // Google Analytics (com mapeamento de nomes de eventos)
+    if (product?.google_analytics && typeof window !== 'undefined' && (window as any).gtag) {
+      const gaEventMap: Record<string, string> = {
+        'InitiateCheckout': 'begin_checkout',
+        'AddToCart': 'add_to_cart',
+        'Purchase': 'purchase',
+        'AddPaymentInfo': 'add_payment_info'
+      };
+      const gaEventName = gaEventMap[eventName] || eventName.toLowerCase();
+      (window as any).gtag('event', gaEventName, {
+        ...params,
+        items: params.content_ids?.map((id: string) => ({ item_id: id }))
+      });
+    }
   };
 
-  // Track InitiateCheckout when product is loaded
+  // Track InitiateCheckout and AddToCart when product is loaded
   useEffect(() => {
-    if (product?.facebook_pixel) {
-      trackPixelEvent('InitiateCheckout', {
+    if (product) {
+      const eventParams = {
         value: product.price,
         currency: 'BRL',
         content_ids: [product.id],
         content_type: 'product',
         num_items: 1
-      });
-    }
-  }, [product?.facebook_pixel]);
+      };
 
-  // Track Purchase when payment is confirmed
+      // Dispara InitiateCheckout
+      trackAllPixels('InitiateCheckout', eventParams);
+
+      // Dispara AddToCart
+      trackAllPixels('AddToCart', eventParams);
+    }
+  }, [product?.id]);
+
+  // Track Purchase when payment is confirmed (com transaction_id)
   useEffect(() => {
-    if (paymentConfirmed && charge && product?.facebook_pixel) {
-      const allContentIds = [productId, ...selectedBumps];
+    if (paymentConfirmed && charge && product) {
+      const allContentIds = [product.id, ...selectedBumps];
       if (upsellAccepted) {
         allContentIds.push(upsellOffer.id);
       }
-      trackPixelEvent('Purchase', {
+      trackAllPixels('Purchase', {
         value: totalPrice,
         currency: 'BRL',
         content_ids: allContentIds,
@@ -486,6 +513,16 @@ const Checkout = () => {
       });
       return;
     }
+
+    // Dispara evento de Purchase (intenção de compra) ao clicar no botão
+    const allContentIds = [product?.id, ...selectedBumps].filter(Boolean) as string[];
+    trackAllPixels('Purchase', {
+      value: totalPrice,
+      currency: 'BRL',
+      content_ids: allContentIds,
+      content_type: 'product',
+      num_items: allContentIds.length
+    });
     
     setLoading(true);
 
@@ -508,9 +545,8 @@ const Checkout = () => {
 
       setCharge(data);
       
-      // Track AddPaymentInfo event
-      const allContentIds = [productId, ...selectedBumps];
-      trackPixelEvent('AddPaymentInfo', {
+      // Track AddPaymentInfo event (PIX criado)
+      trackAllPixels('AddPaymentInfo', {
         value: totalPrice,
         currency: 'BRL',
         content_ids: allContentIds,
