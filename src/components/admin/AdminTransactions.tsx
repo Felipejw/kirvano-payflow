@@ -4,7 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, Eye, Filter } from "lucide-react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog";
+import { Search, Download, Eye, Filter, DollarSign, TrendingUp, Clock, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -18,11 +25,22 @@ interface Transaction {
   affiliate_amount: number;
   status: "pending" | "paid" | "expired" | "cancelled";
   created_at: string;
-  seller_id: string;
-  product_id: string;
+  seller_id: string | null;
+  product_id: string | null;
+  charge_id: string | null;
   seller_name?: string;
   seller_email?: string;
   product_name?: string;
+  buyer_name?: string;
+  buyer_email?: string;
+}
+
+interface TransactionStats {
+  total: number;
+  paid: number;
+  pending: number;
+  totalAmount: number;
+  platformFees: number;
 }
 
 export function AdminTransactions() {
@@ -30,6 +48,14 @@ export function AdminTransactions() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [stats, setStats] = useState<TransactionStats>({
+    total: 0,
+    paid: 0,
+    pending: 0,
+    totalAmount: 0,
+    platformFees: 0
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -38,9 +64,10 @@ export function AdminTransactions() {
 
   const fetchTransactions = async () => {
     try {
+      // Fetch transactions with charge info
       const { data: transactionsData, error: transactionsError } = await supabase
         .from("transactions")
-        .select("*")
+        .select("*, pix_charges(seller_id, product_id, buyer_name, buyer_email)")
         .order("created_at", { ascending: false });
 
       if (transactionsError) throw transactionsError;
@@ -55,19 +82,36 @@ export function AdminTransactions() {
         .from("products")
         .select("id, name");
 
-      // Map data
-      const enrichedTransactions = transactionsData?.map((t) => {
-        const seller = profiles?.find((p) => p.user_id === t.seller_id);
-        const product = products?.find((p) => p.id === t.product_id);
+      // Map data - use charge seller_id if transaction seller_id is null
+      const enrichedTransactions = transactionsData?.map((t: any) => {
+        const sellerId = t.seller_id || t.pix_charges?.seller_id;
+        const productId = t.product_id || t.pix_charges?.product_id;
+        const seller = profiles?.find((p) => p.user_id === sellerId);
+        const product = products?.find((p) => p.id === productId);
+        
         return {
           ...t,
+          seller_id: sellerId,
+          product_id: productId,
           seller_name: seller?.full_name || "Desconhecido",
           seller_email: seller?.email || "",
-          product_name: product?.name || "Produto removido"
+          product_name: product?.name || "Produto não identificado",
+          buyer_name: t.pix_charges?.buyer_name || "N/A",
+          buyer_email: t.pix_charges?.buyer_email || "N/A"
         };
       }) || [];
 
       setTransactions(enrichedTransactions);
+
+      // Calculate stats
+      const paidTransactions = enrichedTransactions.filter((t: Transaction) => t.status === "paid");
+      setStats({
+        total: enrichedTransactions.length,
+        paid: paidTransactions.length,
+        pending: enrichedTransactions.filter((t: Transaction) => t.status === "pending").length,
+        totalAmount: paidTransactions.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0),
+        platformFees: paidTransactions.reduce((sum: number, t: Transaction) => sum + Number(t.platform_fee), 0)
+      });
     } catch (error) {
       console.error("Error fetching transactions:", error);
       toast({
@@ -102,17 +146,19 @@ export function AdminTransactions() {
     const matchesSearch =
       t.seller_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.seller_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.product_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      t.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.buyer_email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || t.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const exportToCSV = () => {
-    const headers = ["Data", "Produto", "Vendedor", "Valor", "Taxa", "Líquido", "Status"];
+    const headers = ["Data", "Produto", "Vendedor", "Comprador", "Valor", "Taxa", "Líquido", "Status"];
     const rows = filteredTransactions.map((t) => [
       format(new Date(t.created_at), "dd/MM/yyyy HH:mm"),
       t.product_name,
       t.seller_name,
+      t.buyer_email,
       t.amount,
       t.platform_fee,
       t.seller_amount,
@@ -137,106 +183,224 @@ export function AdminTransactions() {
   }
 
   return (
-    <Card className="glass-card">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Todas as Transações</CardTitle>
-            <CardDescription>
-              {filteredTransactions.length} transações encontradas
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por vendedor ou produto..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+    <>
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-4 mb-6">
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Total de Transações
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              Transações Pagas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-500">{stats.paid}</div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-primary" />
+              Volume Total
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalAmount)}</div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Clock className="h-4 w-4 text-yellow-500" />
+              Taxas da Plataforma
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">{formatCurrency(stats.platformFees)}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="glass-card">
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle>Todas as Transações</CardTitle>
+              <CardDescription>
+                {filteredTransactions.length} transações encontradas
+              </CardDescription>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="pending">Pendente</SelectItem>
-                <SelectItem value="paid">Pago</SelectItem>
-                <SelectItem value="expired">Expirado</SelectItem>
-                <SelectItem value="cancelled">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" onClick={exportToCSV}>
-              <Download className="h-4 w-4 mr-2" />
-              Exportar
-            </Button>
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-40">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="paid">Pago</SelectItem>
+                  <SelectItem value="expired">Expirado</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={exportToCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
+              </Button>
+            </div>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="p-3 text-left font-medium">Data</th>
-                <th className="p-3 text-left font-medium">Produto</th>
-                <th className="p-3 text-left font-medium">Vendedor</th>
-                <th className="p-3 text-left font-medium">Valor Total</th>
-                <th className="p-3 text-left font-medium">Taxa</th>
-                <th className="p-3 text-left font-medium">Líquido Vendedor</th>
-                <th className="p-3 text-left font-medium">Status</th>
-                <th className="p-3 text-left font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTransactions.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                    Nenhuma transação encontrada
-                  </td>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="p-3 text-left font-medium">Data</th>
+                  <th className="p-3 text-left font-medium">Produto</th>
+                  <th className="p-3 text-left font-medium">Vendedor</th>
+                  <th className="p-3 text-left font-medium">Comprador</th>
+                  <th className="p-3 text-left font-medium">Valor Total</th>
+                  <th className="p-3 text-left font-medium">Taxa</th>
+                  <th className="p-3 text-left font-medium">Líquido</th>
+                  <th className="p-3 text-left font-medium">Status</th>
+                  <th className="p-3 text-left font-medium">Ações</th>
                 </tr>
-              ) : (
-                filteredTransactions.map((transaction) => (
-                  <tr key={transaction.id} className="border-b hover:bg-muted/25">
-                    <td className="p-3 text-muted-foreground">
-                      {format(new Date(transaction.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                    </td>
-                    <td className="p-3">
-                      <span className="font-medium">{transaction.product_name}</span>
-                    </td>
-                    <td className="p-3">
-                      <div>
-                        <p className="font-medium">{transaction.seller_name}</p>
-                        <p className="text-sm text-muted-foreground">{transaction.seller_email}</p>
-                      </div>
-                    </td>
-                    <td className="p-3 font-medium">
-                      {formatCurrency(transaction.amount)}
-                    </td>
-                    <td className="p-3 text-primary">
-                      {formatCurrency(transaction.platform_fee)}
-                    </td>
-                    <td className="p-3">
-                      {formatCurrency(transaction.seller_amount)}
-                    </td>
-                    <td className="p-3">
-                      {getStatusBadge(transaction.status)}
-                    </td>
-                    <td className="p-3">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+              </thead>
+              <tbody>
+                {filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                      Nenhuma transação encontrada
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+                ) : (
+                  filteredTransactions.map((transaction) => (
+                    <tr key={transaction.id} className="border-b hover:bg-muted/25">
+                      <td className="p-3 text-muted-foreground whitespace-nowrap">
+                        {format(new Date(transaction.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </td>
+                      <td className="p-3">
+                        <span className="font-medium">{transaction.product_name}</span>
+                      </td>
+                      <td className="p-3">
+                        <div>
+                          <p className="font-medium">{transaction.seller_name}</p>
+                          <p className="text-sm text-muted-foreground">{transaction.seller_email}</p>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <div>
+                          <p className="font-medium">{transaction.buyer_name}</p>
+                          <p className="text-sm text-muted-foreground">{transaction.buyer_email}</p>
+                        </div>
+                      </td>
+                      <td className="p-3 font-medium">
+                        {formatCurrency(transaction.amount)}
+                      </td>
+                      <td className="p-3 text-primary">
+                        {formatCurrency(transaction.platform_fee)}
+                      </td>
+                      <td className="p-3">
+                        {formatCurrency(transaction.seller_amount)}
+                      </td>
+                      <td className="p-3">
+                        {getStatusBadge(transaction.status)}
+                      </td>
+                      <td className="p-3">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedTransaction(transaction)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Transaction Detail Dialog */}
+      <Dialog open={!!selectedTransaction} onOpenChange={() => setSelectedTransaction(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detalhes da Transação</DialogTitle>
+            <DialogDescription>
+              Informações completas da transação
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTransaction && (
+            <div className="space-y-4">
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">ID:</span>
+                  <span className="font-mono text-xs">{selectedTransaction.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Data:</span>
+                  <span>{format(new Date(selectedTransaction.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Produto:</span>
+                  <span className="font-medium">{selectedTransaction.product_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Vendedor:</span>
+                  <span>{selectedTransaction.seller_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Comprador:</span>
+                  <span>{selectedTransaction.buyer_email}</span>
+                </div>
+              </div>
+              
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Valor Total:</span>
+                  <span className="font-bold">{formatCurrency(selectedTransaction.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Taxa Plataforma:</span>
+                  <span className="text-primary">{formatCurrency(selectedTransaction.platform_fee)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Líquido Vendedor:</span>
+                  <span className="font-medium">{formatCurrency(selectedTransaction.seller_amount)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Status:</span>
+                  {getStatusBadge(selectedTransaction.status)}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
