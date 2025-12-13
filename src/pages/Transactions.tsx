@@ -21,7 +21,8 @@ import {
   User,
   Package,
   CreditCard,
-  Receipt
+  Receipt,
+  Trash2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -33,6 +34,16 @@ import {
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -108,6 +119,9 @@ const Transactions = () => {
   // Transaction detail dialog
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
@@ -270,6 +284,44 @@ const Transactions = () => {
   const handleTransactionClick = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setDetailDialogOpen(true);
+  };
+
+  const handleDeleteClick = (transaction: Transaction, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTransactionToDelete(transaction);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteTransaction = async () => {
+    if (!transactionToDelete) return;
+    
+    setDeleting(true);
+    try {
+      // Primeiro, deletar transação (se existir na tabela transactions)
+      await supabase
+        .from('transactions')
+        .delete()
+        .eq('charge_id', transactionToDelete.id);
+
+      // Depois, deletar a cobrança PIX
+      const { error } = await supabase
+        .from('pix_charges')
+        .delete()
+        .eq('id', transactionToDelete.id);
+
+      if (error) throw error;
+
+      toast.success("Transação excluída com sucesso!");
+      setTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
+      calculateStats(transactions.filter(t => t.id !== transactionToDelete.id));
+    } catch (error) {
+      console.error('Erro ao excluir transação:', error);
+      toast.error("Erro ao excluir transação. Tente novamente.");
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setTransactionToDelete(null);
+    }
   };
 
   const exportToPDF = () => {
@@ -517,6 +569,7 @@ const Transactions = () => {
                       <th>Líquido</th>
                       <th>Status</th>
                       <th>Data</th>
+                      <th className="w-16">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -564,6 +617,16 @@ const Transactions = () => {
                           </td>
                           <td className="text-sm text-muted-foreground whitespace-nowrap">
                             {format(new Date(tx.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          </td>
+                          <td>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => handleDeleteClick(tx, e)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -709,6 +772,27 @@ const Transactions = () => {
             )}
           </DialogContent>
         </Dialog>
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Transação</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteTransaction}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? "Excluindo..." : "Excluir"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
