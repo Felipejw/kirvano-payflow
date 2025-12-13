@@ -21,10 +21,12 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTransactionsPage from "./pages/admin/AdminTransactionsPage";
 import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminSuggestions from "./pages/admin/AdminSuggestions";
 import MembersArea from "./pages/members/MembersArea";
 import MembersLogin from "./pages/members/MembersLogin";
 import MemberProduct from "./pages/members/MemberProduct";
 import Clients from "./pages/Clients";
+import Suggestions from "./pages/Suggestions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,11 +63,13 @@ const App = () => (
               <Route path="/dashboard/finance" element={<Finance />} />
               <Route path="/dashboard/settings" element={<Settings />} />
               <Route path="/dashboard/clients" element={<Clients />} />
+              <Route path="/dashboard/suggestions" element={<Suggestions />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/transactions" element={<AdminTransactionsPage />} />
               <Route path="/admin/withdrawals" element={<AdminWithdrawalsPage />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/suggestions" element={<AdminSuggestions />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/members" element={<MembersArea />} />
               <Route path="/members/login" element={<MembersLogin />} />

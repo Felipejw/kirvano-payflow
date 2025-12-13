@@ -11,6 +11,7 @@ import {
   Menu,
   Shield,
   TrendingUp,
+  Lightbulb,
   X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,10 +38,12 @@ const adminMenuItems = [
   { icon: ShoppingCart, label: "Transações", path: "/admin/transactions" },
   { icon: Wallet, label: "Saques", path: "/admin/withdrawals" },
   { icon: TrendingUp, label: "Analytics", path: "/admin/analytics" },
+  { icon: Lightbulb, label: "Sugestões", path: "/admin/suggestions" },
   { icon: Settings, label: "Configurações", path: "/admin/settings" },
 ];
 
 const bottomMenuItems = [
+  { icon: Lightbulb, label: "Sugestões", path: "/dashboard/suggestions" },
   { icon: Settings, label: "Configurações", path: "/dashboard/settings" },
 ];
 
