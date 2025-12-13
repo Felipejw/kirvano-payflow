@@ -68,10 +68,10 @@ const Dashboard = () => {
       .gte('created_at', range.from.toISOString())
       .lte('created_at', range.to.toISOString());
 
-    // Fetch all transactions for conversion calculation within date range
-    const { data: allTransactions } = await supabase
-      .from('transactions')
-      .select('*')
+    // Fetch all PIX charges (generated) for conversion calculation within date range
+    const { data: pixCharges } = await supabase
+      .from('pix_charges')
+      .select('id')
       .eq('seller_id', userId)
       .gte('created_at', range.from.toISOString())
       .lte('created_at', range.to.toISOString());
@@ -106,10 +106,10 @@ const Dashboard = () => {
     const totalSellerAmount = allPaidTransactions?.reduce((acc, t) => acc + Number(t.seller_amount), 0) || 0;
     const totalWithdrawn = withdrawals?.reduce((acc, w) => acc + Number(w.net_amount), 0) || 0;
 
-    // Calculate conversion rate
+    // Calculate conversion rate (paid transactions / PIX generated)
     const paidCount = paidTransactions?.length || 0;
-    const totalCount = allTransactions?.length || 1;
-    const conversionRate = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+    const pixGeneratedCount = pixCharges?.length || 0;
+    const conversionRate = pixGeneratedCount > 0 ? (paidCount / pixGeneratedCount) * 100 : 0;
 
     // Calculate comparison with previous period
     const periodDuration = range.to.getTime() - range.from.getTime();
