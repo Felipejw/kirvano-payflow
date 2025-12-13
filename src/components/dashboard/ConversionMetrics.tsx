@@ -154,11 +154,20 @@ export function ConversionChart() {
     const now = new Date();
     const sevenDaysAgo = startOfDay(subDays(now, 6));
 
-    // Get all transactions for the last 7 days
-    const { data: transactions } = await supabase
-      .from('transactions')
-      .select('status, created_at')
+    // Get all PIX charges (generated) for the last 7 days
+    const { data: pixCharges } = await supabase
+      .from('pix_charges')
+      .select('id, created_at, status')
       .eq('seller_id', user.id)
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .lte('created_at', endOfDay(now).toISOString());
+
+    // Get paid transactions for the last 7 days
+    const { data: paidTransactions } = await supabase
+      .from('transactions')
+      .select('id, created_at')
+      .eq('seller_id', user.id)
+      .eq('status', 'paid')
       .gte('created_at', sevenDaysAgo.toISOString())
       .lte('created_at', endOfDay(now).toISOString());
 
@@ -171,17 +180,27 @@ export function ConversionChart() {
       dailyData.set(key, { total: 0, paid: 0 });
     }
 
-    // Fill with actual data
-    if (transactions) {
-      transactions.forEach(tx => {
-        const date = new Date(tx.created_at);
+    // Fill with PIX charges (total generated)
+    if (pixCharges) {
+      pixCharges.forEach(charge => {
+        const date = new Date(charge.created_at);
         const key = format(date, 'yyyy-MM-dd');
         if (dailyData.has(key)) {
           const current = dailyData.get(key)!;
           current.total += 1;
-          if (tx.status === 'paid') {
-            current.paid += 1;
-          }
+          dailyData.set(key, current);
+        }
+      });
+    }
+
+    // Fill with paid transactions
+    if (paidTransactions) {
+      paidTransactions.forEach(tx => {
+        const date = new Date(tx.created_at);
+        const key = format(date, 'yyyy-MM-dd');
+        if (dailyData.has(key)) {
+          const current = dailyData.get(key)!;
+          current.paid += 1;
           dailyData.set(key, current);
         }
       });
