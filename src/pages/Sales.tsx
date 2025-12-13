@@ -6,6 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Search, 
   Filter,
@@ -21,8 +31,10 @@ import {
   User,
   Package,
   Calendar,
-  CreditCard
+  CreditCard,
+  Trash2
 } from "lucide-react";
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -83,6 +95,9 @@ const Sales = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchSales();
@@ -174,6 +189,43 @@ const Sales = () => {
   const handleSaleClick = (sale: Sale) => {
     setSelectedSale(sale);
     setDetailDialogOpen(true);
+  };
+
+  const handleDeleteClick = (sale: Sale, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSaleToDelete(sale);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteSale = async () => {
+    if (!saleToDelete) return;
+    
+    setDeleting(true);
+    try {
+      // Primeiro, deletar transação relacionada (se existir)
+      await supabase
+        .from('transactions')
+        .delete()
+        .eq('charge_id', saleToDelete.id);
+
+      // Depois, deletar a cobrança PIX
+      const { error } = await supabase
+        .from('pix_charges')
+        .delete()
+        .eq('id', saleToDelete.id);
+
+      if (error) throw error;
+
+      toast.success("Venda excluída com sucesso!");
+      setSales(prev => prev.filter(s => s.id !== saleToDelete.id));
+    } catch (error) {
+      console.error('Erro ao excluir venda:', error);
+      toast.error("Erro ao excluir venda. Tente novamente.");
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setSaleToDelete(null);
+    }
   };
 
   const filteredSales = sales.filter(sale => {
@@ -393,17 +445,27 @@ const Sales = () => {
                                 </p>
                               </td>
                               <td className="p-4">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSaleClick(sale);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSaleClick(sale);
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={(e) => handleDeleteClick(sale, e)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -533,6 +595,28 @@ const Sales = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Venda</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita e irá remover também a transação relacionada.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteSale}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? "Excluindo..." : "Excluir"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

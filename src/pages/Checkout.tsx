@@ -505,7 +505,8 @@ const Checkout = () => {
       return;
     }
 
-    // Validar formato brasileiro: 11 dígitos (DDD + 9 dígitos do celular)
+    // Validar formato brasileiro: 10 ou 11 dígitos (DDD + 8 ou 9 dígitos do telefone)
+    // Alguns telefones fixos e celulares antigos têm apenas 8 dígitos após o DDD
     // DDDs válidos: 11-99 (exceto alguns inválidos como 00, 01, etc.)
     const validDDDs = [
       '11', '12', '13', '14', '15', '16', '17', '18', '19', // SP
@@ -540,10 +541,11 @@ const Checkout = () => {
     const ddd = phoneDigits.substring(0, 2);
     const phoneNumber = phoneDigits.substring(2);
 
-    if (phoneDigits.length !== 11) {
+    // Aceitar 10 ou 11 dígitos (DDD + 8 ou 9 dígitos)
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
       toast({
         title: "WhatsApp inválido",
-        description: "O número deve ter 11 dígitos (DDD + 9 dígitos).",
+        description: "O número deve ter 10 ou 11 dígitos (DDD + telefone).",
         variant: "destructive",
       });
       return;
