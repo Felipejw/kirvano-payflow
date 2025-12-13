@@ -38,6 +38,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 type AppRole = "admin" | "seller" | "affiliate" | "member";
+type DisplayRole = AppRole | "customer";
 
 interface UserData {
   user_id: string;
@@ -45,6 +46,7 @@ interface UserData {
   full_name: string;
   created_at: string;
   role: AppRole;
+  displayRole: DisplayRole;
   products_count: number;
   total_revenue: number;
 }
@@ -105,19 +107,42 @@ export default function AdminUsers() {
         .from("transactions")
         .select("seller_id, seller_amount");
 
+      // Fetch affiliates for affiliate check
+      const { data: affiliates } = await supabase
+        .from("affiliates")
+        .select("user_id");
+
       // Build user data
       const usersData: UserData[] = profiles?.map((profile) => {
         const userRole = roles?.find((r) => r.user_id === profile.user_id);
         const userProducts = products?.filter((p) => p.seller_id === profile.user_id) || [];
         const userTransactions = transactions?.filter((t) => t.seller_id === profile.user_id) || [];
         const totalRevenue = userTransactions.reduce((sum, t) => sum + Number(t.seller_amount || 0), 0);
+        const hasAffiliations = affiliates?.some((a) => a.user_id === profile.user_id) || false;
+        
+        const dbRole = (userRole?.role as AppRole) || "seller";
+        
+        // Determine display role based on actual activity
+        let displayRole: DisplayRole = dbRole;
+        if (dbRole === "admin") {
+          displayRole = "admin";
+        } else if (hasAffiliations) {
+          displayRole = "affiliate";
+        } else if (userProducts.length > 0) {
+          displayRole = "seller";
+        } else if (dbRole === "member") {
+          displayRole = "member";
+        } else {
+          displayRole = "customer";
+        }
 
         return {
           user_id: profile.user_id,
           email: profile.email || "",
           full_name: profile.full_name || "Sem nome",
           created_at: profile.created_at,
-          role: (userRole?.role as AppRole) || "seller",
+          role: dbRole,
+          displayRole: displayRole,
           products_count: userProducts.length,
           total_revenue: totalRevenue
         };
@@ -143,14 +168,15 @@ export default function AdminUsers() {
     }).format(value);
   };
 
-  const getRoleBadge = (role: AppRole) => {
-    const roleMap: Record<AppRole, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }> = {
+  const getRoleBadge = (displayRole: DisplayRole) => {
+    const roleMap: Record<DisplayRole, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }> = {
       admin: { label: "Admin", variant: "destructive", icon: <Shield className="h-3 w-3 mr-1" /> },
       seller: { label: "Vendedor", variant: "default", icon: <User className="h-3 w-3 mr-1" /> },
       affiliate: { label: "Afiliado", variant: "secondary", icon: <UsersIcon className="h-3 w-3 mr-1" /> },
-      member: { label: "Membro", variant: "outline", icon: <UserCheck className="h-3 w-3 mr-1" /> }
+      member: { label: "Membro", variant: "outline", icon: <UserCheck className="h-3 w-3 mr-1" /> },
+      customer: { label: "Cliente", variant: "outline", icon: <UserCheck className="h-3 w-3 mr-1" /> }
     };
-    const config = roleMap[role];
+    const config = roleMap[displayRole];
     return (
       <Badge variant={config.variant} className="flex items-center w-fit">
         {config.icon}
@@ -200,15 +226,16 @@ export default function AdminUsers() {
     const matchesSearch =
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.full_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    const matchesRole = roleFilter === "all" || u.displayRole === roleFilter;
     return matchesSearch && matchesRole;
   });
 
   const stats = {
     total: users.length,
-    admins: users.filter((u) => u.role === "admin").length,
-    sellers: users.filter((u) => u.role === "seller").length,
-    affiliates: users.filter((u) => u.role === "affiliate").length
+    admins: users.filter((u) => u.displayRole === "admin").length,
+    sellers: users.filter((u) => u.displayRole === "seller").length,
+    affiliates: users.filter((u) => u.displayRole === "affiliate").length,
+    customers: users.filter((u) => u.displayRole === "customer").length
   };
 
   if (roleLoading || loading) {
@@ -237,7 +264,7 @@ export default function AdminUsers() {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
@@ -268,6 +295,14 @@ export default function AdminUsers() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.affiliates}</div>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-muted-foreground">{stats.customers}</div>
             </CardContent>
           </Card>
         </div>
@@ -302,6 +337,7 @@ export default function AdminUsers() {
                     <SelectItem value="seller">Vendedor</SelectItem>
                     <SelectItem value="affiliate">Afiliado</SelectItem>
                     <SelectItem value="member">Membro</SelectItem>
+                    <SelectItem value="customer">Cliente</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -337,7 +373,7 @@ export default function AdminUsers() {
                           </div>
                         </td>
                         <td className="p-3">
-                          {getRoleBadge(user.role)}
+                          {getRoleBadge(user.displayRole)}
                         </td>
                         <td className="p-3">
                           <Badge variant="outline">{user.products_count}</Badge>
