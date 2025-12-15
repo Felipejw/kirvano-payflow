@@ -8,3 +8,12 @@ verify_jwt = false
 
 [functions.send-member-access-email]
 verify_jwt = true
+
+[functions.generate-fee-pix]
+verify_jwt = true
+
+[functions.fee-webhook]
+verify_jwt = false
+
+[functions.send-fee-reminder]
+verify_jwt = true
