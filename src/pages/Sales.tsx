@@ -228,21 +228,38 @@ const Sales = () => {
     }
   };
 
+  // Helper function to get the effective status (pending + expired = cancelled)
+  const getEffectiveStatus = (sale: Sale) => {
+    if (sale.status === 'pending' && new Date(sale.expires_at) < new Date()) {
+      return 'cancelled';
+    }
+    return sale.status;
+  };
+
   const filteredSales = sales.filter(sale => {
     const matchesSearch = 
       sale.buyer_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sale.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sale.product?.name.toLowerCase().includes(searchTerm.toLowerCase());
     
+    const effectiveStatus = getEffectiveStatus(sale);
+    
     if (activeTab === "all") return matchesSearch;
-    return matchesSearch && sale.status === activeTab;
+    if (activeTab === "expired") {
+      // "Expiradas" tab shows both expired and cancelled
+      return matchesSearch && (effectiveStatus === 'expired' || effectiveStatus === 'cancelled');
+    }
+    return matchesSearch && effectiveStatus === activeTab;
   });
 
   const stats = {
     total: sales.length,
-    pending: sales.filter(s => s.status === 'pending').length,
+    pending: sales.filter(s => getEffectiveStatus(s) === 'pending').length,
     paid: sales.filter(s => s.status === 'paid').length,
-    cancelled: sales.filter(s => s.status === 'expired' || s.status === 'cancelled').length,
+    cancelled: sales.filter(s => {
+      const effectiveStatus = getEffectiveStatus(s);
+      return effectiveStatus === 'expired' || effectiveStatus === 'cancelled';
+    }).length,
     totalValue: sales.filter(s => s.status === 'paid').reduce((acc, s) => acc + Number(s.amount), 0),
   };
 
@@ -382,7 +399,8 @@ const Sales = () => {
                       </thead>
                       <tbody>
                         {filteredSales.map((sale) => {
-                          const status = statusConfig[sale.status as keyof typeof statusConfig] || statusConfig.pending;
+                          const effectiveStatus = getEffectiveStatus(sale);
+                          const status = statusConfig[effectiveStatus as keyof typeof statusConfig] || statusConfig.pending;
                           const StatusIcon = status.icon;
                           
                           return (

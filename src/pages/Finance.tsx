@@ -77,7 +77,7 @@ const Finance = () => {
     
     setSellerBlock(blockData);
 
-    // Fetch invoices
+    // Fetch invoices - deduplicate by period_start and period_end
     setInvoicesLoading(true);
     const { data: invoicesData } = await supabase
       .from('platform_invoices')
@@ -86,7 +86,25 @@ const Finance = () => {
       .order('period_end', { ascending: false });
     
     if (invoicesData) {
-      setInvoices(invoicesData as Invoice[]);
+      // Remove duplicates by keeping only the most recent invoice for each period
+      const uniqueInvoices = invoicesData.reduce((acc: Invoice[], invoice) => {
+        const key = `${invoice.period_start}-${invoice.period_end}`;
+        const existingIndex = acc.findIndex(
+          (i) => `${i.period_start}-${i.period_end}` === key
+        );
+        if (existingIndex === -1) {
+          acc.push(invoice as Invoice);
+        } else {
+          // Keep the one with the most recent created_at or the paid one
+          const existing = acc[existingIndex];
+          if (invoice.status === 'paid' || 
+              (existing.status !== 'paid' && new Date(invoice.created_at || 0) > new Date(existing.id))) {
+            acc[existingIndex] = invoice as Invoice;
+          }
+        }
+        return acc;
+      }, []);
+      setInvoices(uniqueInvoices);
     }
     setInvoicesLoading(false);
 
