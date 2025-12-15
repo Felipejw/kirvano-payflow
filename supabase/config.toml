@@ -20,3 +20,6 @@ verify_jwt = true
 
 [functions.auto-block-sellers]
 verify_jwt = true
+
+[functions.send-pix-notification]
+verify_jwt = false
