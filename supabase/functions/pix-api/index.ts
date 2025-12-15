@@ -479,7 +479,7 @@ serve(async (req) => {
         
         const { data: charge, error: fetchError } = await supabase
           .from('pix_charges')
-          .select('*, products(name, seller_id), affiliates(*)')
+          .select('*, products(name, seller_id, auto_send_access_email), affiliates(*)')
           .or(`external_id.eq.${transactionId},external_id.eq.${requestBody.external_id}`)
           .single();
 
@@ -559,32 +559,39 @@ serve(async (req) => {
                 .eq('product_id', charge.product_id)
                 .maybeSingle();
               
-              // Send automatic access email
-              const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-              try {
-                const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-member-access-email`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-                  },
-                  body: JSON.stringify({
-                    memberEmail: charge.buyer_email,
-                    memberName: charge.buyer_name,
-                    productName: charge.products?.name || 'Produto',
-                    productId: charge.product_id,
-                    memberId: memberData?.id,
-                    autoSend: true,
-                  }),
-                });
-                
-                if (emailResponse.ok) {
-                  console.log('Access email sent automatically to:', charge.buyer_email);
-                } else {
-                  console.error('Failed to send access email:', await emailResponse.text());
+              // Check if auto email sending is enabled for this product (default: true)
+              const autoSendEnabled = charge.products?.auto_send_access_email ?? true;
+              
+              if (autoSendEnabled) {
+                // Send automatic access email
+                const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+                try {
+                  const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-member-access-email`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                    },
+                    body: JSON.stringify({
+                      memberEmail: charge.buyer_email,
+                      memberName: charge.buyer_name,
+                      productName: charge.products?.name || 'Produto',
+                      productId: charge.product_id,
+                      memberId: memberData?.id,
+                      autoSend: true,
+                    }),
+                  });
+                  
+                  if (emailResponse.ok) {
+                    console.log('Access email sent automatically to:', charge.buyer_email);
+                  } else {
+                    console.error('Failed to send access email:', await emailResponse.text());
+                  }
+                } catch (emailError) {
+                  console.error('Error sending access email:', emailError);
                 }
-              } catch (emailError) {
-                console.error('Error sending access email:', emailError);
+              } else {
+                console.log('Auto email disabled for product:', charge.product_id);
               }
             } catch (memberError) {
               console.error('Error creating membership:', memberError);

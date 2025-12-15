@@ -34,6 +34,7 @@ interface Product {
   custom_slug?: string | null;
   custom_domain?: string | null;
   domain_verified?: boolean;
+  auto_send_access_email?: boolean;
 }
 
 interface ProductFormDialogProps {
@@ -75,6 +76,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     custom_slug: "",
     custom_domain: "",
     domain_verified: false,
+    auto_send_access_email: true,
   });
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,6 +180,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         custom_slug: product.custom_slug || "",
         custom_domain: product.custom_domain || "",
         domain_verified: product.domain_verified || false,
+        auto_send_access_email: product.auto_send_access_email ?? true,
       });
       setSlugError(null);
     } else {
@@ -201,6 +204,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         custom_slug: "",
         custom_domain: "",
         domain_verified: false,
+        auto_send_access_email: true,
       });
       setSlugError(null);
     }
@@ -362,6 +366,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         custom_slug: formData.custom_slug || null,
         custom_domain: formData.custom_domain || null,
         domain_verified: formData.domain_verified || false,
+        auto_send_access_email: formData.auto_send_access_email ?? true,
       };
 
       if (product?.id) {
@@ -458,7 +463,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -576,6 +581,20 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                   />
                 </div>
               )}
+            </div>
+
+            {/* Email Automático Section */}
+            <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base">📧 Envio Automático de Email</Label>
+                  <p className="text-sm text-muted-foreground">Quando uma compra for confirmada, um email com as credenciais de acesso será enviado automaticamente ao comprador</p>
+                </div>
+                <Switch
+                  checked={formData.auto_send_access_email ?? true}
+                  onCheckedChange={(checked) => setFormData({ ...formData, auto_send_access_email: checked })}
+                />
+              </div>
             </div>
 
             {/* Custom Domain & Slug Section */}
