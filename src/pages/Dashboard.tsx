@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
+import { AverageTicketChart } from "@/components/dashboard/AverageTicketChart";
 import { TopProducts } from "@/components/dashboard/TopProducts";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ConversionFunnel, ConversionChart } from "@/components/dashboard/ConversionMetrics";
@@ -21,7 +22,8 @@ import {
   ShoppingCart,
   Percent,
   Package,
-  Receipt
+  Receipt,
+  Clock
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ interface DashboardStats {
   averageTicket: number;
   activeProducts: number;
   conversionRate: number;
+  pendingRevenue: number;
   revenueChange: string;
   salesChange: string;
 }
@@ -51,6 +54,7 @@ const Dashboard = () => {
     averageTicket: 0,
     activeProducts: 0,
     conversionRate: 0,
+    pendingRevenue: 0,
     revenueChange: "+0%",
     salesChange: "+0%",
   });
@@ -72,10 +76,27 @@ const Dashboard = () => {
     // Fetch all PIX charges (generated) for conversion calculation within date range
     const { data: pixCharges } = await supabase
       .from('pix_charges')
-      .select('id')
+      .select('id, amount, status')
       .eq('seller_id', userId)
       .gte('created_at', range.from.toISOString())
       .lte('created_at', range.to.toISOString());
+
+    // Fetch pending transactions (cancelled/expired)
+    const { data: pendingTransactions } = await supabase
+      .from('transactions')
+      .select('amount')
+      .eq('seller_id', userId)
+      .in('status', ['pending', 'cancelled', 'expired'])
+      .gte('created_at', range.from.toISOString())
+      .lte('created_at', range.to.toISOString());
+
+    // Calculate pending revenue from pix charges not paid
+    const pendingPixRevenue = pixCharges
+      ?.filter(p => p.status === 'pending' || p.status === 'expired')
+      ?.reduce((acc, p) => acc + Number(p.amount), 0) || 0;
+    
+    // Calculate pending from cancelled/expired transactions
+    const pendingTxRevenue = pendingTransactions?.reduce((acc, t) => acc + Number(t.amount), 0) || 0;
 
     // Fetch active products
     const { data: products } = await supabase
@@ -125,6 +146,7 @@ const Dashboard = () => {
       averageTicket,
       activeProducts: products?.length || 0,
       conversionRate: parseFloat(conversionRate.toFixed(1)),
+      pendingRevenue: pendingPixRevenue + pendingTxRevenue,
       revenueChange: `${parseFloat(revenueChange) >= 0 ? '+' : ''}${revenueChange}% vs período anterior`,
       salesChange: `${parseFloat(salesChange) >= 0 ? '+' : ''}${salesChange}% vs período anterior`,
     });
@@ -193,7 +215,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
           <StatsCard
             title="Receita Total"
             value={`R$ ${stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
@@ -209,6 +231,14 @@ const Dashboard = () => {
             changeType={stats.salesChange.startsWith('+') ? "positive" : "negative"}
             icon={ShoppingCart}
             iconColor="text-primary"
+          />
+          <StatsCard
+            title="Receita Pendente"
+            value={`R$ ${stats.pendingRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            change="PIX não pagos"
+            changeType="neutral"
+            icon={Clock}
+            iconColor="text-yellow-400"
           />
           <StatsCard
             title="Ticket Médio"
@@ -249,6 +279,11 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <SalesChart />
               <TopProducts />
+            </div>
+
+            {/* Ticket Médio Chart */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <AverageTicketChart />
             </div>
 
             {/* Recent Transactions */}
