@@ -230,14 +230,14 @@ const PaymentMethods = () => {
                           ) : (
                             <div className="flex items-center gap-3">
                               <Select
-                                value={selectedGatewayId}
-                                onValueChange={(value) => handleMethodChange(method.key, value)}
+                                value={selectedGatewayId || "none"}
+                                onValueChange={(value) => handleMethodChange(method.key, value === "none" ? "" : value)}
                               >
                                 <SelectTrigger className="w-[250px]">
                                   <SelectValue placeholder="Selecione um gateway" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="">Nenhum</SelectItem>
+                                  <SelectItem value="none">Nenhum</SelectItem>
                                   {availableGateways.map((g) => (
                                     <SelectItem key={g.id} value={g.id}>
                                       <div className="flex items-center gap-2">
