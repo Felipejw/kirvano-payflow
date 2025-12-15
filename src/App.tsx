@@ -13,6 +13,7 @@ import Transactions from "./pages/Transactions";
 import Checkout from "./pages/Checkout";
 import Sales from "./pages/Sales";
 import Finance from "./pages/Finance";
+import PaymentMethods from "./pages/PaymentMethods";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -21,6 +22,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTransactionsPage from "./pages/admin/AdminTransactionsPage";
 import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage";
 import AdminInvoicesPage from "./pages/admin/AdminInvoicesPage";
+import AdminGatewaysPage from "./pages/admin/AdminGatewaysPage";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSuggestions from "./pages/admin/AdminSuggestions";
 import MembersArea from "./pages/members/MembersArea";
@@ -64,6 +66,7 @@ const App = () => (
               
               <Route path="/dashboard/sales" element={<Sales />} />
               <Route path="/dashboard/finance" element={<Finance />} />
+              <Route path="/dashboard/payment-methods" element={<PaymentMethods />} />
               <Route path="/dashboard/settings" element={<Settings />} />
               <Route path="/dashboard/clients" element={<Clients />} />
               <Route path="/dashboard/members" element={<Members />} />
@@ -74,6 +77,7 @@ const App = () => (
               <Route path="/admin/transactions" element={<AdminTransactionsPage />} />
               <Route path="/admin/withdrawals" element={<AdminWithdrawalsPage />} />
               <Route path="/admin/invoices" element={<AdminInvoicesPage />} />
+              <Route path="/admin/gateways" element={<AdminGatewaysPage />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/admin/suggestions" element={<AdminSuggestions />} />
               <Route path="/admin/settings" element={<AdminSettings />} />

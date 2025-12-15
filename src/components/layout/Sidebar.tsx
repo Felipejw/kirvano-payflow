@@ -31,7 +31,8 @@ const sellerMenuItems = [
   { icon: CreditCard, label: "Transações", path: "/dashboard/transactions" },
   { icon: Users, label: "Clientes", path: "/dashboard/clients" },
   { icon: UserCheck, label: "Área de Membros", path: "/dashboard/members" },
-  { icon: Wallet, label: "Financeiro", path: "/dashboard/finance" },
+  { icon: Wallet, label: "Formas de Pagamento", path: "/dashboard/payment-methods" },
+  { icon: CreditCard, label: "Financeiro", path: "/dashboard/finance" },
 ];
 
 const adminMenuItems = [
@@ -39,6 +40,7 @@ const adminMenuItems = [
   { icon: Users, label: "Usuários", path: "/admin/users" },
   { icon: ShoppingCart, label: "Transações", path: "/admin/transactions" },
   { icon: Wallet, label: "Faturas", path: "/admin/invoices" },
+  { icon: CreditCard, label: "Gateways", path: "/admin/gateways" },
   { icon: TrendingUp, label: "Analytics", path: "/admin/analytics" },
   { icon: Lightbulb, label: "Sugestões", path: "/admin/suggestions" },
   { icon: Settings, label: "Configurações", path: "/admin/settings" },
