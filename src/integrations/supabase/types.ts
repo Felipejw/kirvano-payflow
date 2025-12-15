@@ -606,11 +606,14 @@ export type Database = {
           expires_at: string
           external_id: string
           id: string
+          is_recovery: boolean | null
           order_bumps: string[] | null
+          original_charge_id: string | null
           paid_at: string | null
           product_id: string | null
           qr_code: string | null
           qr_code_base64: string | null
+          recovery_message_id: string | null
           seller_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
         }
@@ -626,11 +629,14 @@ export type Database = {
           expires_at: string
           external_id: string
           id?: string
+          is_recovery?: boolean | null
           order_bumps?: string[] | null
+          original_charge_id?: string | null
           paid_at?: string | null
           product_id?: string | null
           qr_code?: string | null
           qr_code_base64?: string | null
+          recovery_message_id?: string | null
           seller_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
         }
@@ -646,11 +652,14 @@ export type Database = {
           expires_at?: string
           external_id?: string
           id?: string
+          is_recovery?: boolean | null
           order_bumps?: string[] | null
+          original_charge_id?: string | null
           paid_at?: string | null
           product_id?: string | null
           qr_code?: string | null
           qr_code_base64?: string | null
+          recovery_message_id?: string | null
           seller_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
         }
@@ -974,6 +983,114 @@ export type Database = {
         }
         Relationships: []
       }
+      recovery_campaigns: {
+        Row: {
+          created_at: string
+          custom_email_subject: string | null
+          custom_whatsapp_template: string | null
+          id: string
+          is_active: boolean
+          message_intervals: Json
+          seller_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custom_email_subject?: string | null
+          custom_whatsapp_template?: string | null
+          id?: string
+          is_active?: boolean
+          message_intervals?: Json
+          seller_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custom_email_subject?: string | null
+          custom_whatsapp_template?: string | null
+          id?: string
+          is_active?: boolean
+          message_intervals?: Json
+          seller_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recovery_messages: {
+        Row: {
+          campaign_id: string
+          channel: string
+          created_at: string
+          error_message: string | null
+          id: string
+          message_number: number
+          new_charge_id: string | null
+          original_charge_id: string
+          seller_id: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_number?: number
+          new_charge_id?: string | null
+          original_charge_id: string
+          seller_id: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_number?: number
+          new_charge_id?: string | null
+          original_charge_id?: string
+          seller_id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      recovery_settings: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          max_messages_per_charge: number
+          min_interval_minutes: number
+          recovery_fee_percentage: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          max_messages_per_charge?: number
+          min_interval_minutes?: number
+          recovery_fee_percentage?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          max_messages_per_charge?: number
+          min_interval_minutes?: number
+          recovery_fee_percentage?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       seller_blocks: {
         Row: {
           blocked_at: string | null
@@ -1107,8 +1224,10 @@ export type Database = {
           gateway_id: string | null
           gateway_transaction_id: string | null
           id: string
+          is_recovered: boolean | null
           platform_fee: number
           product_id: string | null
+          recovery_fee: number | null
           seller_amount: number
           seller_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
@@ -1124,8 +1243,10 @@ export type Database = {
           gateway_id?: string | null
           gateway_transaction_id?: string | null
           id?: string
+          is_recovered?: boolean | null
           platform_fee?: number
           product_id?: string | null
+          recovery_fee?: number | null
           seller_amount?: number
           seller_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
@@ -1141,8 +1262,10 @@ export type Database = {
           gateway_id?: string | null
           gateway_transaction_id?: string | null
           id?: string
+          is_recovered?: boolean | null
           platform_fee?: number
           product_id?: string | null
+          recovery_fee?: number | null
           seller_amount?: number
           seller_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
