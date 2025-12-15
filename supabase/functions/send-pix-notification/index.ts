@@ -163,10 +163,16 @@ const sendEmail = async (data: NotificationRequest) => {
 const sendWhatsApp = async (data: NotificationRequest) => {
   const instanceId = Deno.env.get("ZAPI_INSTANCE_ID");
   const token = Deno.env.get("ZAPI_TOKEN");
+  const clientToken = Deno.env.get("ZAPI_CLIENT_TOKEN");
   
   if (!instanceId || !token) {
     console.log("Z-API credentials not configured, skipping WhatsApp");
     return { success: false, error: "Z-API not configured" };
+  }
+
+  if (!clientToken) {
+    console.log("Z-API Client-Token not configured, skipping WhatsApp");
+    return { success: false, error: "Z-API Client-Token not configured" };
   }
 
   if (!data.buyer_phone) {
@@ -210,6 +216,7 @@ _Copie o código e cole no app do seu banco para pagar._
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Client-Token": clientToken,
         },
         body: JSON.stringify({
           phone: phone,
