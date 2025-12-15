@@ -30,7 +30,7 @@ const sellerMenuItems = [
   { icon: ShoppingCart, label: "Vendas", path: "/dashboard/sales" },
   { icon: CreditCard, label: "Transações", path: "/dashboard/transactions" },
   { icon: Users, label: "Clientes", path: "/dashboard/clients" },
-  { icon: UserCheck, label: "Membros", path: "/dashboard/members" },
+  { icon: UserCheck, label: "Área de Membros", path: "/dashboard/members" },
   { icon: Wallet, label: "Financeiro", path: "/dashboard/finance" },
 ];
 
