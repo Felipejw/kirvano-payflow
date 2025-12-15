@@ -1,7 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "onboarding@resend.dev";
+const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL");
+
+// Validate email format
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,10 +43,16 @@ const formatPhone = (phone: string): string => {
 
 const sendEmail = async (data: NotificationRequest) => {
   console.log('Sending email to:', data.buyer_email);
+  console.log('RESEND_FROM_EMAIL value:', RESEND_FROM_EMAIL ? `"${RESEND_FROM_EMAIL}"` : "NOT SET");
   
   if (!RESEND_API_KEY) {
     console.error("RESEND_API_KEY not configured");
     return { success: false, error: "Email service not configured" };
+  }
+  
+  if (!RESEND_FROM_EMAIL || !isValidEmail(RESEND_FROM_EMAIL)) {
+    console.error("RESEND_FROM_EMAIL invalid or not configured:", RESEND_FROM_EMAIL);
+    return { success: false, error: "Email sender not properly configured" };
   }
   
   const expiresDate = new Date(data.expires_at);
@@ -166,9 +178,18 @@ const sendWhatsApp = async (data: NotificationRequest) => {
   const token = Deno.env.get("ZAPI_TOKEN");
   const clientToken = Deno.env.get("ZAPI_CLIENT_TOKEN");
   
+  console.log("Z-API Instance ID:", instanceId ? `"${instanceId}"` : "NOT SET");
+  console.log("Z-API Token:", token ? `"${token.substring(0, 8)}..."` : "NOT SET");
+  
   if (!instanceId || !token) {
     console.log("Z-API credentials not configured, skipping WhatsApp");
     return { success: false, error: "Z-API not configured" };
+  }
+  
+  // Validate that instanceId and token don't contain full URLs
+  if (instanceId.includes('http') || token.includes('http')) {
+    console.error("ERROR: ZAPI_INSTANCE_ID or ZAPI_TOKEN contains URL instead of just ID/token");
+    return { success: false, error: "Z-API credentials misconfigured - should be just IDs, not full URLs" };
   }
 
   if (!clientToken) {
