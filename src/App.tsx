@@ -20,6 +20,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTransactionsPage from "./pages/admin/AdminTransactionsPage";
 import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage";
+import AdminInvoicesPage from "./pages/admin/AdminInvoicesPage";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSuggestions from "./pages/admin/AdminSuggestions";
 import MembersArea from "./pages/members/MembersArea";
@@ -72,6 +73,7 @@ const App = () => (
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/transactions" element={<AdminTransactionsPage />} />
               <Route path="/admin/withdrawals" element={<AdminWithdrawalsPage />} />
+              <Route path="/admin/invoices" element={<AdminInvoicesPage />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/admin/suggestions" element={<AdminSuggestions />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
