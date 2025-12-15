@@ -10,7 +10,7 @@ import { ConversionFunnel, ConversionChart } from "@/components/dashboard/Conver
 import { WithdrawalManagement } from "@/components/dashboard/WithdrawalManagement";
 import { GeneratePixDialog } from "@/components/dashboard/GeneratePixDialog";
 import { DateRangeFilter, DateRange, DateRangeOption } from "@/components/dashboard/DateRangeFilter";
-import { startOfMonth, endOfDay } from "date-fns";
+import { startOfDay, endOfDay } from "date-fns";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -39,9 +39,9 @@ interface DashboardStats {
 const Dashboard = () => {
   const [user, setUser] = useState<any>(null);
   const [pixDialogOpen, setPixDialogOpen] = useState(false);
-  const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("currentMonth");
+  const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("today");
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: startOfMonth(new Date()),
+    from: startOfDay(new Date()),
     to: endOfDay(new Date()),
   });
   const [stats, setStats] = useState<DashboardStats>({
