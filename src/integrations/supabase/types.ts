@@ -548,6 +548,7 @@ export type Database = {
       payment_gateways: {
         Row: {
           created_at: string | null
+          display_order: number | null
           id: string
           instructions: string | null
           is_active: boolean | null
@@ -555,10 +556,14 @@ export type Database = {
           name: string
           required_fields: Json | null
           slug: string
+          supports_boleto: boolean | null
+          supports_card: boolean | null
+          supports_pix: boolean | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          display_order?: number | null
           id?: string
           instructions?: string | null
           is_active?: boolean | null
@@ -566,10 +571,14 @@ export type Database = {
           name: string
           required_fields?: Json | null
           slug: string
+          supports_boleto?: boolean | null
+          supports_card?: boolean | null
+          supports_pix?: boolean | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          display_order?: number | null
           id?: string
           instructions?: string | null
           is_active?: boolean | null
@@ -577,6 +586,9 @@ export type Database = {
           name?: string
           required_fields?: Json | null
           slug?: string
+          supports_boleto?: boolean | null
+          supports_card?: boolean | null
+          supports_pix?: boolean | null
           updated_at?: string | null
         }
         Relationships: []
@@ -1009,6 +1021,9 @@ export type Database = {
           is_active: boolean | null
           is_default: boolean | null
           updated_at: string | null
+          use_for_boleto: boolean | null
+          use_for_card: boolean | null
+          use_for_pix: boolean | null
           user_id: string
         }
         Insert: {
@@ -1019,6 +1034,9 @@ export type Database = {
           is_active?: boolean | null
           is_default?: boolean | null
           updated_at?: string | null
+          use_for_boleto?: boolean | null
+          use_for_card?: boolean | null
+          use_for_pix?: boolean | null
           user_id: string
         }
         Update: {
@@ -1029,6 +1047,9 @@ export type Database = {
           is_active?: boolean | null
           is_default?: boolean | null
           updated_at?: string | null
+          use_for_boleto?: boolean | null
+          use_for_card?: boolean | null
+          use_for_pix?: boolean | null
           user_id?: string
         }
         Relationships: [
