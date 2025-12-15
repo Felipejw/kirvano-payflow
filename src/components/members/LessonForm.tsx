@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Dialog,
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -19,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FileUpload } from "./FileUpload";
+import { Link, Upload } from "lucide-react";
 
 interface Lesson {
   id: string;
@@ -54,8 +57,11 @@ export function LessonForm({ open, onOpenChange, lesson, onSave }: LessonFormPro
     }
   });
 
+  const [inputMethod, setInputMethod] = useState<"url" | "upload">("url");
+
   const contentType = watch("content_type");
   const isFree = watch("is_free");
+  const contentUrl = watch("content_url");
 
   useEffect(() => {
     if (open) {
@@ -67,11 +73,16 @@ export function LessonForm({ open, onOpenChange, lesson, onSave }: LessonFormPro
         duration_minutes: lesson?.duration_minutes || null,
         is_free: lesson?.is_free || false,
       });
+      setInputMethod("url");
     }
   }, [open, lesson, reset]);
 
   const onSubmit = (data: LessonFormData) => {
     onSave(data);
+  };
+
+  const handleFileUpload = (url: string) => {
+    setValue("content_url", url);
   };
 
   const getContentUrlLabel = () => {
@@ -99,6 +110,8 @@ export function LessonForm({ open, onOpenChange, lesson, onSave }: LessonFormPro
         return "https://exemplo.com/arquivo";
     }
   };
+
+  const showUploadOption = contentType === "video" || contentType === "pdf" || contentType === "file";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -148,12 +161,43 @@ export function LessonForm({ open, onOpenChange, lesson, onSave }: LessonFormPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="content_url">{getContentUrlLabel()}</Label>
-            <Input
-              id="content_url"
-              {...register("content_url")}
-              placeholder={getContentUrlPlaceholder()}
-            />
+            <Label>Conteúdo</Label>
+            {showUploadOption ? (
+              <Tabs value={inputMethod} onValueChange={(v) => setInputMethod(v as "url" | "upload")}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="url" className="flex items-center gap-2">
+                    <Link className="h-4 w-4" />
+                    URL
+                  </TabsTrigger>
+                  <TabsTrigger value="upload" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Upload
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="url" className="mt-2">
+                  <Input
+                    {...register("content_url")}
+                    placeholder={getContentUrlPlaceholder()}
+                  />
+                </TabsContent>
+                <TabsContent value="upload" className="mt-2">
+                  <FileUpload
+                    onUploadComplete={handleFileUpload}
+                    accept={contentType === "pdf" ? "application/pdf" : "video/mp4,video/webm,application/pdf"}
+                  />
+                  {contentUrl && (
+                    <p className="text-sm text-muted-foreground mt-2 truncate">
+                      Arquivo: {contentUrl.split('/').pop()}
+                    </p>
+                  )}
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <Input
+                {...register("content_url")}
+                placeholder={getContentUrlPlaceholder()}
+              />
+            )}
           </div>
 
           {contentType === "video" && (

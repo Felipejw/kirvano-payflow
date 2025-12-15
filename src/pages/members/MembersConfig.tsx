@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Plus, GripVertical, Pencil, Trash2, Video, FileText, Link as LinkIcon, File } from "lucide-react";
@@ -256,189 +257,195 @@ export default function MembersConfig() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
-      </div>
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   if (!product) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Produto não encontrado</p>
-        <Button variant="outline" onClick={() => navigate("/dashboard/members")} className="mt-4">
-          Voltar
-        </Button>
-      </div>
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Produto não encontrado</p>
+          <Button variant="outline" onClick={() => navigate("/dashboard/members")} className="mt-4">
+            Voltar
+          </Button>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/members")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Configurar Área de Membros</h1>
-          <p className="text-muted-foreground">{product.name}</p>
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/members")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Configurar Área de Membros</h1>
+            <p className="text-muted-foreground">{product.name}</p>
+          </div>
         </div>
-      </div>
 
-      {/* Add Module Button */}
-      <Button onClick={() => { setEditingModule(null); setModuleFormOpen(true); }}>
-        <Plus className="h-4 w-4 mr-2" />
-        Adicionar Módulo
-      </Button>
+        {/* Add Module Button */}
+        <Button onClick={() => { setEditingModule(null); setModuleFormOpen(true); }}>
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar Módulo
+        </Button>
 
-      {/* Modules List */}
-      {modules.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground mb-4">Nenhum módulo criado ainda</p>
-            <Button variant="outline" onClick={() => { setEditingModule(null); setModuleFormOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Criar primeiro módulo
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Accordion type="multiple" className="space-y-4">
-          {modules.map((module) => (
-            <AccordionItem key={module.id} value={module.id} className="border rounded-lg bg-card">
-              <AccordionTrigger className="px-4 hover:no-underline">
-                <div className="flex items-center gap-3 flex-1">
-                  <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                  <div className="text-left flex-1">
-                    <p className="font-medium">{module.name}</p>
-                    {module.description && (
-                      <p className="text-sm text-muted-foreground">{module.description}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => { setEditingModule(module); setModuleFormOpen(true); }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteModuleId(module.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
-                <div className="space-y-2 ml-8">
-                  {(lessons[module.id] || []).map((lesson) => (
-                    <div
-                      key={lesson.id}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
-                    >
-                      <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                      {getContentTypeIcon(lesson.content_type)}
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{lesson.name}</p>
-                        {lesson.duration_minutes && (
-                          <p className="text-xs text-muted-foreground">{lesson.duration_minutes} min</p>
-                        )}
-                      </div>
-                      {lesson.is_free && (
-                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                          Grátis
-                        </span>
+        {/* Modules List */}
+        {modules.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground mb-4">Nenhum módulo criado ainda</p>
+              <Button variant="outline" onClick={() => { setEditingModule(null); setModuleFormOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar primeiro módulo
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Accordion type="multiple" className="space-y-4">
+            {modules.map((module) => (
+              <AccordionItem key={module.id} value={module.id} className="border rounded-lg bg-card">
+                <AccordionTrigger className="px-4 hover:no-underline">
+                  <div className="flex items-center gap-3 flex-1">
+                    <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
+                    <div className="text-left flex-1">
+                      <p className="font-medium">{module.name}</p>
+                      {module.description && (
+                        <p className="text-sm text-muted-foreground">{module.description}</p>
                       )}
+                    </div>
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => { setEditingLesson(lesson); setSelectedModuleId(module.id); setLessonFormOpen(true); }}
+                        onClick={() => { setEditingModule(module); setModuleFormOpen(true); }}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setDeleteLessonId(lesson.id)}
+                        onClick={() => setDeleteModuleId(module.id)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="ml-7 mt-2"
-                    onClick={() => { setEditingLesson(null); setSelectedModuleId(module.id); setLessonFormOpen(true); }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Aula
-                  </Button>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      )}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <div className="space-y-2 ml-8">
+                    {(lessons[module.id] || []).map((lesson) => (
+                      <div
+                        key={lesson.id}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
+                      >
+                        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                        {getContentTypeIcon(lesson.content_type)}
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{lesson.name}</p>
+                          {lesson.duration_minutes && (
+                            <p className="text-xs text-muted-foreground">{lesson.duration_minutes} min</p>
+                          )}
+                        </div>
+                        {lesson.is_free && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                            Grátis
+                          </span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => { setEditingLesson(lesson); setSelectedModuleId(module.id); setLessonFormOpen(true); }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteLessonId(lesson.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-7 mt-2"
+                      onClick={() => { setEditingLesson(null); setSelectedModuleId(module.id); setLessonFormOpen(true); }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar Aula
+                    </Button>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        )}
 
-      {/* Module Form Dialog */}
-      <ModuleForm
-        open={moduleFormOpen}
-        onOpenChange={setModuleFormOpen}
-        module={editingModule}
-        onSave={handleSaveModule}
-      />
+        {/* Module Form Dialog */}
+        <ModuleForm
+          open={moduleFormOpen}
+          onOpenChange={setModuleFormOpen}
+          module={editingModule}
+          onSave={handleSaveModule}
+        />
 
-      {/* Lesson Form Dialog */}
-      <LessonForm
-        open={lessonFormOpen}
-        onOpenChange={setLessonFormOpen}
-        lesson={editingLesson}
-        onSave={handleSaveLesson}
-      />
+        {/* Lesson Form Dialog */}
+        <LessonForm
+          open={lessonFormOpen}
+          onOpenChange={setLessonFormOpen}
+          lesson={editingLesson}
+          onSave={handleSaveLesson}
+        />
 
-      {/* Delete Module Confirmation */}
-      <AlertDialog open={!!deleteModuleId} onOpenChange={() => setDeleteModuleId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Módulo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Todas as aulas deste módulo também serão excluídas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteModule} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Delete Module Confirmation */}
+        <AlertDialog open={!!deleteModuleId} onOpenChange={() => setDeleteModuleId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Módulo?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita. Todas as aulas deste módulo também serão excluídas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteModule} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {/* Delete Lesson Confirmation */}
-      <AlertDialog open={!!deleteLessonId} onOpenChange={() => setDeleteLessonId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Aula?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteLesson} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        {/* Delete Lesson Confirmation */}
+        <AlertDialog open={!!deleteLessonId} onOpenChange={() => setDeleteLessonId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Aula?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteLesson} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </DashboardLayout>
   );
 }

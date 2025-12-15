@@ -355,13 +355,54 @@ export type Database = {
         }
         Relationships: []
       }
+      member_lesson_progress: {
+        Row: {
+          completed_at: string
+          created_at: string
+          id: string
+          lesson_id: string
+          member_id: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          lesson_id: string
+          member_id: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          lesson_id?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_lesson_progress_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "module_lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_lesson_progress_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           access_level: string
           created_at: string
           expires_at: string | null
           id: string
+          last_accessed_at: string | null
           product_id: string
+          status: string
           transaction_id: string | null
           user_id: string
         }
@@ -370,7 +411,9 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          last_accessed_at?: string | null
           product_id: string
+          status?: string
           transaction_id?: string | null
           user_id: string
         }
@@ -379,7 +422,9 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          last_accessed_at?: string | null
           product_id?: string
+          status?: string
           transaction_id?: string | null
           user_id?: string
         }

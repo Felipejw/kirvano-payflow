@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { 
   Users, 
   Package, 
@@ -16,8 +17,36 @@ import {
   Mail,
   CheckCircle2,
   AlertCircle,
-  Settings
+  Settings,
+  Clock,
+  Ban,
+  CalendarPlus,
+  MoreHorizontal
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -41,6 +70,8 @@ interface Member {
   access_level: string;
   expires_at: string | null;
   created_at: string;
+  last_accessed_at: string | null;
+  status: string;
   product: {
     id: string;
     name: string;
@@ -63,6 +94,12 @@ const Members = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<string>("all");
   const { toast } = useToast();
+  
+  // Dialog states
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [extendDays, setExtendDays] = useState("30");
 
   useEffect(() => {
     if (user) {
@@ -99,6 +136,8 @@ const Members = () => {
           access_level,
           expires_at,
           created_at,
+          last_accessed_at,
+          status,
           product:products (
             id,
             name,
@@ -150,12 +189,119 @@ const Members = () => {
     return new Date(expiresAt) < new Date();
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
+  };
+
+  const formatDateTime = (dateString: string | null) => {
+    if (!dateString) return "Nunca";
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const handleRevokeMember = async () => {
+    if (!selectedMember) return;
+    try {
+      const { error } = await supabase
+        .from("members")
+        .update({ status: "revoked" })
+        .eq("id", selectedMember.id);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Acesso revogado",
+        description: "O acesso do membro foi revogado com sucesso.",
+      });
+      setRevokeDialogOpen(false);
+      setSelectedMember(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error revoking access:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao revogar acesso.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRestoreMember = async (member: Member) => {
+    try {
+      const { error } = await supabase
+        .from("members")
+        .update({ status: "active" })
+        .eq("id", member.id);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Acesso restaurado",
+        description: "O acesso do membro foi restaurado.",
+      });
+      fetchData();
+    } catch (error) {
+      console.error("Error restoring access:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao restaurar acesso.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExtendAccess = async () => {
+    if (!selectedMember) return;
+    try {
+      const days = parseInt(extendDays);
+      if (isNaN(days) || days <= 0) {
+        toast({
+          title: "Erro",
+          description: "Informe um número válido de dias.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const currentExpiry = selectedMember.expires_at 
+        ? new Date(selectedMember.expires_at) 
+        : new Date();
+      
+      const newExpiry = new Date(currentExpiry);
+      newExpiry.setDate(newExpiry.getDate() + days);
+
+      const { error } = await supabase
+        .from("members")
+        .update({ expires_at: newExpiry.toISOString(), status: "active" })
+        .eq("id", selectedMember.id);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Acesso estendido",
+        description: `Acesso estendido por ${days} dias.`,
+      });
+      setExtendDialogOpen(false);
+      setSelectedMember(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error extending access:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao estender acesso.",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredMembers = members.filter(member => {
@@ -168,24 +314,28 @@ const Members = () => {
     return matchesSearch && matchesProduct;
   });
 
-  const activeCount = members.filter(m => !isExpired(m.expires_at)).length;
+  const activeCount = members.filter(m => m.status === 'active' && !isExpired(m.expires_at)).length;
   const expiredCount = members.filter(m => isExpired(m.expires_at)).length;
+  const revokedCount = members.filter(m => m.status === 'revoked').length;
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid gap-4 md:grid-cols-3">
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-32" />
-          ))}
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <div className="grid gap-4 md:grid-cols-3">
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+          <Skeleton className="h-96" />
         </div>
-        <Skeleton className="h-96" />
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
+    <DashboardLayout>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -337,17 +487,18 @@ const Members = () => {
                   <TableRow>
                     <TableHead>Email</TableHead>
                     <TableHead>Produto</TableHead>
-                    <TableHead>Nível</TableHead>
-                    <TableHead>Data de Acesso</TableHead>
+                    <TableHead>Último Acesso</TableHead>
                     <TableHead>Expiração</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredMembers.map((member) => {
+                {filteredMembers.map((member) => {
                     const expired = isExpired(member.expires_at);
+                    const isRevoked = member.status === 'revoked';
                     return (
-                      <TableRow key={member.id}>
+                      <TableRow key={member.id} className={isRevoked ? "opacity-60" : ""}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Mail className="h-4 w-4 text-muted-foreground" />
@@ -371,14 +522,9 @@ const Members = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className="capitalize">
-                            {member.access_level}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            {formatDate(member.created_at)}
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            {formatDateTime(member.last_accessed_at)}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -391,7 +537,12 @@ const Members = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          {expired ? (
+                          {isRevoked ? (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              <Ban className="h-3 w-3 mr-1" />
+                              Revogado
+                            </Badge>
+                          ) : expired ? (
                             <Badge variant="destructive">
                               <AlertCircle className="h-3 w-3 mr-1" />
                               Expirado
@@ -403,6 +554,35 @@ const Members = () => {
                             </Badge>
                           )}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {isRevoked ? (
+                                <DropdownMenuItem onClick={() => handleRestoreMember(member)}>
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  Restaurar Acesso
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem 
+                                  onClick={() => { setSelectedMember(member); setRevokeDialogOpen(true); }}
+                                  className="text-destructive"
+                                >
+                                  <Ban className="h-4 w-4 mr-2" />
+                                  Revogar Acesso
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => { setSelectedMember(member); setExtendDialogOpen(true); }}>
+                                <CalendarPlus className="h-4 w-4 mr-2" />
+                                Estender Acesso
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -412,7 +592,58 @@ const Members = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Revoke Access Dialog */}
+      <AlertDialog open={revokeDialogOpen} onOpenChange={setRevokeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revogar Acesso?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O membro não poderá mais acessar o conteúdo deste produto. Você pode restaurar o acesso a qualquer momento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRevokeMember} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Revogar Acesso
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Extend Access Dialog */}
+      <Dialog open={extendDialogOpen} onOpenChange={setExtendDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Estender Acesso</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Defina quantos dias de acesso adicional para o membro.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="days">Dias adicionais</Label>
+              <Input
+                id="days"
+                type="number"
+                value={extendDays}
+                onChange={(e) => setExtendDays(e.target.value)}
+                placeholder="30"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExtendDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleExtendAccess}>
+              Estender Acesso
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+    </DashboardLayout>
   );
 };
 
