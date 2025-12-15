@@ -26,6 +26,7 @@ interface CreateChargeRequest {
   webhook_url?: string;
   description?: string;
   order_bumps?: string[];
+  payment_method?: 'pix' | 'card' | 'boleto';
 }
 
 interface ChargeResponse {
@@ -40,15 +41,66 @@ interface ChargeResponse {
   created_at: string;
 }
 
+interface GatewayCredentials {
+  client_id?: string;
+  client_secret?: string;
+  api_key?: string;
+  access_token?: string;
+  [key: string]: string | undefined;
+}
+
+// Get seller's gateway credentials for a specific payment method
+async function getSellerGatewayCredentials(
+  supabase: any,
+  sellerId: string,
+  paymentMethod: 'pix' | 'card' | 'boleto'
+): Promise<{ credentials: GatewayCredentials; gateway: any } | null> {
+  console.log(`Fetching ${paymentMethod} credentials for seller:`, sellerId);
+  
+  const methodColumn = `use_for_${paymentMethod}`;
+  
+  const { data, error } = await supabase
+    .from('seller_gateway_credentials')
+    .select(`
+      credentials,
+      gateway_id,
+      payment_gateways (
+        id,
+        name,
+        slug,
+        is_active
+      )
+    `)
+    .eq('user_id', sellerId)
+    .eq('is_active', true)
+    .eq(methodColumn, true)
+    .limit(1)
+    .maybeSingle();
+  
+  if (error) {
+    console.error('Error fetching seller credentials:', error);
+    return null;
+  }
+  
+  if (!data || !data.payment_gateways?.is_active) {
+    console.log('No active credentials found for payment method:', paymentMethod);
+    return null;
+  }
+  
+  console.log('Found gateway credentials:', data.payment_gateways.name);
+  
+  return {
+    credentials: data.credentials as GatewayCredentials,
+    gateway: data.payment_gateways,
+  };
+}
+
 // BSPAY API Integration
 const BSPAY_API_URL = "https://api.bspay.co/v2";
 
-async function getBspayToken(): Promise<string> {
-  const clientId = Deno.env.get('BSPAY_CLIENT_ID');
-  const clientSecret = Deno.env.get('BSPAY_CLIENT_SECRET');
-  
+async function getBspayToken(clientId: string, clientSecret: string): Promise<string> {
   if (!clientId || !clientSecret) {
-    throw new Error('BSPAY credentials not configured');
+    throw new Error('BSPAY credentials not provided');
   }
   
   const credentials = `${clientId}:${clientSecret}`;
@@ -124,7 +176,8 @@ async function createBspayQRCode(
   };
 }
 
-async function getBspayBalance(token: string): Promise<{ balance: number }> {
+async function getBspayBalance(clientId: string, clientSecret: string): Promise<{ balance: number }> {
+  const token = await getBspayToken(clientId, clientSecret);
   console.log('Getting BSPAY balance...');
   
   const response = await fetch(`${BSPAY_API_URL}/balance`, {
@@ -307,11 +360,18 @@ serve(async (req) => {
         .eq('key_hash', keyHash);
     }
 
-    // GET /balance - Get BSPAY account balance
+    // GET /balance - Get BSPAY account balance (uses seller credentials or global)
     if (req.method === 'GET' && path === '/balance') {
       try {
-        const token = await getBspayToken();
-        const balanceData = await getBspayBalance(token);
+        // Use global credentials for balance check (admin feature)
+        const clientId = Deno.env.get('BSPAY_CLIENT_ID');
+        const clientSecret = Deno.env.get('BSPAY_CLIENT_SECRET');
+        
+        if (!clientId || !clientSecret) {
+          throw new Error('BSPAY credentials not configured');
+        }
+        
+        const balanceData = await getBspayBalance(clientId, clientSecret);
         
         return new Response(JSON.stringify(balanceData), {
           status: 200,
@@ -327,7 +387,7 @@ serve(async (req) => {
       }
     }
 
-    // POST /charges - Create a new PIX charge via BSPAY
+    // POST /charges - Create a new PIX charge using seller's gateway credentials
     if (req.method === 'POST' && (path === '/charges' || path === '' || path === '/')) {
       const body: CreateChargeRequest = await req.json();
       
@@ -345,6 +405,46 @@ serve(async (req) => {
         });
       }
 
+      const paymentMethod = body.payment_method || 'pix';
+      
+      // Get seller_id from product
+      let sellerId: string | null = null;
+      if (body.product_id) {
+        const { data: productData } = await supabase
+          .from('products')
+          .select('seller_id')
+          .eq('id', body.product_id)
+          .single();
+        
+        if (productData) {
+          sellerId = productData.seller_id;
+        }
+      }
+
+      if (!sellerId) {
+        console.error('No seller_id found for product:', body.product_id);
+        return new Response(JSON.stringify({ error: 'Produto não encontrado ou sem vendedor associado' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Get seller's gateway credentials for the payment method
+      const gatewayData = await getSellerGatewayCredentials(supabase, sellerId, paymentMethod);
+      
+      if (!gatewayData) {
+        console.error('Seller has no configured gateway for payment method:', paymentMethod);
+        return new Response(JSON.stringify({ 
+          error: `Vendedor não configurou método de pagamento: ${paymentMethod}. Por favor, configure na página de Formas de Pagamento.` 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { credentials, gateway } = gatewayData;
+      console.log(`Using seller's ${gateway.name} gateway for ${paymentMethod} payment`);
+
       const externalId = generateExternalId();
       const expiresInMinutes = body.expires_in_minutes || 30;
       const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
@@ -356,35 +456,52 @@ serve(async (req) => {
       let bspayTransactionId: string | null = null;
 
       try {
-        const token = await getBspayToken();
-        const bspayResult = await createBspayQRCode(
-          token,
-          body.amount,
-          externalId,
-          {
-            name: body.buyer_name,
-            email: body.buyer_email,
-            document: body.buyer_document,
-          },
-          webhookUrl,
-          body.description
-        );
-        
-        pixCode = bspayResult.qrCode;
-        qrCodeBase64 = bspayResult.qrCodeBase64;
-        bspayTransactionId = bspayResult.transactionId;
-        
-        console.log('BSPAY charge created successfully:', bspayTransactionId);
-      } catch (bspayError) {
-        console.error('BSPAY error, using fallback:', bspayError);
-        pixCode = `00020126580014BR.GOV.BCB.PIX0136pixpay@example.com5204000053039865404${body.amount.toFixed(2)}5802BR5913PIXPAY6009SAO PAULO62070503***6304`;
-        qrCodeBase64 = `data:image/svg+xml;base64,${btoa(`
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-            <rect width="200" height="200" fill="white"/>
-            <text x="100" y="100" text-anchor="middle" font-size="12" fill="black">QR CODE PIX</text>
-            <text x="100" y="120" text-anchor="middle" font-size="8" fill="gray">${externalId}</text>
-          </svg>
-        `)}`;
+        // Process payment based on gateway type
+        if (gateway.slug === 'bspay') {
+          const clientId = credentials.client_id;
+          const clientSecret = credentials.client_secret;
+          
+          if (!clientId || !clientSecret) {
+            throw new Error('BSPAY credentials incomplete');
+          }
+          
+          const token = await getBspayToken(clientId, clientSecret);
+          const bspayResult = await createBspayQRCode(
+            token,
+            body.amount,
+            externalId,
+            {
+              name: body.buyer_name,
+              email: body.buyer_email,
+              document: body.buyer_document,
+            },
+            webhookUrl,
+            body.description
+          );
+          
+          pixCode = bspayResult.qrCode;
+          qrCodeBase64 = bspayResult.qrCodeBase64;
+          bspayTransactionId = bspayResult.transactionId;
+          
+          console.log('BSPAY charge created successfully:', bspayTransactionId);
+        } else {
+          // For other gateways, we'll need to implement their specific APIs
+          // For now, return an error asking to use a supported gateway
+          console.error('Gateway not yet implemented:', gateway.slug);
+          return new Response(JSON.stringify({ 
+            error: `Gateway ${gateway.name} ainda não está implementado. Por favor, configure o gateway BSPAY.` 
+          }), {
+            status: 501,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } catch (gatewayError) {
+        console.error('Gateway error:', gatewayError);
+        const errorMessage = gatewayError instanceof Error ? gatewayError.message : 'Gateway error';
+        return new Response(JSON.stringify({ error: `Erro no gateway de pagamento: ${errorMessage}` }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       let affiliateId: string | null = null;
@@ -398,20 +515,6 @@ serve(async (req) => {
         
         if (affiliate) {
           affiliateId = affiliate.id;
-        }
-      }
-
-      // Get seller_id from product
-      let sellerId: string | null = null;
-      if (body.product_id) {
-        const { data: productData } = await supabase
-          .from('products')
-          .select('seller_id')
-          .eq('id', body.product_id)
-          .single();
-        
-        if (productData) {
-          sellerId = productData.seller_id;
         }
       }
 
@@ -668,26 +771,81 @@ serve(async (req) => {
         });
       }
 
-      if (charge.status === 'pending') {
+      if (charge.status === 'pending' && charge.seller_id) {
         try {
-          const token = await getBspayToken();
-          const bspayTransaction = await getBspayTransaction(token, charge.external_id);
-          
-          if (bspayTransaction.status === 'PAID') {
-            await supabase
-              .from('pix_charges')
-              .update({ status: 'paid', paid_at: new Date().toISOString() })
-              .eq('id', charge.id);
+          // Get seller's credentials to check transaction status
+          const gatewayData = await getSellerGatewayCredentials(supabase, charge.seller_id, 'pix');
+          if (gatewayData && gatewayData.gateway.slug === 'bspay') {
+            const { credentials } = gatewayData;
+            const token = await getBspayToken(credentials.client_id!, credentials.client_secret!);
+            const bspayTransaction = await getBspayTransaction(token, charge.external_id);
             
-            charge.status = 'paid';
-            charge.paid_at = new Date().toISOString();
+            if (bspayTransaction.status === 'PAID') {
+              await supabase
+                .from('pix_charges')
+                .update({ status: 'paid', paid_at: new Date().toISOString() })
+                .eq('id', charge.id);
+              
+              charge.status = 'paid';
+              charge.paid_at = new Date().toISOString();
+            }
           }
         } catch (e) {
-          console.log('Could not check BSPAY status:', e);
+          console.log('Could not check gateway status:', e);
         }
       }
 
       return new Response(JSON.stringify(charge), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // GET /payment-methods/:sellerId - Get seller's available payment methods
+    if (req.method === 'GET' && path.startsWith('/payment-methods/')) {
+      const sellerId = path.replace('/payment-methods/', '');
+      
+      console.log('Fetching payment methods for seller:', sellerId);
+      
+      const { data, error } = await supabase
+        .from('seller_gateway_credentials')
+        .select(`
+          use_for_pix,
+          use_for_card,
+          use_for_boleto,
+          is_active,
+          payment_gateways (
+            is_active
+          )
+        `)
+        .eq('user_id', sellerId)
+        .eq('is_active', true);
+      
+      if (error) {
+        console.error('Error fetching payment methods:', error);
+        return new Response(JSON.stringify({ error: 'Failed to fetch payment methods' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      const methods: string[] = [];
+      
+      if (data && data.length > 0) {
+        // Filter credentials where the gateway is active
+        const activeCredentials = data.filter((c: any) => {
+          const gateway = c.payment_gateways;
+          return gateway && (Array.isArray(gateway) ? gateway[0]?.is_active : gateway.is_active);
+        });
+        
+        if (activeCredentials.some((c: any) => c.use_for_pix)) methods.push('pix');
+        if (activeCredentials.some((c: any) => c.use_for_card)) methods.push('card');
+        if (activeCredentials.some((c: any) => c.use_for_boleto)) methods.push('boleto');
+      }
+      
+      console.log('Available payment methods:', methods);
+      
+      return new Response(JSON.stringify({ methods }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
