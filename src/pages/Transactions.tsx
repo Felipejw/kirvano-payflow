@@ -358,7 +358,7 @@ const Transactions = () => {
     
     autoTable(doc, {
       startY: 65,
-      head: [['ID', 'Cliente', 'Produto', 'Valor', 'Taxa (7%)', 'Líquido', 'Status', 'Data']],
+      head: [['ID', 'Cliente', 'Produto', 'Valor', 'Taxa', 'Líquido', 'Status', 'Data']],
       body: tableData,
       styles: { fontSize: 8 },
       headStyles: { fillColor: [0, 180, 216] },
@@ -396,7 +396,7 @@ const Transactions = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Recebido Hoje</p>
                   <p className="text-xl font-bold">
-                    R$ {stats.receivedToday.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {stats.receivedToday.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>
@@ -565,7 +565,7 @@ const Transactions = () => {
                       <th>Cliente</th>
                       <th>Produto</th>
                       <th>Valor</th>
-                      <th>Taxa (7%)</th>
+                      <th>Taxa</th>
                       <th>Líquido</th>
                       <th>Status</th>
                       <th>Data</th>
@@ -598,13 +598,13 @@ const Transactions = () => {
                             <p className="truncate">{tx.product?.name || "—"}</p>
                           </td>
                           <td className="font-semibold">
-                            R$ {Number(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {Number(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="text-muted-foreground">
-                            R$ {platformFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {platformFee.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="text-accent font-medium">
-                            R$ {sellerAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {sellerAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td>
                             <Badge 
@@ -640,7 +640,7 @@ const Transactions = () => {
 
         {/* Transaction Detail Dialog */}
         <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Receipt className="h-5 w-5 text-primary" />
@@ -717,20 +717,20 @@ const Transactions = () => {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Valor bruto</span>
                       <span className="font-semibold">
-                        R$ {Number(selectedTransaction.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {Number(selectedTransaction.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Taxa da plataforma (7%)</span>
+                      <span className="text-muted-foreground">Taxa da plataforma</span>
                       <span className="text-destructive">
-                        - R$ {Number(selectedTransaction.platform_fee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        - R$ {Number(selectedTransaction.platform_fee).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                     {Number(selectedTransaction.affiliate_amount) > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Comissão afiliado</span>
-                        <span className="text-destructive">
-                          - R$ {Number(selectedTransaction.affiliate_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      <span className="text-destructive">
+                          - R$ {Number(selectedTransaction.affiliate_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                     )}
@@ -738,7 +738,7 @@ const Transactions = () => {
                       <div className="flex justify-between">
                         <span className="font-medium">Valor líquido</span>
                         <span className="font-bold text-accent">
-                          R$ {Number(selectedTransaction.seller_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          R$ {Number(selectedTransaction.seller_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                     </div>

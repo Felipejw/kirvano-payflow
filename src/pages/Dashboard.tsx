@@ -23,7 +23,8 @@ import {
   Percent,
   Package,
   Receipt,
-  Clock
+  Clock,
+  RefreshCw
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -204,6 +205,15 @@ const Dashboard = () => {
               <p className="text-muted-foreground">Visão geral do seu negócio</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => user && fetchDashboardStats(user.id, dateRange)}
+                disabled={loading}
+                title="Atualizar dados"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
               <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => setPixDialogOpen(true)}>
                 <QrCode className="h-4 w-4" />
                 <span className="hidden sm:inline">Gerar PIX</span>

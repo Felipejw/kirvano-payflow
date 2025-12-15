@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   FileText, Clock, CheckCircle, AlertTriangle, XCircle, ArrowLeft, 
-  Search, Ban, RefreshCw, DollarSign, TrendingUp, Users, AlertCircle 
+  Search, Ban, RefreshCw, DollarSign, TrendingUp, Users, AlertCircle, X 
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -257,6 +257,25 @@ export default function AdminInvoicesPage() {
     }
   };
 
+  const handleCancelInvoice = async (invoice: Invoice) => {
+    if (!confirm(`Tem certeza que deseja cancelar esta fatura?`)) {
+      return;
+    }
+
+    try {
+      await supabase
+        .from("platform_invoices")
+        .update({ status: "cancelled" })
+        .eq("id", invoice.id);
+
+      toast.success("Fatura cancelada com sucesso");
+      fetchInvoices();
+    } catch (error) {
+      console.error("Error cancelling invoice:", error);
+      toast.error("Erro ao cancelar fatura");
+    }
+  };
+
   const getStatusBadge = (invoice: Invoice) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -268,6 +287,9 @@ export default function AdminInvoicesPage() {
     }
     if (invoice.status === "blocked") {
       return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Bloqueado</Badge>;
+    }
+    if (invoice.status === "cancelled") {
+      return <Badge variant="secondary"><X className="h-3 w-3 mr-1" />Cancelado</Badge>;
     }
     if (isOverdue || invoice.status === "overdue") {
       return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Vencida</Badge>;
@@ -495,6 +517,17 @@ export default function AdminInvoicesPage() {
                                     <Ban className="h-3 w-3 mr-1" />
                                   )}
                                   Bloquear
+                                </Button>
+                              )}
+                              {canMarkPaid && inv.status !== "cancelled" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleCancelInvoice(inv)}
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Cancelar
                                 </Button>
                               )}
                             </div>

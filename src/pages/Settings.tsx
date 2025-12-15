@@ -25,7 +25,6 @@ const Settings = () => {
     full_name: "",
     email: "",
     phone: "",
-    pix_key: "",
   });
   const [theme, setTheme] = useState("system");
   const [notifications, setNotifications] = useState({
@@ -57,7 +56,6 @@ const Settings = () => {
         full_name: data.full_name || "",
         email: data.email || user.email || "",
         phone: data.phone || "",
-        pix_key: data.pix_key || "",
       });
     }
   };
@@ -76,7 +74,6 @@ const Settings = () => {
       .update({
         full_name: profile.full_name,
         phone: profile.phone,
-        pix_key: profile.pix_key,
       })
       .eq('user_id', user.id);
 
@@ -124,10 +121,6 @@ const Settings = () => {
               <Bell className="h-4 w-4" />
               Notificações
             </TabsTrigger>
-            <TabsTrigger value="platform" className="gap-2">
-              <SettingsIcon className="h-4 w-4" />
-              Plataforma
-            </TabsTrigger>
           </TabsList>
 
           {/* Profile Settings */}
@@ -164,14 +157,6 @@ const Settings = () => {
                       value={profile.phone}
                       onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                       placeholder="(11) 99999-9999"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Chave PIX Padrão</Label>
-                    <Input
-                      value={profile.pix_key}
-                      onChange={(e) => setProfile({ ...profile, pix_key: e.target.value })}
-                      placeholder="Sua chave PIX para saques"
                     />
                   </div>
                 </div>
@@ -303,57 +288,6 @@ const Settings = () => {
                     checked={notifications.email_affiliates}
                     onCheckedChange={(checked) => setNotifications({ ...notifications, email_affiliates: checked })}
                   />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Platform Settings */}
-          <TabsContent value="platform">
-            <Card variant="glass">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  Configurações da Plataforma
-                </CardTitle>
-                <CardDescription>Configurações gerais da sua conta</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="p-4 rounded-lg bg-secondary/50 border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Taxa da Plataforma</p>
-                      <p className="text-sm text-muted-foreground">Taxa cobrada por transação</p>
-                    </div>
-                    <p className="text-2xl font-bold text-primary">7%</p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-lg bg-secondary/50 border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Prazo de Saque</p>
-                      <p className="text-sm text-muted-foreground">Tempo para processamento</p>
-                    </div>
-                    <p className="text-lg font-semibold text-accent">Imediato</p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-lg bg-secondary/50 border border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Saque Mínimo</p>
-                      <p className="text-sm text-muted-foreground">Valor mínimo para solicitar saque</p>
-                    </div>
-                    <p className="text-lg font-semibold">R$ 10,00</p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-                  <p className="font-medium text-yellow-500">Contrato de Uso</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Ao utilizar a plataforma, você concorda com nossos termos de uso e política de privacidade.
-                  </p>
                 </div>
               </CardContent>
             </Card>
