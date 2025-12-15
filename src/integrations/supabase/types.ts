@@ -1102,6 +1102,8 @@ export type Database = {
           amount: number
           charge_id: string | null
           created_at: string
+          fee_invoice_id: string | null
+          fee_paid_at: string | null
           gateway_id: string | null
           gateway_transaction_id: string | null
           id: string
@@ -1117,6 +1119,8 @@ export type Database = {
           amount: number
           charge_id?: string | null
           created_at?: string
+          fee_invoice_id?: string | null
+          fee_paid_at?: string | null
           gateway_id?: string | null
           gateway_transaction_id?: string | null
           id?: string
@@ -1132,6 +1136,8 @@ export type Database = {
           amount?: number
           charge_id?: string | null
           created_at?: string
+          fee_invoice_id?: string | null
+          fee_paid_at?: string | null
           gateway_id?: string | null
           gateway_transaction_id?: string | null
           id?: string
@@ -1154,6 +1160,13 @@ export type Database = {
             columns: ["charge_id"]
             isOneToOne: false
             referencedRelation: "pix_charges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_fee_invoice_id_fkey"
+            columns: ["fee_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "platform_invoices"
             referencedColumns: ["id"]
           },
           {

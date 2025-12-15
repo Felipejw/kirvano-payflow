@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { InvoicesList } from "@/components/finance/InvoicesList";
 import { PlatformFeeInfo } from "@/components/finance/PlatformFeeInfo";
+import { CurrentPeriodFeeCard } from "@/components/finance/CurrentPeriodFeeCard";
 import { BlockedBanner } from "@/components/shared/BlockedBanner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -117,6 +118,12 @@ const Finance = () => {
           <h1 className="text-3xl font-bold">Financeiro</h1>
           <p className="text-muted-foreground">Acompanhe suas faturas e taxas da plataforma</p>
         </div>
+
+        {/* Current Period Fee Dashboard */}
+        <CurrentPeriodFeeCard 
+          feePercentage={platformSettings.fee_percentage} 
+          feeFixed={platformSettings.fee_fixed_per_sale} 
+        />
 
         {/* Platform Fee Info */}
         <PlatformFeeInfo 
