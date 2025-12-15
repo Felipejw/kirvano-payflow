@@ -18,9 +18,10 @@ import {
   CreditCard,
   QrCode,
   ArrowUpRight,
-  Wallet,
   ShoppingCart,
-  Percent
+  Percent,
+  Package,
+  Receipt
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,8 +30,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface DashboardStats {
   totalRevenue: number;
   totalSales: number;
-  availableBalance: number;
-  activeAffiliates: number;
+  averageTicket: number;
+  activeProducts: number;
   conversionRate: number;
   revenueChange: string;
   salesChange: string;
@@ -47,8 +48,8 @@ const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalRevenue: 0,
     totalSales: 0,
-    availableBalance: 0,
-    activeAffiliates: 0,
+    averageTicket: 0,
+    activeProducts: 0,
     conversionRate: 0,
     revenueChange: "+0%",
     salesChange: "+0%",
@@ -76,38 +77,21 @@ const Dashboard = () => {
       .gte('created_at', range.from.toISOString())
       .lte('created_at', range.to.toISOString());
 
-    // Fetch active affiliates
-    const { data: affiliates } = await supabase
-      .from('affiliates')
-      .select('id, product_id, products!inner(seller_id)')
-      .eq('status', 'active');
-
-    // Filter affiliates by seller
-    const sellerAffiliates = affiliates?.filter((a: any) => a.products?.seller_id === userId) || [];
-
-    // Fetch all paid transactions (for balance calculation - not filtered by date)
-    const { data: allPaidTransactions } = await supabase
-      .from('transactions')
-      .select('seller_amount')
+    // Fetch active products
+    const { data: products } = await supabase
+      .from('products')
+      .select('id')
       .eq('seller_id', userId)
-      .eq('status', 'paid');
-
-    // Fetch completed withdrawals (for balance calculation)
-    const { data: withdrawals } = await supabase
-      .from('withdrawals')
-      .select('net_amount')
-      .eq('user_id', userId)
-      .eq('status', 'completed');
+      .eq('status', 'active');
 
     // Calculate stats for selected period
     const totalRevenue = paidTransactions?.reduce((acc, t) => acc + Number(t.amount), 0) || 0;
+    const paidCount = paidTransactions?.length || 0;
     
-    // Calculate available balance (all time)
-    const totalSellerAmount = allPaidTransactions?.reduce((acc, t) => acc + Number(t.seller_amount), 0) || 0;
-    const totalWithdrawn = withdrawals?.reduce((acc, w) => acc + Number(w.net_amount), 0) || 0;
+    // Calculate average ticket
+    const averageTicket = paidCount > 0 ? totalRevenue / paidCount : 0;
 
     // Calculate conversion rate (paid transactions / PIX generated)
-    const paidCount = paidTransactions?.length || 0;
     const pixGeneratedCount = pixCharges?.length || 0;
     const conversionRate = pixGeneratedCount > 0 ? (paidCount / pixGeneratedCount) * 100 : 0;
 
@@ -138,8 +122,8 @@ const Dashboard = () => {
     setStats({
       totalRevenue,
       totalSales: paidCount,
-      availableBalance: totalSellerAmount - totalWithdrawn,
-      activeAffiliates: sellerAffiliates.length,
+      averageTicket,
+      activeProducts: products?.length || 0,
       conversionRate: parseFloat(conversionRate.toFixed(1)),
       revenueChange: `${parseFloat(revenueChange) >= 0 ? '+' : ''}${revenueChange}% vs período anterior`,
       salesChange: `${parseFloat(salesChange) >= 0 ? '+' : ''}${salesChange}% vs período anterior`,
@@ -227,19 +211,19 @@ const Dashboard = () => {
             iconColor="text-primary"
           />
           <StatsCard
-            title="Saldo Disponível"
-            value={`R$ ${stats.availableBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            change="Disponível para saque"
-            changeType="positive"
-            icon={Wallet}
+            title="Ticket Médio"
+            value={`R$ ${stats.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            change="Por venda"
+            changeType="neutral"
+            icon={Receipt}
             iconColor="text-accent"
           />
           <StatsCard
-            title="Afiliados"
-            value={stats.activeAffiliates.toString()}
-            change="Ativos"
+            title="Produtos Ativos"
+            value={stats.activeProducts.toString()}
+            change="Publicados"
             changeType="positive"
-            icon={Users}
+            icon={Package}
             iconColor="text-purple-400"
           />
           <StatsCard
