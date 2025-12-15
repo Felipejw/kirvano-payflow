@@ -173,6 +173,50 @@ const sendEmail = async (data: NotificationRequest) => {
   }
 };
 
+// Helper function to send a single WhatsApp message
+const sendSingleWhatsApp = async (
+  phone: string,
+  message: string,
+  instanceId: string,
+  token: string,
+  clientToken: string
+): Promise<{ success: boolean; error?: string; response?: any }> => {
+  try {
+    const zapiUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
+    
+    const response = await fetch(zapiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Client-Token": clientToken,
+      },
+      body: JSON.stringify({
+        phone: phone,
+        message: message,
+      }),
+    });
+
+    const result = await response.json();
+    
+    if (result.error || result.zapiError) {
+      console.error("Z-API returned error:", result);
+      return { success: false, error: result.message || result.error };
+    }
+    
+    if (!response.ok) {
+      throw new Error(result.message || "Failed to send WhatsApp");
+    }
+
+    return { success: true, response: result };
+  } catch (error: any) {
+    console.error("Error sending WhatsApp message:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Small delay helper
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const sendWhatsApp = async (data: NotificationRequest) => {
   const instanceId = Deno.env.get("ZAPI_INSTANCE_ID");
   const token = Deno.env.get("ZAPI_TOKEN");
@@ -212,59 +256,78 @@ const sendWhatsApp = async (data: NotificationRequest) => {
     timeZone: 'America/Sao_Paulo'
   });
 
-  const message = `💳 *Pagamento PIX Aguardando*
+  // Message 1: Presentation
+  const message1 = `💳 *Pagamento PIX Aguardando*
 
 Olá, ${data.buyer_name || 'Cliente'}!
 
 Seu pedido de *${data.product_name}* está quase finalizado!
 
 💰 *Valor:* ${formatCurrency(data.amount)}
-
-📋 *Código PIX Copia e Cola:*
-\`\`\`
-${data.pix_code}
-\`\`\`
-
 ⏰ *Expira às ${expiresFormatted}*
 
-_Copie o código e cole no app do seu banco para pagar._
+👇 O código PIX está na próxima mensagem:`;
+
+  // Message 2: PIX Code ONLY (easy to copy)
+  const message2 = data.pix_code;
+
+  // Message 3: Instructions
+  const message3 = `📋 *Como pagar:*
+
+1️⃣ Abra o app do seu banco
+2️⃣ Escolha pagar com PIX "Copia e Cola"
+3️⃣ Cole o código da mensagem anterior
+4️⃣ Confirme o pagamento
 
 ✅ Após o pagamento, você receberá a confirmação automaticamente!`;
 
   try {
-    const zapiUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
-    console.log("Z-API URL:", zapiUrl);
-    console.log("Z-API Client-Token configured:", clientToken ? `Yes (${clientToken.substring(0, 8)}...)` : "No");
+    console.log("Sending 3 WhatsApp messages...");
     
-    const response = await fetch(zapiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Client-Token": clientToken,
-      },
-      body: JSON.stringify({
-        phone: phone,
-        message: message,
-      }),
-    });
-
-    console.log("Z-API HTTP Status:", response.status);
-    const result = await response.json();
-    console.log("WhatsApp response:", result);
-    
-    // Check for Z-API specific errors
-    if (result.error || result.zapiError) {
-      console.error("Z-API returned error:", result);
-      return { success: false, error: result.message || result.error };
+    // Send message 1
+    console.log("Sending message 1 (presentation)...");
+    const result1 = await sendSingleWhatsApp(phone, message1, instanceId, token, clientToken);
+    if (!result1.success) {
+      console.error("Failed to send message 1:", result1.error);
+      return result1;
     }
+    console.log("Message 1 sent successfully");
     
-    if (!response.ok) {
-      throw new Error(result.message || "Failed to send WhatsApp");
+    // Wait 500ms before next message
+    await delay(500);
+    
+    // Send message 2 (PIX code)
+    console.log("Sending message 2 (PIX code)...");
+    const result2 = await sendSingleWhatsApp(phone, message2, instanceId, token, clientToken);
+    if (!result2.success) {
+      console.error("Failed to send message 2:", result2.error);
+      return result2;
     }
+    console.log("Message 2 sent successfully");
+    
+    // Wait 500ms before next message
+    await delay(500);
+    
+    // Send message 3 (instructions)
+    console.log("Sending message 3 (instructions)...");
+    const result3 = await sendSingleWhatsApp(phone, message3, instanceId, token, clientToken);
+    if (!result3.success) {
+      console.error("Failed to send message 3:", result3.error);
+      return result3;
+    }
+    console.log("Message 3 sent successfully");
 
-    return { success: true, response: result };
+    console.log("All 3 WhatsApp messages sent successfully!");
+    return { 
+      success: true, 
+      response: { 
+        message1: result1.response, 
+        message2: result2.response, 
+        message3: result3.response 
+      } 
+    };
   } catch (error: any) {
-    console.error("Error sending WhatsApp:", error);
+    console.error("Error sending WhatsApp messages:", error);
     return { success: false, error: error.message };
   }
 };
