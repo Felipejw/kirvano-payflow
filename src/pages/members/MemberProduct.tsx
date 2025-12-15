@@ -15,8 +15,17 @@ import {
   Video, 
   Link as LinkIcon,
   Lock,
-  CheckCircle2
+  CheckCircle2,
+  Play,
+  File,
+  Clock
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import gateflowLogo from "@/assets/gateflow-logo.png";
 
 interface Product {
@@ -36,11 +45,32 @@ interface Membership {
   created_at: string;
 }
 
+interface Module {
+  id: string;
+  name: string;
+  description: string | null;
+  order_index: number;
+}
+
+interface Lesson {
+  id: string;
+  module_id: string;
+  name: string;
+  description: string | null;
+  content_type: string;
+  content_url: string | null;
+  duration_minutes: number | null;
+  is_free: boolean;
+  order_index: number;
+}
+
 const MemberProduct = () => {
   const { productId } = useParams();
   const { user, loading: authLoading } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [lessons, setLessons] = useState<Record<string, Lesson[]>>({});
   const [loading, setLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
   const navigate = useNavigate();
@@ -107,10 +137,60 @@ const MemberProduct = () => {
       }
 
       setProduct(productData);
+
+      // Fetch modules
+      const { data: modulesData, error: modulesError } = await supabase
+        .from("product_modules")
+        .select("*")
+        .eq("product_id", productId)
+        .order("order_index", { ascending: true });
+
+      if (modulesError) {
+        console.error("Error fetching modules:", modulesError);
+      } else {
+        setModules(modulesData || []);
+
+        // Fetch lessons for all modules
+        if (modulesData && modulesData.length > 0) {
+          const moduleIds = modulesData.map(m => m.id);
+          const { data: lessonsData, error: lessonsError } = await supabase
+            .from("module_lessons")
+            .select("*")
+            .in("module_id", moduleIds)
+            .order("order_index", { ascending: true });
+
+          if (lessonsError) {
+            console.error("Error fetching lessons:", lessonsError);
+          } else {
+            // Group lessons by module_id
+            const groupedLessons: Record<string, Lesson[]> = {};
+            lessonsData?.forEach(lesson => {
+              if (!groupedLessons[lesson.module_id]) {
+                groupedLessons[lesson.module_id] = [];
+              }
+              groupedLessons[lesson.module_id].push(lesson);
+            });
+            setLessons(groupedLessons);
+          }
+        }
+      }
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getContentTypeIcon = (type: string) => {
+    switch (type) {
+      case "video":
+        return <Video className="h-4 w-4" />;
+      case "pdf":
+        return <FileText className="h-4 w-4" />;
+      case "link":
+        return <LinkIcon className="h-4 w-4" />;
+      default:
+        return <File className="h-4 w-4" />;
     }
   };
 
@@ -186,6 +266,8 @@ const MemberProduct = () => {
     );
   }
 
+  const hasModules = modules.length > 0;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -213,7 +295,7 @@ const MemberProduct = () => {
         </Button>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Product Info */}
+          {/* Product Info & Modules */}
           <div className="lg:col-span-2 space-y-6">
             {product?.cover_url && (
               <div className="aspect-video rounded-lg overflow-hidden bg-muted">
@@ -242,54 +324,149 @@ const MemberProduct = () => {
                 </p>
               )}
             </div>
+
+            {/* Modules and Lessons */}
+            {hasModules && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Conteúdo do Curso</CardTitle>
+                  <CardDescription>
+                    {modules.length} módulo{modules.length > 1 ? 's' : ''} disponíve{modules.length > 1 ? 'is' : 'l'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="multiple" className="space-y-2">
+                    {modules.map((module, moduleIndex) => {
+                      const moduleLessons = lessons[module.id] || [];
+                      const totalDuration = moduleLessons.reduce((acc, l) => acc + (l.duration_minutes || 0), 0);
+                      
+                      return (
+                        <AccordionItem key={module.id} value={module.id} className="border rounded-lg">
+                          <AccordionTrigger className="px-4 hover:no-underline">
+                            <div className="flex items-center gap-3 flex-1 text-left">
+                              <span className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                                {moduleIndex + 1}
+                              </span>
+                              <div className="flex-1">
+                                <p className="font-medium">{module.name}</p>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                  <span>{moduleLessons.length} aula{moduleLessons.length > 1 ? 's' : ''}</span>
+                                  {totalDuration > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {totalDuration} min
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-4">
+                            {module.description && (
+                              <p className="text-sm text-muted-foreground mb-4 ml-11">
+                                {module.description}
+                              </p>
+                            )}
+                            <div className="space-y-2 ml-11">
+                              {moduleLessons.map((lesson) => (
+                                <div
+                                  key={lesson.id}
+                                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                                  onClick={() => handleAccessContent(lesson.content_url)}
+                                >
+                                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary">
+                                    {lesson.content_type === 'video' ? (
+                                      <Play className="h-4 w-4" />
+                                    ) : (
+                                      getContentTypeIcon(lesson.content_type)
+                                    )}
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm">{lesson.name}</p>
+                                    {lesson.description && (
+                                      <p className="text-xs text-muted-foreground">{lesson.description}</p>
+                                    )}
+                                  </div>
+                                  {lesson.duration_minutes && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {lesson.duration_minutes} min
+                                    </span>
+                                  )}
+                                  {lesson.is_free && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Grátis
+                                    </Badge>
+                                  )}
+                                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              ))}
+                              {moduleLessons.length === 0 && (
+                                <p className="text-sm text-muted-foreground text-center py-4">
+                                  Nenhuma aula adicionada ainda
+                                </p>
+                              )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          {/* Access Card */}
+          {/* Sidebar */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {getDeliverableIcon(product?.deliverable_type)}
-                  Acessar Conteúdo
-                </CardTitle>
-                <CardDescription>
-                  Clique no botão abaixo para acessar seu produto
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {product?.deliverable_url && (
-                  <Button 
-                    className="w-full" 
-                    size="lg"
-                    onClick={() => handleAccessContent(product.deliverable_url)}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Baixar / Acessar
-                  </Button>
-                )}
+            {/* Quick Access Card */}
+            {(product?.deliverable_url || product?.content_url || !hasModules) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    {getDeliverableIcon(product?.deliverable_type)}
+                    Acesso Rápido
+                  </CardTitle>
+                  <CardDescription>
+                    {hasModules 
+                      ? "Links adicionais do produto" 
+                      : "Clique no botão abaixo para acessar seu produto"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {product?.deliverable_url && (
+                    <Button 
+                      className="w-full" 
+                      size="lg"
+                      onClick={() => handleAccessContent(product.deliverable_url)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Baixar / Acessar
+                    </Button>
+                  )}
 
-                {product?.content_url && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
-                    size="lg"
-                    onClick={() => handleAccessContent(product.content_url)}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Área de Conteúdo
-                  </Button>
-                )}
+                  {product?.content_url && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      size="lg"
+                      onClick={() => handleAccessContent(product.content_url)}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Área de Conteúdo
+                    </Button>
+                  )}
 
-                {!product?.deliverable_url && !product?.content_url && (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <p>Conteúdo em breve...</p>
-                    <p className="text-sm mt-1">
-                      O vendedor ainda não configurou o entregável.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  {!product?.deliverable_url && !product?.content_url && !hasModules && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p>Conteúdo em breve...</p>
+                      <p className="text-sm mt-1">
+                        O vendedor ainda não configurou o conteúdo.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Membership Info */}
             <Card>

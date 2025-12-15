@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
   Mail,
   CheckCircle2,
   AlertCircle,
-  ExternalLink
+  Settings
 } from "lucide-react";
 import {
   Table,
@@ -55,6 +56,7 @@ interface Product {
 
 const Members = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [members, setMembers] = useState<Member[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,12 +188,48 @@ const Members = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Área de Membros</h1>
-        <p className="text-muted-foreground mt-1">
-          Gerencie os membros que têm acesso aos seus produtos
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Área de Membros</h1>
+          <p className="text-muted-foreground mt-1">
+            Gerencie os membros e configure o conteúdo dos seus produtos
+          </p>
+        </div>
       </div>
+
+      {/* Products with Configure Button */}
+      {products.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Seus Produtos
+            </CardTitle>
+            <CardDescription>
+              Configure a área de membros e o conteúdo de cada produto
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {products.map(product => (
+                <Card key={product.id} className="bg-muted/50">
+                  <CardContent className="p-4 flex items-center justify-between gap-4">
+                    <span className="font-medium truncate">{product.name}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/dashboard/members/config/${product.id}`)}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Configurar
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
