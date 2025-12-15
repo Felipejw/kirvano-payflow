@@ -791,19 +791,27 @@ const Checkout = () => {
               <CheckCircle2 className="h-10 w-10 text-accent" />
             </div>
             <h2 className="text-2xl font-bold gradient-success-text mb-2">Pagamento Confirmado!</h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-4">
               Seu pagamento de {formatCurrency(totalPrice)} foi processado com sucesso.
             </p>
             {upsellAccepted && (
-              <div className="mb-6 p-3 bg-accent/10 rounded-lg">
+              <div className="mb-4 p-3 bg-accent/10 rounded-lg">
                 <p className="text-sm text-accent">
                   🎉 Mentoria Individual incluída no seu pedido!
                 </p>
               </div>
             )}
-            <Button className="btn-success-gradient" onClick={() => window.location.href = '/members'}>
-              Acessar Conteúdo
-            </Button>
+            <p className="text-sm text-muted-foreground mb-6">
+              📧 Enviamos um email com instruções de acesso para <strong>{buyerEmail}</strong>
+            </p>
+            <div className="space-y-3">
+              <Button className="w-full btn-success-gradient" onClick={() => window.location.href = '/members/login'}>
+                Acessar Área de Membros
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Use o mesmo email da compra para fazer login
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
