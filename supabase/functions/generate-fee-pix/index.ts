@@ -69,19 +69,17 @@ serve(async (req) => {
       throw new Error("Failed to create invoice record");
     }
 
-    console.log(`Invoice created: ${invoice.id}`);
+    // Webhook URL for fee payment confirmation
+    const feeWebhookUrl = `${supabaseUrl}/functions/v1/fee-webhook`;
 
     // Get BSPAY OAuth token
-    const tokenResponse = await fetch("https://api.bfrpagamentos.com.br/api/v2/oauth/token", {
+    const tokenResponse = await fetch("https://api.bspay.co/v2/oauth/token", {
       method: "POST",
       headers: {
+        "Authorization": `Basic ${btoa(`${bspayClientId}:${bspayClientSecret}`)}`,
         "Content-Type": "application/json",
+        "Accept": "application/json",
       },
-      body: JSON.stringify({
-        client_id: bspayClientId,
-        client_secret: bspayClientSecret,
-        grant_type: "client_credentials",
-      }),
     });
 
     if (!tokenResponse.ok) {
@@ -101,17 +99,23 @@ serve(async (req) => {
     expiresAt.setMinutes(expiresAt.getMinutes() + 30);
 
     // Create PIX charge via BSPAY
-    const pixResponse = await fetch("https://api.bfrpagamentos.com.br/api/v2/pix/qrcode", {
+    const pixResponse = await fetch("https://api.bspay.co/v2/pix/qrcode", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         external_id: externalId,
-        amount: Math.round(amount * 100), // Convert to cents
-        description: `Taxa GateFlow - Período ${new Date(periodStart || new Date()).toLocaleDateString("pt-BR")} a ${periodEnd.toLocaleDateString("pt-BR")}`,
-        expiration_seconds: 1800, // 30 minutes
+        amount: amount,
+        payerQuestion: `Taxa GateFlow - Período ${new Date(periodStart || new Date()).toLocaleDateString("pt-BR")} a ${periodEnd.toLocaleDateString("pt-BR")}`,
+        payer: {
+          name: "Vendedor",
+          document: "00000000000",
+          email: "vendedor@gateflow.app",
+        },
+        postbackUrl: feeWebhookUrl,
       }),
     });
 
