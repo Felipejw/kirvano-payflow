@@ -27,7 +27,9 @@ import {
   ChevronDown,
   CreditCard,
   Lock,
-  MessageCircle
+  MessageCircle,
+  Receipt,
+  Banknote
 } from "lucide-react";
 
 interface Product {
@@ -42,6 +44,7 @@ interface Product {
   tiktok_pixel: string | null;
   google_analytics: string | null;
   checkout_theme: string | null;
+  seller_id: string;
 }
 
 interface CheckoutTemplate {
@@ -110,6 +113,8 @@ interface Upsell {
   features: string[];
 }
 
+type PaymentMethod = 'pix' | 'card' | 'boleto';
+
 const upsellOffer: Upsell = {
   id: "upsell-1",
   name: "Mentoria Individual",
@@ -152,6 +157,11 @@ const Checkout = () => {
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellAccepted, setUpsellAccepted] = useState(false);
   const [isOrderSummaryOpen, setIsOrderSummaryOpen] = useState(false);
+  
+  // Payment method states
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentMethod[]>([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   
   const { toast } = useToast();
 
@@ -350,6 +360,13 @@ const Checkout = () => {
     }
   }, [productId, slug]);
 
+  // Fetch payment methods when product is loaded
+  useEffect(() => {
+    if (product?.seller_id) {
+      fetchPaymentMethods(product.seller_id);
+    }
+  }, [product?.seller_id]);
+
   useEffect(() => {
     if (charge && charge.status === 'pending' && !paymentConfirmed) {
       const expiresAt = new Date(charge.expires_at).getTime();
@@ -418,6 +435,46 @@ const Checkout = () => {
       };
     }
   }, [charge, paymentConfirmed, toast]);
+
+  const fetchPaymentMethods = async (sellerId: string) => {
+    setLoadingPaymentMethods(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('pix-api', {
+        body: {},
+        method: 'GET',
+      });
+      
+      // Fallback: fetch directly via GET request
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pix-api/payment-methods/${sellerId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (response.ok) {
+        const result = await response.json();
+        const methods = result.methods as PaymentMethod[];
+        setAvailablePaymentMethods(methods);
+        
+        // Auto-select first available method
+        if (methods.length > 0 && !selectedPaymentMethod) {
+          setSelectedPaymentMethod(methods[0]);
+        }
+      } else {
+        console.error('Error fetching payment methods:', await response.text());
+        setAvailablePaymentMethods([]);
+      }
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+      setAvailablePaymentMethods([]);
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  };
 
   const fetchProduct = async () => {
     let query = supabase
@@ -494,6 +551,16 @@ const Checkout = () => {
       return;
     }
 
+    // Validate payment method selection
+    if (!selectedPaymentMethod) {
+      toast({
+        title: "Forma de pagamento obrigatória",
+        description: "Por favor, selecione uma forma de pagamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // WhatsApp obrigatório e validação de formato brasileiro
     const phoneDigits = buyerPhone.replace(/\D/g, '');
     if (!phoneDigits) {
@@ -506,8 +573,6 @@ const Checkout = () => {
     }
 
     // Validar formato brasileiro: 10 ou 11 dígitos (DDD + 8 ou 9 dígitos do telefone)
-    // Alguns telefones fixos e celulares antigos têm apenas 8 dígitos após o DDD
-    // DDDs válidos: 11-99 (exceto alguns inválidos como 00, 01, etc.)
     const validDDDs = [
       '11', '12', '13', '14', '15', '16', '17', '18', '19', // SP
       '21', '22', '24', // RJ
@@ -604,6 +669,7 @@ const Checkout = () => {
           affiliate_code: affiliateCode,
           expires_in_minutes: 30,
           order_bumps: selectedBumps.length > 0 ? selectedBumps : undefined,
+          payment_method: selectedPaymentMethod,
         },
       });
 
@@ -620,9 +686,12 @@ const Checkout = () => {
         num_items: allContentIds.length
       });
       
+      const methodLabel = selectedPaymentMethod === 'pix' ? 'PIX' : selectedPaymentMethod === 'card' ? 'cartão' : 'boleto';
       toast({
-        title: "Cobrança PIX criada!",
-        description: "Escaneie o QR Code ou copie o código para pagar.",
+        title: `Cobrança ${methodLabel.toUpperCase()} criada!`,
+        description: selectedPaymentMethod === 'pix' 
+          ? "Escaneie o QR Code ou copie o código para pagar."
+          : `Siga as instruções para pagar via ${methodLabel}.`,
       });
     } catch (error: any) {
       toast({
@@ -719,6 +788,28 @@ const Checkout = () => {
       .replace(/(\d{2})(\d)/, '($1) $2')
       .replace(/(\d{5})(\d)/, '$1-$2')
       .replace(/(-\d{4})\d+?$/, '$1');
+  };
+
+  const getPaymentMethodIcon = (method: PaymentMethod) => {
+    switch (method) {
+      case 'pix':
+        return <QrCode className="h-5 w-5" />;
+      case 'card':
+        return <CreditCard className="h-5 w-5" />;
+      case 'boleto':
+        return <Banknote className="h-5 w-5" />;
+    }
+  };
+
+  const getPaymentMethodLabel = (method: PaymentMethod) => {
+    switch (method) {
+      case 'pix':
+        return 'PIX';
+      case 'card':
+        return 'Cartão';
+      case 'boleto':
+        return 'Boleto';
+    }
   };
 
   // Upsell Screen
@@ -899,6 +990,73 @@ const Checkout = () => {
       </CardContent>
     </Card>
   );
+
+  // Payment Method Selector Component
+  const PaymentMethodSelector = () => {
+    if (loadingPaymentMethods) {
+      return (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin" style={{ color: styles.accentColor }} />
+          <span className="ml-2 text-sm" style={{ color: styles.textColor }}>Carregando formas de pagamento...</span>
+        </div>
+      );
+    }
+
+    if (availablePaymentMethods.length === 0) {
+      return (
+        <div 
+          className="p-4 rounded-lg text-center"
+          style={{ backgroundColor: '#ef444420' }}
+        >
+          <AlertTriangle className="h-6 w-6 text-red-500 mx-auto mb-2" />
+          <p className="text-red-500 font-medium text-sm">
+            Este produto não está disponível para venda no momento.
+          </p>
+          <p className="text-red-400 text-xs mt-1">
+            O vendedor ainda não configurou uma forma de pagamento.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        <h3 className="font-semibold text-sm sm:text-base flex items-center gap-2" style={{ color: styles.textColor }}>
+          <CreditCard className="h-5 w-5" style={{ color: styles.accentColor }} />
+          Forma de Pagamento
+        </h3>
+        <div className={`grid gap-2 ${availablePaymentMethods.length === 1 ? 'grid-cols-1' : availablePaymentMethods.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          {availablePaymentMethods.map((method) => (
+            <button
+              key={method}
+              type="button"
+              onClick={() => setSelectedPaymentMethod(method)}
+              className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg border-2 transition-all"
+              style={{
+                backgroundColor: selectedPaymentMethod === method 
+                  ? styles.accentColor + '15' 
+                  : styles.cardBg,
+                borderColor: selectedPaymentMethod === method 
+                  ? styles.accentColor 
+                  : styles.cardBorder,
+                color: styles.textColor,
+              }}
+            >
+              <div style={{ color: selectedPaymentMethod === method ? styles.accentColor : styles.textColor }}>
+                {getPaymentMethodIcon(method)}
+              </div>
+              <span 
+                className="text-sm font-medium"
+                style={{ color: selectedPaymentMethod === method ? styles.accentColor : styles.textColor }}
+              >
+                {getPaymentMethodLabel(method)}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div 
@@ -1156,6 +1314,11 @@ const Checkout = () => {
                     />
                   </div>
                 )}
+
+                {/* Payment Method Selector */}
+                <div className="pt-2">
+                  <PaymentMethodSelector />
+                </div>
               </div>
             ) : (
               <div className="space-y-4 sm:space-y-6">
@@ -1339,18 +1502,19 @@ const Checkout = () => {
             <Button 
               type="submit" 
               className="w-full py-5 sm:py-6 text-base sm:text-lg font-semibold" 
-              disabled={loading}
+              disabled={loading || availablePaymentMethods.length === 0 || !selectedPaymentMethod}
               onClick={handleCreateCharge}
               style={{ 
                 backgroundColor: styles.buttonColor,
                 color: styles.buttonTextColor,
                 borderRadius: styles.borderRadius + 'px',
+                opacity: (availablePaymentMethods.length === 0 || !selectedPaymentMethod) ? 0.5 : 1,
               }}
             >
             {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Gerando PIX...
+                  Gerando {selectedPaymentMethod === 'pix' ? 'PIX' : selectedPaymentMethod === 'card' ? 'Cartão' : 'Boleto'}...
                 </>
               ) : (
                 <>
@@ -1362,12 +1526,14 @@ const Checkout = () => {
 
             {/* Payment and Security Badges */}
             <div className="space-y-3">
-              {/* Payment Methods */}
+              {/* Payment Methods - Show selected */}
               <div className="flex items-center justify-center gap-4">
-                <div className="flex items-center gap-2 text-xs" style={{ color: styles.textColor, opacity: 0.6 }}>
-                  <img src="https://logospng.org/download/pix/logo-pix-icone-256.png" alt="PIX" className="h-6 w-6 object-contain" />
-                  <span>PIX</span>
-                </div>
+                {selectedPaymentMethod && (
+                  <div className="flex items-center gap-2 text-xs" style={{ color: styles.textColor, opacity: 0.6 }}>
+                    {getPaymentMethodIcon(selectedPaymentMethod)}
+                    <span>{getPaymentMethodLabel(selectedPaymentMethod)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Security Badge */}
