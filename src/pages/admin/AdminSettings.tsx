@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Save, ArrowLeft, Trash2, AlertTriangle, Package, CreditCard, Users, ShoppingCart } from "lucide-react";
+import { Save, ArrowLeft, Trash2, AlertTriangle, Package, CreditCard, Users, ShoppingCart, Percent, DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
+import { GatewayManagement } from "@/components/admin/GatewayManagement";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,13 +27,15 @@ import {
 interface PlatformSettings {
   id: string;
   platform_fee: number;
-  min_withdrawal: number;
   pix_enabled: boolean;
   maintenance_mode: boolean;
   support_email: string | null;
   support_phone: string | null;
   terms_url: string | null;
   privacy_url: string | null;
+  fee_percentage: number;
+  fee_fixed_per_sale: number;
+  invoice_due_days: number;
 }
 
 export default function AdminSettings() {
@@ -94,7 +97,12 @@ export default function AdminSettings() {
         .single();
 
       if (error) throw error;
-      setSettings(data);
+      setSettings({
+        ...data,
+        fee_percentage: data.fee_percentage || 4,
+        fee_fixed_per_sale: data.fee_fixed_per_sale || 1,
+        invoice_due_days: data.invoice_due_days || 3,
+      });
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast({
@@ -116,13 +124,15 @@ export default function AdminSettings() {
         .from("platform_settings")
         .update({
           platform_fee: settings.platform_fee,
-          min_withdrawal: settings.min_withdrawal,
           pix_enabled: settings.pix_enabled,
           maintenance_mode: settings.maintenance_mode,
           support_email: settings.support_email,
           support_phone: settings.support_phone,
           terms_url: settings.terms_url,
-          privacy_url: settings.privacy_url
+          privacy_url: settings.privacy_url,
+          fee_percentage: settings.fee_percentage,
+          fee_fixed_per_sale: settings.fee_fixed_per_sale,
+          invoice_due_days: settings.invoice_due_days,
         })
         .eq("id", settings.id);
 
@@ -142,6 +152,12 @@ export default function AdminSettings() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Calculate example fee
+  const calculateExampleFee = (saleValue: number) => {
+    if (!settings) return 0;
+    return (saleValue * settings.fee_percentage / 100) + settings.fee_fixed_per_sale;
   };
 
   if (roleLoading || loading) {
@@ -174,60 +190,84 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        {/* Taxas e Limites */}
+        {/* Taxas da Plataforma - NEW SECTION */}
         <Card className="glass-card border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span className="text-primary">⚡</span>
-              Taxas e Limites
+              <Percent className="h-5 w-5 text-primary" />
+              Taxas da Plataforma (Cobrança Semanal)
             </CardTitle>
             <CardDescription>
-              Configure as taxas da plataforma e limites de operação.
-              <span className="block mt-1 text-primary font-medium">
-                Alterações aplicam imediatamente para toda a plataforma.
-              </span>
+              Configure as taxas cobradas por venda. A cobrança é feita semanalmente toda segunda-feira via PIX.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="platform_fee">Taxa da Plataforma (%)</Label>
+                <Label htmlFor="fee_percentage">Taxa Percentual (%)</Label>
                 <Input
-                  id="platform_fee"
+                  id="fee_percentage"
                   type="number"
                   min="0"
                   max="100"
                   step="0.1"
-                  value={settings.platform_fee}
-                  onChange={(e) => setSettings({ ...settings, platform_fee: Number(e.target.value) })}
+                  value={settings.fee_percentage}
+                  onChange={(e) => setSettings({ ...settings, fee_percentage: Number(e.target.value) })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Porcentagem cobrada sobre cada venda. Atual: <span className="font-medium text-primary">{settings.platform_fee}%</span>
+                  Porcentagem sobre cada venda
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="min_withdrawal">Saque Mínimo (R$)</Label>
+                <Label htmlFor="fee_fixed_per_sale">Valor Fixo por Venda (R$)</Label>
                 <Input
-                  id="min_withdrawal"
+                  id="fee_fixed_per_sale"
                   type="number"
                   min="0"
-                  step="1"
-                  value={settings.min_withdrawal}
-                  onChange={(e) => setSettings({ ...settings, min_withdrawal: Number(e.target.value) })}
+                  step="0.01"
+                  value={settings.fee_fixed_per_sale}
+                  onChange={(e) => setSettings({ ...settings, fee_fixed_per_sale: Number(e.target.value) })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Valor mínimo para solicitar saque. Atual: <span className="font-medium text-primary">R$ {settings.min_withdrawal}</span>
+                  Adicional fixo por venda
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invoice_due_days">Dias para Pagamento</Label>
+                <Input
+                  id="invoice_due_days"
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={settings.invoice_due_days}
+                  onChange={(e) => setSettings({ ...settings, invoice_due_days: Number(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Dias após segunda-feira
                 </p>
               </div>
             </div>
-            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-              <p className="text-sm text-primary">
-                💡 Os saques dos vendedores são aprovados manualmente por você na aba <strong>Saques</strong>.
-              </p>
+
+            <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="flex items-center gap-3">
+                <DollarSign className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="font-medium text-primary">
+                    Taxa atual: {settings.fee_percentage}% + R$ {settings.fee_fixed_per_sale.toFixed(2)} por venda
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Exemplo: Venda de R$ 100,00 = Taxa de R$ {calculateExampleFee(100).toFixed(2)}
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Gateways Management */}
+        <GatewayManagement />
 
         {/* Pagamentos */}
         <Card className="glass-card">
@@ -461,7 +501,7 @@ export default function AdminSettings() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Excluir Todos os Produtos</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta ação irá remover <strong>todos os produtos</strong> e dados relacionados (transações, cobranças, afiliados, membros).
+                      Esta ação irá remover <strong>todos os produtos</strong> do sistema.
                       Esta ação não pode ser desfeita.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
@@ -479,27 +519,20 @@ export default function AdminSettings() {
               </AlertDialog>
             </div>
 
-            <Separator />
-
             {/* Delete All */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="w-full gap-2">
                   <Trash2 className="h-4 w-4" />
-                  Limpar Todos os Dados
+                  <span>Excluir TODOS os Dados</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-                    <AlertTriangle className="h-5 w-5" />
-                    Excluir TODOS os Dados
-                  </AlertDialogTitle>
+                  <AlertDialogTitle>Excluir TODOS os Dados</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta ação irá remover <strong>TODOS os dados</strong> do sistema incluindo:
-                    produtos, transações, cobranças PIX, afiliados, membros e logs de webhook.
-                    <br /><br />
-                    <strong className="text-destructive">Esta ação é irreversível!</strong>
+                    <span className="text-destructive font-semibold">ATENÇÃO:</span> Esta ação irá remover <strong>TODOS os dados</strong> do sistema (produtos, transações, vendas, afiliados).
+                    Esta ação <strong>NÃO PODE SER DESFEITA</strong>.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -509,7 +542,7 @@ export default function AdminSettings() {
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     disabled={deleting === 'all'}
                   >
-                    {deleting === 'all' ? "Excluindo..." : "Sim, Excluir Tudo"}
+                    {deleting === 'all' ? "Excluindo..." : "Confirmar Exclusão Total"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -517,12 +550,10 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
-        <Separator />
-
         {/* Save Button */}
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="mr-2 h-4 w-4" />
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
+            <Save className="h-4 w-4" />
             {saving ? "Salvando..." : "Salvar Configurações"}
           </Button>
         </div>

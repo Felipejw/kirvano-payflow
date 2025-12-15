@@ -545,6 +545,42 @@ export type Database = {
           },
         ]
       }
+      payment_gateways: {
+        Row: {
+          created_at: string | null
+          id: string
+          instructions: string | null
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          required_fields: Json | null
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          instructions?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          required_fields?: Json | null
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          instructions?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          required_fields?: Json | null
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       pix_charges: {
         Row: {
           affiliate_id: string | null
@@ -623,11 +659,74 @@ export type Database = {
           },
         ]
       }
+      platform_invoices: {
+        Row: {
+          created_at: string | null
+          due_date: string
+          fee_fixed: number
+          fee_percentage: number
+          fee_total: number
+          id: string
+          paid_at: string | null
+          period_end: string
+          period_start: string
+          pix_charge_id: string | null
+          pix_code: string | null
+          pix_qr_code: string | null
+          status: string | null
+          total_amount: number | null
+          total_sales: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          due_date: string
+          fee_fixed?: number
+          fee_percentage?: number
+          fee_total?: number
+          id?: string
+          paid_at?: string | null
+          period_end: string
+          period_start: string
+          pix_charge_id?: string | null
+          pix_code?: string | null
+          pix_qr_code?: string | null
+          status?: string | null
+          total_amount?: number | null
+          total_sales?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          due_date?: string
+          fee_fixed?: number
+          fee_percentage?: number
+          fee_total?: number
+          id?: string
+          paid_at?: string | null
+          period_end?: string
+          period_start?: string
+          pix_charge_id?: string | null
+          pix_code?: string | null
+          pix_qr_code?: string | null
+          status?: string | null
+          total_amount?: number | null
+          total_sales?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       platform_settings: {
         Row: {
           created_at: string
           default_checkout_template_id: string | null
+          fee_fixed_per_sale: number | null
+          fee_percentage: number | null
           id: string
+          invoice_due_days: number | null
           maintenance_mode: boolean
           min_withdrawal: number
           pix_enabled: boolean
@@ -641,7 +740,10 @@ export type Database = {
         Insert: {
           created_at?: string
           default_checkout_template_id?: string | null
+          fee_fixed_per_sale?: number | null
+          fee_percentage?: number | null
           id?: string
+          invoice_due_days?: number | null
           maintenance_mode?: boolean
           min_withdrawal?: number
           pix_enabled?: boolean
@@ -655,7 +757,10 @@ export type Database = {
         Update: {
           created_at?: string
           default_checkout_template_id?: string | null
+          fee_fixed_per_sale?: number | null
+          fee_percentage?: number | null
           id?: string
+          invoice_due_days?: number | null
           maintenance_mode?: boolean
           min_withdrawal?: number
           pix_enabled?: boolean
@@ -857,6 +962,85 @@ export type Database = {
         }
         Relationships: []
       }
+      seller_blocks: {
+        Row: {
+          blocked_at: string | null
+          id: string
+          invoice_id: string | null
+          is_active: boolean | null
+          reason: string
+          unblocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          blocked_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          is_active?: boolean | null
+          reason?: string
+          unblocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          blocked_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          is_active?: boolean | null
+          reason?: string
+          unblocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_blocks_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "platform_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_gateway_credentials: {
+        Row: {
+          created_at: string | null
+          credentials: Json
+          gateway_id: string
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          credentials?: Json
+          gateway_id: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          credentials?: Json
+          gateway_id?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_gateway_credentials_gateway_id_fkey"
+            columns: ["gateway_id"]
+            isOneToOne: false
+            referencedRelation: "payment_gateways"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suggestions: {
         Row: {
           admin_notes: string | null
@@ -897,6 +1081,8 @@ export type Database = {
           amount: number
           charge_id: string | null
           created_at: string
+          gateway_id: string | null
+          gateway_transaction_id: string | null
           id: string
           platform_fee: number
           product_id: string | null
@@ -910,6 +1096,8 @@ export type Database = {
           amount: number
           charge_id?: string | null
           created_at?: string
+          gateway_id?: string | null
+          gateway_transaction_id?: string | null
           id?: string
           platform_fee?: number
           product_id?: string | null
@@ -923,6 +1111,8 @@ export type Database = {
           amount?: number
           charge_id?: string | null
           created_at?: string
+          gateway_id?: string | null
+          gateway_transaction_id?: string | null
           id?: string
           platform_fee?: number
           product_id?: string | null
@@ -943,6 +1133,13 @@ export type Database = {
             columns: ["charge_id"]
             isOneToOne: false
             referencedRelation: "pix_charges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_gateway_id_fkey"
+            columns: ["gateway_id"]
+            isOneToOne: false
+            referencedRelation: "payment_gateways"
             referencedColumns: ["id"]
           },
           {
@@ -1110,6 +1307,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "seller" | "affiliate" | "member"
+      invoice_status: "pending" | "paid" | "overdue" | "blocked"
       transaction_status: "pending" | "paid" | "expired" | "cancelled"
     }
     CompositeTypes: {
@@ -1239,6 +1437,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "seller", "affiliate", "member"],
+      invoice_status: ["pending", "paid", "overdue", "blocked"],
       transaction_status: ["pending", "paid", "expired", "cancelled"],
     },
   },

@@ -38,7 +38,7 @@ const adminMenuItems = [
   { icon: LayoutDashboard, label: "Visão Geral", path: "/admin" },
   { icon: Users, label: "Usuários", path: "/admin/users" },
   { icon: ShoppingCart, label: "Transações", path: "/admin/transactions" },
-  { icon: Wallet, label: "Saques", path: "/admin/withdrawals" },
+  { icon: Wallet, label: "Faturas", path: "/admin/invoices" },
   { icon: TrendingUp, label: "Analytics", path: "/admin/analytics" },
   { icon: Lightbulb, label: "Sugestões", path: "/admin/suggestions" },
   { icon: Settings, label: "Configurações", path: "/admin/settings" },
