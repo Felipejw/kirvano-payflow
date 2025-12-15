@@ -550,6 +550,49 @@ serve(async (req) => {
         });
       }
 
+      // Get product name for notification
+      let productName = 'Produto';
+      if (body.product_id) {
+        const { data: productInfo } = await supabase
+          .from('products')
+          .select('name')
+          .eq('id', body.product_id)
+          .single();
+        if (productInfo) {
+          productName = productInfo.name;
+        }
+      }
+
+      // Send email and WhatsApp notification in background
+      try {
+        const notificationPayload = {
+          buyer_name: body.buyer_name || 'Cliente',
+          buyer_email: body.buyer_email,
+          buyer_phone: body.buyer_phone,
+          product_name: productName,
+          amount: body.amount,
+          pix_code: pixCode,
+          expires_at: expiresAt.toISOString(),
+          send_email: true,
+          send_whatsapp: !!body.buyer_phone,
+        };
+        
+        console.log('Sending PIX notification to buyer');
+        
+        // Fire and forget - don't wait for response
+        fetch(`${supabaseUrl}/functions/v1/send-pix-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(notificationPayload),
+        }).catch(err => console.error('Notification error (non-blocking):', err));
+        
+      } catch (notifError) {
+        console.error('Error triggering notification:', notifError);
+        // Don't fail the charge creation if notification fails
+      }
+
       const response: ChargeResponse = {
         id: charge.id,
         external_id: charge.external_id,
