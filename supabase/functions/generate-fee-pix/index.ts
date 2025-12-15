@@ -128,12 +128,20 @@ serve(async (req) => {
     const pixData = await pixResponse.json();
     console.log("PIX generated:", pixData);
 
+    // Extract the PIX code correctly from BSPAY response
+    const copyPasteCode = pixData.qrcode || pixData.copy_paste || pixData.qr_code_text;
+    
+    if (!copyPasteCode) {
+      console.error("No PIX code found in response:", pixData);
+      throw new Error("Failed to get PIX code from payment gateway");
+    }
+
     // Update invoice with PIX data
     const { error: updateError } = await supabase
       .from("platform_invoices")
       .update({
-        pix_code: pixData.copy_paste || pixData.qr_code_text,
-        pix_qr_code: pixData.qr_code_base64 || pixData.qr_code,
+        pix_code: copyPasteCode,
+        pix_qr_code: copyPasteCode, // Frontend will generate QR from this code
       })
       .eq("id", invoice.id);
 
@@ -145,8 +153,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         invoiceId: invoice.id,
-        qrCode: pixData.qr_code_base64 || pixData.qr_code,
-        copyPaste: pixData.copy_paste || pixData.qr_code_text,
+        copyPaste: copyPasteCode,
         expiresAt: expiresAt.toISOString(),
       }),
       {

@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DollarSign, TrendingUp, Receipt, Calendar, Loader2, Copy, Check, QrCode } from "lucide-react";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
 
 interface CurrentPeriodFeeCardProps {
   feePercentage: number;
@@ -30,7 +31,7 @@ export function CurrentPeriodFeeCard({ feePercentage, feeFixed }: CurrentPeriodF
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [pixDialogOpen, setPixDialogOpen] = useState(false);
-  const [pixData, setPixData] = useState<{ qrCode: string; copyPaste: string; invoiceId: string } | null>(null);
+  const [pixData, setPixData] = useState<{ copyPaste: string; invoiceId: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -116,8 +117,8 @@ export function CurrentPeriodFeeCard({ feePercentage, feeFixed }: CurrentPeriodF
 
       if (response.error) throw response.error;
 
-      const { qrCode, copyPaste, invoiceId } = response.data;
-      setPixData({ qrCode, copyPaste, invoiceId });
+      const { copyPaste, invoiceId } = response.data;
+      setPixData({ copyPaste, invoiceId });
       setPixDialogOpen(true);
     } catch (error: any) {
       console.error("Error generating fee PIX:", error);
@@ -224,14 +225,14 @@ export function CurrentPeriodFeeCard({ feePercentage, feeFixed }: CurrentPeriodF
             <DialogTitle>Pague a Taxa via PIX</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
-            {/* QR Code */}
-            {pixData?.qrCode && (
+            {/* QR Code - Generated locally from PIX code */}
+            {pixData?.copyPaste && (
               <div className="flex justify-center">
                 <div className="bg-white p-4 rounded-lg">
-                  <img
-                    src={`data:image/png;base64,${pixData.qrCode}`}
-                    alt="QR Code PIX"
-                    className="w-48 h-48"
+                  <QRCodeSVG 
+                    value={pixData.copyPaste} 
+                    size={192}
+                    level="M"
                   />
                 </div>
               </div>
