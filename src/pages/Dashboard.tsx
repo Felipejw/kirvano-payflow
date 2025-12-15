@@ -36,6 +36,8 @@ interface DashboardStats {
   activeProducts: number;
   conversionRate: number;
   pendingRevenue: number;
+  pixGenerated: number;
+  uniqueCustomers: number;
   revenueChange: string;
   salesChange: string;
 }
@@ -55,6 +57,8 @@ const Dashboard = () => {
     activeProducts: 0,
     conversionRate: 0,
     pendingRevenue: 0,
+    pixGenerated: 0,
+    uniqueCustomers: 0,
     revenueChange: "+0%",
     salesChange: "+0%",
   });
@@ -76,7 +80,7 @@ const Dashboard = () => {
     // Fetch all PIX charges (generated) for conversion calculation within date range
     const { data: pixCharges } = await supabase
       .from('pix_charges')
-      .select('id, amount, status')
+      .select('id, amount, status, buyer_email')
       .eq('seller_id', userId)
       .gte('created_at', range.from.toISOString())
       .lte('created_at', range.to.toISOString());
@@ -116,6 +120,10 @@ const Dashboard = () => {
     const pixGeneratedCount = pixCharges?.length || 0;
     const conversionRate = pixGeneratedCount > 0 ? (paidCount / pixGeneratedCount) * 100 : 0;
 
+    // Calculate unique customers from paid pix charges
+    const uniqueEmails = new Set(pixCharges?.filter(p => p.status === 'paid').map(p => p.buyer_email) || []);
+    const uniqueCustomers = uniqueEmails.size;
+
     // Calculate comparison with previous period
     const periodDuration = range.to.getTime() - range.from.getTime();
     const previousPeriodEnd = new Date(range.from.getTime() - 1);
@@ -147,6 +155,8 @@ const Dashboard = () => {
       activeProducts: products?.length || 0,
       conversionRate: parseFloat(conversionRate.toFixed(1)),
       pendingRevenue: pendingPixRevenue + pendingTxRevenue,
+      pixGenerated: pixGeneratedCount,
+      uniqueCustomers,
       revenueChange: `${parseFloat(revenueChange) >= 0 ? '+' : ''}${revenueChange}% vs período anterior`,
       salesChange: `${parseFloat(salesChange) >= 0 ? '+' : ''}${salesChange}% vs período anterior`,
     });
@@ -214,8 +224,8 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
+        {/* Stats Grid - Row 1 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <StatsCard
             title="Receita Total"
             value={`R$ ${stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
@@ -248,13 +258,33 @@ const Dashboard = () => {
             icon={Receipt}
             iconColor="text-accent"
           />
+        </div>
+
+        {/* Stats Grid - Row 2 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <StatsCard
+            title="PIX Gerados"
+            value={stats.pixGenerated.toString()}
+            change="No período"
+            changeType="neutral"
+            icon={QrCode}
+            iconColor="text-primary"
+          />
+          <StatsCard
+            title="Clientes Únicos"
+            value={stats.uniqueCustomers.toString()}
+            change="Compradores"
+            changeType="positive"
+            icon={Users}
+            iconColor="text-purple-400"
+          />
           <StatsCard
             title="Produtos Ativos"
             value={stats.activeProducts.toString()}
             change="Publicados"
             changeType="positive"
             icon={Package}
-            iconColor="text-purple-400"
+            iconColor="text-accent"
           />
           <StatsCard
             title="Conversão"
