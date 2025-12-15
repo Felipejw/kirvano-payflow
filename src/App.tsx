@@ -25,7 +25,9 @@ import AdminInvoicesPage from "./pages/admin/AdminInvoicesPage";
 import AdminGatewaysPage from "./pages/admin/AdminGatewaysPage";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSuggestions from "./pages/admin/AdminSuggestions";
+import AdminRecovery from "./pages/admin/AdminRecovery";
 import MembersArea from "./pages/members/MembersArea";
+import Recovery from "./pages/Recovery";
 import MembersLogin from "./pages/members/MembersLogin";
 import MemberProduct from "./pages/members/MemberProduct";
 import Clients from "./pages/Clients";
@@ -72,7 +74,9 @@ const App = () => (
               <Route path="/dashboard/members" element={<Members />} />
               <Route path="/dashboard/members/config/:productId" element={<MembersConfig />} />
               <Route path="/dashboard/suggestions" element={<Suggestions />} />
+              <Route path="/dashboard/recovery" element={<Recovery />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/recovery" element={<AdminRecovery />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/transactions" element={<AdminTransactionsPage />} />
               <Route path="/admin/withdrawals" element={<AdminWithdrawalsPage />} />
