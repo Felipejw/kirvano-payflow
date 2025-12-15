@@ -479,7 +479,7 @@ serve(async (req) => {
         
         const { data: charge, error: fetchError } = await supabase
           .from('pix_charges')
-          .select('*, products(*), affiliates(*)')
+          .select('*, products(name, seller_id), affiliates(*)')
           .or(`external_id.eq.${transactionId},external_id.eq.${requestBody.external_id}`)
           .single();
 
@@ -539,7 +539,7 @@ serve(async (req) => {
             .select()
             .single();
 
-          // Create membership for buyer
+          // Create membership for buyer and send access email
           if (charge.product_id && charge.buyer_email) {
             try {
               const membershipResult = await createMembershipForBuyer(
@@ -550,6 +550,42 @@ serve(async (req) => {
                 transaction?.id
               );
               console.log('Membership created:', membershipResult);
+              
+              // Get the member ID for email logging
+              const { data: memberData } = await supabase
+                .from('members')
+                .select('id')
+                .eq('user_id', membershipResult.userId)
+                .eq('product_id', charge.product_id)
+                .maybeSingle();
+              
+              // Send automatic access email
+              const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+              try {
+                const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-member-access-email`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                  },
+                  body: JSON.stringify({
+                    memberEmail: charge.buyer_email,
+                    memberName: charge.buyer_name,
+                    productName: charge.products?.name || 'Produto',
+                    productId: charge.product_id,
+                    memberId: memberData?.id,
+                    autoSend: true,
+                  }),
+                });
+                
+                if (emailResponse.ok) {
+                  console.log('Access email sent automatically to:', charge.buyer_email);
+                } else {
+                  console.error('Failed to send access email:', await emailResponse.text());
+                }
+              } catch (emailError) {
+                console.error('Error sending access email:', emailError);
+              }
             } catch (memberError) {
               console.error('Error creating membership:', memberError);
             }
