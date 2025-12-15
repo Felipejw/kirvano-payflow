@@ -45,12 +45,12 @@ export function PlatformFeeInfo({ feePercentage, feeFixed }: PlatformFeeInfoProp
           </div>
         </div>
 
-        <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+        <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
           <div className="flex gap-3">
             <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-yellow-200">Importante</p>
-              <p className="text-sm text-yellow-200/80">
+              <p className="font-medium text-foreground">Importante</p>
+              <p className="text-sm text-muted-foreground">
                 O não pagamento da fatura resulta em bloqueio da área de membros de todos os seus clientes e impossibilidade de editar produtos/checkouts.
               </p>
             </div>
