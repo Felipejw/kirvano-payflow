@@ -28,6 +28,7 @@ import MemberProduct from "./pages/members/MemberProduct";
 import Clients from "./pages/Clients";
 import Suggestions from "./pages/Suggestions";
 import Members from "./pages/Members";
+import MembersConfig from "./pages/members/MembersConfig";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/dashboard/settings" element={<Settings />} />
               <Route path="/dashboard/clients" element={<Clients />} />
               <Route path="/dashboard/members" element={<Members />} />
+              <Route path="/dashboard/members/config/:productId" element={<MembersConfig />} />
               <Route path="/dashboard/suggestions" element={<Suggestions />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />
