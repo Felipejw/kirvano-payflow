@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "onboarding@resend.dev";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -138,7 +139,7 @@ const sendEmail = async (data: NotificationRequest) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Pagamento PIX <onboarding@resend.dev>",
+        from: `Pagamento PIX <${RESEND_FROM_EMAIL}>`,
         to: [data.buyer_email],
         subject: `💳 Seu PIX de ${formatCurrency(data.amount)} está aguardando pagamento!`,
         html: emailHtml,
@@ -210,23 +211,31 @@ _Copie o código e cole no app do seu banco para pagar._
 ✅ Após o pagamento, você receberá a confirmação automaticamente!`;
 
   try {
-    const response = await fetch(
-      `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Client-Token": clientToken,
-        },
-        body: JSON.stringify({
-          phone: phone,
-          message: message,
-        }),
-      }
-    );
+    const zapiUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
+    console.log("Z-API URL:", zapiUrl);
+    console.log("Z-API Client-Token configured:", clientToken ? `Yes (${clientToken.substring(0, 8)}...)` : "No");
+    
+    const response = await fetch(zapiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Client-Token": clientToken,
+      },
+      body: JSON.stringify({
+        phone: phone,
+        message: message,
+      }),
+    });
 
+    console.log("Z-API HTTP Status:", response.status);
     const result = await response.json();
-    console.log("WhatsApp sent:", result);
+    console.log("WhatsApp response:", result);
+    
+    // Check for Z-API specific errors
+    if (result.error || result.zapiError) {
+      console.error("Z-API returned error:", result);
+      return { success: false, error: result.message || result.error };
+    }
     
     if (!response.ok) {
       throw new Error(result.message || "Failed to send WhatsApp");
