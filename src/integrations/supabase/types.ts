@@ -355,6 +355,53 @@ export type Database = {
         }
         Relationships: []
       }
+      member_email_logs: {
+        Row: {
+          created_at: string
+          email_type: string
+          error_message: string | null
+          id: string
+          member_id: string
+          opened_at: string | null
+          recipient_email: string
+          sent_at: string
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          member_id: string
+          opened_at?: string | null
+          recipient_email: string
+          sent_at?: string
+          status?: string
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          member_id?: string
+          opened_at?: string | null
+          recipient_email?: string
+          sent_at?: string
+          status?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_email_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_lesson_progress: {
         Row: {
           completed_at: string

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -13,8 +14,10 @@ interface SendAccessEmailRequest {
   memberName?: string;
   productName: string;
   productId: string;
+  memberId?: string;
   expiresAt?: string;
   sellerName?: string;
+  autoSend?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -28,9 +31,11 @@ const handler = async (req: Request): Promise<Response> => {
       memberEmail, 
       memberName, 
       productName, 
-      productId, 
+      productId,
+      memberId,
       expiresAt,
-      sellerName 
+      sellerName,
+      autoSend = false,
     }: SendAccessEmailRequest = await req.json();
 
     console.log("Sending member access email to:", memberEmail);
@@ -169,10 +174,44 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (!emailResponse.ok) {
       console.error("Resend API error:", result);
+      
+      // Log failed email if memberId is provided
+      if (memberId) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        await supabase.from("member_email_logs").insert({
+          member_id: memberId,
+          email_type: autoSend ? "auto_access" : "access",
+          recipient_email: memberEmail,
+          subject: `Seu acesso ao ${productName} está liberado! 🎉`,
+          status: "failed",
+          error_message: result.message || "Failed to send email",
+        });
+      }
+      
       throw new Error(result.message || "Failed to send email");
     }
 
     console.log("Email sent successfully:", result);
+
+    // Log successful email if memberId is provided
+    if (memberId) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      await supabase.from("member_email_logs").insert({
+        member_id: memberId,
+        email_type: autoSend ? "auto_access" : "access",
+        recipient_email: memberEmail,
+        subject: `Seu acesso ao ${productName} está liberado! 🎉`,
+        status: "sent",
+      });
+      
+      console.log("Email log saved for member:", memberId);
+    }
 
     return new Response(JSON.stringify({ success: true, data: result }), {
       status: 200,

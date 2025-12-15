@@ -23,7 +23,10 @@ import {
   CalendarPlus,
   MoreHorizontal,
   Send,
-  Loader2
+  Loader2,
+  History,
+  MailOpen,
+  XCircle
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -82,6 +85,16 @@ interface Member {
   user_email?: string;
 }
 
+interface EmailLog {
+  id: string;
+  email_type: string;
+  recipient_email: string;
+  subject: string | null;
+  sent_at: string;
+  opened_at: string | null;
+  status: string;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -100,7 +113,10 @@ const Members = () => {
   // Dialog states
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [emailHistoryDialogOpen, setEmailHistoryDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
+  const [loadingEmailLogs, setLoadingEmailLogs] = useState(false);
   const [extendDays, setExtendDays] = useState("30");
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
 
@@ -316,6 +332,7 @@ const Members = () => {
           memberName: member.user_email?.split("@")[0],
           productName: member.product.name,
           productId: member.product_id,
+          memberId: member.id,
           expiresAt: member.expires_at,
         },
       });
@@ -339,6 +356,32 @@ const Members = () => {
       });
     } finally {
       setSendingEmail(null);
+    }
+  };
+
+  const handleViewEmailHistory = async (member: Member) => {
+    setSelectedMember(member);
+    setEmailHistoryDialogOpen(true);
+    setLoadingEmailLogs(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from("member_email_logs")
+        .select("*")
+        .eq("member_id", member.id)
+        .order("sent_at", { ascending: false });
+      
+      if (error) throw error;
+      setEmailLogs(data || []);
+    } catch (error) {
+      console.error("Error fetching email logs:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar o histórico de emails.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingEmailLogs(false);
     }
   };
 
@@ -629,6 +672,10 @@ const Members = () => {
                                 )}
                                 Enviar Email de Acesso
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewEmailHistory(member)}>
+                                <History className="h-4 w-4 mr-2" />
+                                Histórico de Emails
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -687,6 +734,94 @@ const Members = () => {
             </Button>
             <Button onClick={handleExtendAccess}>
               Estender Acesso
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email History Dialog */}
+      <Dialog open={emailHistoryDialogOpen} onOpenChange={setEmailHistoryDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Histórico de Emails
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {selectedMember && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground border-b pb-3">
+                <Mail className="h-4 w-4" />
+                <span>{selectedMember.user_email}</span>
+                <span className="mx-2">•</span>
+                <Package className="h-4 w-4" />
+                <span>{selectedMember.product.name}</span>
+              </div>
+            )}
+            
+            {loadingEmailLogs ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-16" />
+                ))}
+              </div>
+            ) : emailLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Mail className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">Nenhum email enviado para este membro.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {emailLogs.map((log) => (
+                  <div 
+                    key={log.id} 
+                    className="flex items-start justify-between p-4 bg-muted/50 rounded-lg border"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        {log.status === "sent" ? (
+                          <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20">
+                            <Send className="h-3 w-3 mr-1" />
+                            Enviado
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Falhou
+                          </Badge>
+                        )}
+                        {log.opened_at && (
+                          <Badge variant="outline" className="text-primary">
+                            <MailOpen className="h-3 w-3 mr-1" />
+                            Aberto
+                          </Badge>
+                        )}
+                        <Badge variant="outline">
+                          {log.email_type === "auto_access" ? "Automático" : "Manual"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm font-medium">{log.subject || "Email de Acesso"}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Para: {log.recipient_email}
+                      </p>
+                    </div>
+                    <div className="text-right text-xs text-muted-foreground">
+                      <p>{new Date(log.sent_at).toLocaleDateString("pt-BR")}</p>
+                      <p>{new Date(log.sent_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+                      {log.opened_at && (
+                        <p className="text-primary mt-1">
+                          Aberto em {new Date(log.opened_at).toLocaleDateString("pt-BR")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailHistoryDialogOpen(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
