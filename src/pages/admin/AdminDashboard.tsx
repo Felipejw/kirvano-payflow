@@ -25,7 +25,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AdminTransactions } from "@/components/admin/AdminTransactions";
-import { AdminWithdrawals } from "@/components/admin/AdminWithdrawals";
 
 interface SellerData {
   user_id: string;
@@ -79,9 +78,20 @@ export default function AdminDashboard() {
 
   const fetchAdminData = useCallback(async () => {
     try {
+      // Fetch only sellers (users with role 'seller')
+      const { data: sellerRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "seller");
+
+      if (rolesError) throw rolesError;
+
+      const sellerUserIds = sellerRoles?.map(r => r.user_id) || [];
+
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("*");
+        .select("*")
+        .in("user_id", sellerUserIds);
 
       if (profilesError) throw profilesError;
 
@@ -368,7 +378,6 @@ export default function AdminDashboard() {
           <TabsList>
             <TabsTrigger value="sellers">Vendedores</TabsTrigger>
             <TabsTrigger value="transactions">Transações</TabsTrigger>
-            <TabsTrigger value="withdrawals">Saques</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sellers" className="space-y-4">
@@ -448,9 +457,6 @@ export default function AdminDashboard() {
             <AdminTransactions />
           </TabsContent>
 
-          <TabsContent value="withdrawals">
-            <AdminWithdrawals />
-          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>

@@ -75,10 +75,13 @@ export function DateRangeFilter({ onRangeChange, selectedOption }: DateRangeFilt
   };
 
   const handleCustomRangeSelect = (range: DateRange | undefined) => {
-    if (range?.from && range?.to) {
+    if (range) {
       setCustomRange(range);
-      onRangeChange({ from: startOfDay(range.from), to: endOfDay(range.to) }, "custom");
-      setPopoverOpen(false);
+      // Só fecha e aplica quando ambas as datas estiverem selecionadas
+      if (range.from && range.to) {
+        onRangeChange({ from: startOfDay(range.from), to: endOfDay(range.to) }, "custom");
+        setPopoverOpen(false);
+      }
     }
   };
 
