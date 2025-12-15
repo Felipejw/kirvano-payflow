@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.send-fee-reminder]
 verify_jwt = true
+
+[functions.auto-block-sellers]
+verify_jwt = true
