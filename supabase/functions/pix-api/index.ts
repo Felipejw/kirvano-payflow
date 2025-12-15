@@ -787,6 +787,35 @@ serve(async (req) => {
             }
           }
 
+          // Send payment confirmed notification via WhatsApp and Email
+          try {
+            const confirmationPayload = {
+              buyer_name: charge.buyer_name || 'Cliente',
+              buyer_email: charge.buyer_email,
+              buyer_phone: charge.buyer_phone,
+              product_name: charge.products?.name || 'Produto',
+              amount: charge.amount,
+              paid_at: new Date().toISOString(),
+              send_email: true,
+              send_whatsapp: !!charge.buyer_phone,
+            };
+            
+            console.log('Sending payment confirmed notification to buyer');
+            
+            // Fire and forget - don't wait for response
+            fetch(`${supabaseUrl}/functions/v1/send-payment-confirmed`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(confirmationPayload),
+            }).catch(err => console.error('Confirmation notification error (non-blocking):', err));
+            
+          } catch (notifError) {
+            console.error('Error triggering confirmation notification:', notifError);
+            // Don't fail the webhook if notification fails
+          }
+
           console.log('Payment confirmed via webhook:', charge.external_id);
         }
       }
