@@ -27,6 +27,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import gateflowLogo from "@/assets/gateflow-logo.png";
+import { VideoPlayer } from "@/components/members/VideoPlayer";
+import { LessonCheckbox, ModuleProgress } from "@/components/members/LessonProgress";
 
 interface Product {
   id: string;
@@ -64,6 +66,11 @@ interface Lesson {
   order_index: number;
 }
 
+interface LessonProgress {
+  lesson_id: string;
+  completed_at: string;
+}
+
 const MemberProduct = () => {
   const { productId } = useParams();
   const { user, loading: authLoading } = useAuth();
@@ -71,10 +78,15 @@ const MemberProduct = () => {
   const [membership, setMembership] = useState<Membership | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Record<string, Lesson[]>>({});
+  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Video player state
+  const [videoPlayerOpen, setVideoPlayerOpen] = useState(false);
+  const [currentVideo, setCurrentVideo] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -93,7 +105,7 @@ const MemberProduct = () => {
       // Check if user has membership for this product
       const { data: membershipData, error: membershipError } = await supabase
         .from("members")
-        .select("id, access_level, expires_at, created_at")
+        .select("id, access_level, expires_at, created_at, status")
         .eq("user_id", user?.id)
         .eq("product_id", productId)
         .maybeSingle();
@@ -102,7 +114,7 @@ const MemberProduct = () => {
         console.error("Error fetching membership:", membershipError);
       }
 
-      if (!membershipData) {
+      if (!membershipData || membershipData.status === 'revoked') {
         setHasAccess(false);
         setLoading(false);
         return;
@@ -118,6 +130,12 @@ const MemberProduct = () => {
 
       setMembership(membershipData);
       setHasAccess(true);
+
+      // Update last_accessed_at
+      await supabase
+        .from("members")
+        .update({ last_accessed_at: new Date().toISOString() })
+        .eq("id", membershipData.id);
 
       // Fetch product details
       const { data: productData, error: productError } = await supabase
@@ -174,10 +192,60 @@ const MemberProduct = () => {
           }
         }
       }
+
+      // Fetch progress
+      const { data: progressData, error: progressError } = await supabase
+        .from("member_lesson_progress")
+        .select("lesson_id, completed_at")
+        .eq("member_id", membershipData.id);
+
+      if (!progressError && progressData) {
+        setCompletedLessons(new Set(progressData.map(p => p.lesson_id)));
+      }
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleLessonComplete = async (lessonId: string) => {
+    if (!membership) return;
+
+    const isCompleted = completedLessons.has(lessonId);
+
+    try {
+      if (isCompleted) {
+        // Remove progress
+        await supabase
+          .from("member_lesson_progress")
+          .delete()
+          .eq("member_id", membership.id)
+          .eq("lesson_id", lessonId);
+
+        setCompletedLessons(prev => {
+          const next = new Set(prev);
+          next.delete(lessonId);
+          return next;
+        });
+      } else {
+        // Add progress
+        await supabase
+          .from("member_lesson_progress")
+          .insert({
+            member_id: membership.id,
+            lesson_id: lessonId,
+          });
+
+        setCompletedLessons(prev => new Set(prev).add(lessonId));
+      }
+    } catch (error) {
+      console.error("Error toggling progress:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o progresso.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -207,7 +275,25 @@ const MemberProduct = () => {
     }
   };
 
-  const handleAccessContent = (url: string | null) => {
+  const handleAccessContent = (lesson: Lesson) => {
+    if (!lesson.content_url) {
+      toast({
+        title: "Conteúdo não disponível",
+        description: "O conteúdo ainda não foi configurado pelo vendedor.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (lesson.content_type === "video") {
+      setCurrentVideo({ url: lesson.content_url, title: lesson.name });
+      setVideoPlayerOpen(true);
+    } else {
+      window.open(lesson.content_url, "_blank");
+    }
+  };
+
+  const handleAccessUrl = (url: string | null) => {
     if (url) {
       window.open(url, "_blank");
     } else {
@@ -218,6 +304,11 @@ const MemberProduct = () => {
       });
     }
   };
+
+  // Calculate total progress
+  const totalLessons = Object.values(lessons).flat().length;
+  const completedCount = completedLessons.size;
+  const progressPercentage = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
 
   if (authLoading || loading) {
     return (
@@ -325,6 +416,26 @@ const MemberProduct = () => {
               )}
             </div>
 
+            {/* Progress Bar */}
+            {hasModules && totalLessons > 0 && (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Seu Progresso</span>
+                    <span className="text-sm text-muted-foreground">
+                      {completedCount} de {totalLessons} aulas ({progressPercentage}%)
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${progressPercentage}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Modules and Lessons */}
             {hasModules && (
               <Card>
@@ -339,6 +450,7 @@ const MemberProduct = () => {
                     {modules.map((module, moduleIndex) => {
                       const moduleLessons = lessons[module.id] || [];
                       const totalDuration = moduleLessons.reduce((acc, l) => acc + (l.duration_minutes || 0), 0);
+                      const moduleCompletedCount = moduleLessons.filter(l => completedLessons.has(l.id)).length;
                       
                       return (
                         <AccordionItem key={module.id} value={module.id} className="border rounded-lg">
@@ -357,6 +469,10 @@ const MemberProduct = () => {
                                       {totalDuration} min
                                     </span>
                                   )}
+                                  <ModuleProgress 
+                                    completedCount={moduleCompletedCount} 
+                                    totalCount={moduleLessons.length} 
+                                  />
                                 </div>
                               </div>
                             </div>
@@ -368,38 +484,52 @@ const MemberProduct = () => {
                               </p>
                             )}
                             <div className="space-y-2 ml-11">
-                              {moduleLessons.map((lesson) => (
-                                <div
-                                  key={lesson.id}
-                                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                                  onClick={() => handleAccessContent(lesson.content_url)}
-                                >
-                                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary">
-                                    {lesson.content_type === 'video' ? (
-                                      <Play className="h-4 w-4" />
-                                    ) : (
-                                      getContentTypeIcon(lesson.content_type)
+                              {moduleLessons.map((lesson) => {
+                                const isCompleted = completedLessons.has(lesson.id);
+                                return (
+                                  <div
+                                    key={lesson.id}
+                                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                                  >
+                                    <LessonCheckbox
+                                      isCompleted={isCompleted}
+                                      onClick={() => toggleLessonComplete(lesson.id)}
+                                    />
+                                    <div 
+                                      className="flex-1 cursor-pointer"
+                                      onClick={() => handleAccessContent(lesson)}
+                                    >
+                                      <p className={`font-medium text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+                                        {lesson.name}
+                                      </p>
+                                      {lesson.description && (
+                                        <p className="text-xs text-muted-foreground">{lesson.description}</p>
+                                      )}
+                                    </div>
+                                    {lesson.duration_minutes && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {lesson.duration_minutes} min
+                                      </span>
                                     )}
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="font-medium text-sm">{lesson.name}</p>
-                                    {lesson.description && (
-                                      <p className="text-xs text-muted-foreground">{lesson.description}</p>
+                                    {lesson.is_free && (
+                                      <Badge variant="outline" className="text-xs">
+                                        Grátis
+                                      </Badge>
                                     )}
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => handleAccessContent(lesson)}
+                                    >
+                                      {lesson.content_type === 'video' ? (
+                                        <Play className="h-4 w-4" />
+                                      ) : (
+                                        <ExternalLink className="h-4 w-4" />
+                                      )}
+                                    </Button>
                                   </div>
-                                  {lesson.duration_minutes && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {lesson.duration_minutes} min
-                                    </span>
-                                  )}
-                                  {lesson.is_free && (
-                                    <Badge variant="outline" className="text-xs">
-                                      Grátis
-                                    </Badge>
-                                  )}
-                                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                              ))}
+                                );
+                              })}
                               {moduleLessons.length === 0 && (
                                 <p className="text-sm text-muted-foreground text-center py-4">
                                   Nenhuma aula adicionada ainda
@@ -437,7 +567,7 @@ const MemberProduct = () => {
                     <Button 
                       className="w-full" 
                       size="lg"
-                      onClick={() => handleAccessContent(product.deliverable_url)}
+                      onClick={() => handleAccessUrl(product.deliverable_url)}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Baixar / Acessar
@@ -449,7 +579,7 @@ const MemberProduct = () => {
                       variant="outline" 
                       className="w-full" 
                       size="lg"
-                      onClick={() => handleAccessContent(product.content_url)}
+                      onClick={() => handleAccessUrl(product.content_url)}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Área de Conteúdo
@@ -476,27 +606,39 @@ const MemberProduct = () => {
               <CardContent className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Nível de Acesso</span>
-                  <span className="font-medium capitalize">{membership?.access_level}</span>
+                  <Badge variant="outline" className="capitalize">
+                    {membership?.access_level}
+                  </Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Adquirido em</span>
-                  <span className="font-medium">
-                    {membership?.created_at && new Date(membership.created_at).toLocaleDateString("pt-BR")}
+                  <span className="text-muted-foreground">Membro desde</span>
+                  <span>
+                    {membership?.created_at
+                      ? new Date(membership.created_at).toLocaleDateString("pt-BR")
+                      : "-"}
                   </span>
                 </div>
-                {membership?.expires_at && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Expira em</span>
-                    <span className="font-medium">
-                      {new Date(membership.expires_at).toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Expira em</span>
+                  <span>
+                    {membership?.expires_at
+                      ? new Date(membership.expires_at).toLocaleDateString("pt-BR")
+                      : "Vitalício"}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
       </main>
+
+      {/* Video Player Modal */}
+      <VideoPlayer
+        open={videoPlayerOpen}
+        onOpenChange={setVideoPlayerOpen}
+        url={currentVideo?.url || null}
+        title={currentVideo?.title || ""}
+      />
     </div>
   );
 };
