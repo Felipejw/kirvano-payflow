@@ -3,6 +3,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL");
 
+// Logo placeholder - trocar pela URL real depois
+const GATEFLOW_LOGO_URL = "https://via.placeholder.com/180x50/0077b6/ffffff?text=GateFlow";
+
 // Validate email format
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -69,57 +72,59 @@ const sendEmail = async (data: NotificationRequest) => {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pagamento PIX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);">
     
-    <!-- Header -->
-    <div style="background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%); padding: 30px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 24px;">💳 Pagamento PIX Aguardando</h1>
+    <!-- Header with Logo -->
+    <div style="background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%); padding: 32px; text-align: center;">
+      <img src="${GATEFLOW_LOGO_URL}" alt="GateFlow" style="max-width: 180px; height: auto; margin-bottom: 16px;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 600;">💳 Pagamento PIX Aguardando</h1>
     </div>
     
     <!-- Content -->
-    <div style="padding: 30px;">
-      <p style="color: #333; font-size: 16px; margin-bottom: 20px;">
+    <div style="padding: 32px;">
+      <p style="color: #1a1a1a; font-size: 16px; margin-bottom: 20px;">
         Olá, <strong>${data.buyer_name || 'Cliente'}</strong>!
       </p>
       
-      <p style="color: #666; font-size: 14px; line-height: 1.6;">
-        Seu pedido de <strong>${data.product_name}</strong> está quase finalizado! 
+      <p style="color: #666; font-size: 15px; line-height: 1.7;">
+        Seu pedido de <strong style="color: #0077b6;">${data.product_name}</strong> está quase finalizado! 
         Complete o pagamento via PIX para garantir sua compra.
       </p>
       
       <!-- Amount Box -->
-      <div style="background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%); border-radius: 12px; padding: 20px; text-align: center; margin: 25px 0;">
-        <p style="color: rgba(255,255,255,0.9); margin: 0 0 5px 0; font-size: 14px;">Valor a pagar:</p>
-        <p style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold;">${formatCurrency(data.amount)}</p>
+      <div style="background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%); border-radius: 16px; padding: 24px; text-align: center; margin: 28px 0;">
+        <p style="color: rgba(255,255,255,0.9); margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Valor a pagar</p>
+        <p style="color: #ffffff; margin: 0; font-size: 36px; font-weight: bold;">${formatCurrency(data.amount)}</p>
       </div>
       
-      <!-- PIX Code -->
-      <div style="background-color: #f8f9fa; border: 2px dashed #00b4d8; border-radius: 8px; padding: 20px; margin: 25px 0;">
-        <p style="color: #333; font-size: 14px; margin: 0 0 10px 0; font-weight: bold;">
-          📋 Código PIX Copia e Cola:
+      <!-- PIX Code Section -->
+      <div style="background-color: #f0f9ff; border: 2px solid #00b4d8; border-radius: 12px; padding: 24px; margin: 28px 0;">
+        <p style="color: #0077b6; font-size: 14px; margin: 0 0 12px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          📋 Código PIX Copia e Cola
         </p>
-        <div style="background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; word-break: break-all;">
-          <code style="color: #333; font-size: 12px; font-family: 'Courier New', monospace;">${data.pix_code}</code>
+        <div style="background-color: #ffffff; border: 2px dashed #00b4d8; border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s;">
+          <code style="color: #1a1a1a; font-size: 13px; font-family: 'Roboto Mono', 'Courier New', monospace; word-break: break-all; line-height: 1.6; display: block; user-select: all; -webkit-user-select: all; -moz-user-select: all; -ms-user-select: all;">${data.pix_code}</code>
         </div>
-        <p style="color: #666; font-size: 12px; margin: 10px 0 0 0;">
-          Copie o código acima e cole no app do seu banco para pagar.
+        <p style="color: #0077b6; font-size: 13px; margin: 12px 0 0 0; text-align: center;">
+          👆 <strong>Clique no código acima para selecionar</strong> e depois copie (Ctrl+C)
         </p>
       </div>
       
       <!-- Timer Warning -->
-      <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 25px 0; border-radius: 4px;">
-        <p style="color: #856404; margin: 0; font-size: 14px;">
+      <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin: 28px 0; border-radius: 0 8px 8px 0;">
+        <p style="color: #92400e; margin: 0; font-size: 14px;">
           ⏰ <strong>Atenção:</strong> Este código expira às <strong>${expiresFormatted}</strong>. 
           Pague agora para garantir sua compra!
         </p>
       </div>
       
       <!-- Instructions -->
-      <div style="margin: 25px 0;">
-        <p style="color: #333; font-size: 14px; font-weight: bold; margin-bottom: 15px;">Como pagar:</p>
-        <ol style="color: #666; font-size: 14px; line-height: 1.8; padding-left: 20px; margin: 0;">
+      <div style="margin: 28px 0; background-color: #f8fafc; border-radius: 12px; padding: 20px;">
+        <p style="color: #1a1a1a; font-size: 15px; font-weight: 600; margin: 0 0 16px 0;">📱 Como pagar:</p>
+        <ol style="color: #4b5563; font-size: 14px; line-height: 2; padding-left: 20px; margin: 0;">
           <li>Abra o app do seu banco</li>
           <li>Escolha pagar com PIX "Copia e Cola"</li>
           <li>Cole o código acima</li>
@@ -127,15 +132,18 @@ const sendEmail = async (data: NotificationRequest) => {
         </ol>
       </div>
       
-      <p style="color: #00b4d8; font-size: 14px; text-align: center; margin-top: 30px;">
+      <p style="color: #10b981; font-size: 14px; text-align: center; margin-top: 32px; font-weight: 500;">
         ✅ Após o pagamento, você receberá a confirmação automaticamente!
       </p>
     </div>
     
     <!-- Footer -->
-    <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0;">
-      <p style="color: #999; font-size: 12px; margin: 0;">
+    <div style="background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="color: #9ca3af; font-size: 12px; margin: 0 0 8px 0;">
         Se você não fez essa compra, ignore este email.
+      </p>
+      <p style="color: #6b7280; font-size: 11px; margin: 0;">
+        Powered by <strong style="color: #0077b6;">GateFlow</strong>
       </p>
     </div>
   </div>
@@ -151,7 +159,7 @@ const sendEmail = async (data: NotificationRequest) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: `Pagamento PIX <${RESEND_FROM_EMAIL}>`,
+        from: `GateFlow <${RESEND_FROM_EMAIL}>`,
         to: [data.buyer_email],
         subject: `💳 Seu PIX de ${formatCurrency(data.amount)} está aguardando pagamento!`,
         html: emailHtml,
