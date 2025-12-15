@@ -229,34 +229,46 @@ const Dashboard = () => {
           <StatsCard
             title="Receita Total"
             value={`R$ ${stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            numericValue={stats.totalRevenue}
+            valueType="currency"
             change={stats.revenueChange}
             changeType={stats.revenueChange.startsWith('+') ? "positive" : "negative"}
             icon={DollarSign}
             iconColor="text-accent"
+            tooltip="Soma de todas as vendas confirmadas no período selecionado. Inclui todos os produtos vendidos através de PIX, cartão e boleto."
           />
           <StatsCard
             title="Vendas"
             value={stats.totalSales.toString()}
+            numericValue={stats.totalSales}
+            valueType="number"
             change={stats.salesChange}
             changeType={stats.salesChange.startsWith('+') ? "positive" : "negative"}
             icon={ShoppingCart}
             iconColor="text-primary"
+            tooltip="Número total de transações pagas e confirmadas no período. Cada venda representa uma compra finalizada com sucesso."
           />
           <StatsCard
             title="Receita Pendente"
             value={`R$ ${stats.pendingRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            numericValue={stats.pendingRevenue}
+            valueType="currency"
             change="PIX não pagos"
             changeType="neutral"
             icon={Clock}
             iconColor="text-yellow-400"
+            tooltip="Valor total de PIX gerados mas ainda não pagos ou expirados. Representa receita potencial que pode ser recuperada com follow-up."
           />
           <StatsCard
             title="Ticket Médio"
             value={`R$ ${stats.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            numericValue={stats.averageTicket}
+            valueType="currency"
             change="Por venda"
             changeType="neutral"
             icon={Receipt}
             iconColor="text-accent"
+            tooltip="Valor médio gasto por cliente em cada compra. Calcule estratégias de order bump para aumentar este indicador."
           />
         </div>
 
@@ -265,34 +277,46 @@ const Dashboard = () => {
           <StatsCard
             title="PIX Gerados"
             value={stats.pixGenerated.toString()}
+            numericValue={stats.pixGenerated}
+            valueType="number"
             change="No período"
             changeType="neutral"
             icon={QrCode}
             iconColor="text-primary"
+            tooltip="Total de cobranças PIX criadas no período. Compara com vendas confirmadas para entender sua taxa de conversão."
           />
           <StatsCard
             title="Clientes Únicos"
             value={stats.uniqueCustomers.toString()}
+            numericValue={stats.uniqueCustomers}
+            valueType="number"
             change="Compradores"
             changeType="positive"
             icon={Users}
             iconColor="text-purple-400"
+            tooltip="Número de clientes únicos que compraram no período, baseado no email. Clientes recorrentes contam apenas uma vez."
           />
           <StatsCard
             title="Produtos Ativos"
             value={stats.activeProducts.toString()}
+            numericValue={stats.activeProducts}
+            valueType="number"
             change="Publicados"
             changeType="positive"
             icon={Package}
             iconColor="text-accent"
+            tooltip="Quantidade de produtos com status ativo disponíveis para venda no seu catálogo."
           />
           <StatsCard
             title="Conversão"
             value={`${stats.conversionRate}%`}
+            numericValue={stats.conversionRate}
+            valueType="percent"
             change="Taxa média"
             changeType={stats.conversionRate >= 3 ? "positive" : "negative"}
             icon={Percent}
             iconColor="text-yellow-400"
+            tooltip="Porcentagem de PIX gerados que foram pagos. Taxa ideal: acima de 5%. Taxas baixas podem indicar problemas no checkout."
           />
         </div>
 
