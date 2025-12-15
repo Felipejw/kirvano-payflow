@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-
+const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "Gateflow <noreply@notificacao.gatteflow.store>";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -163,7 +162,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Gateflow <onboarding@resend.dev>",
+        from: RESEND_FROM_EMAIL,
         to: [memberEmail],
         subject: `Seu acesso ao ${productName} está liberado! 🎉`,
         html: emailHtml,
