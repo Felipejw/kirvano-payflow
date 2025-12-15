@@ -717,6 +717,7 @@ export type Database = {
       products: {
         Row: {
           allow_affiliates: boolean
+          auto_send_access_email: boolean | null
           checkout_template_id: string | null
           checkout_theme: string | null
           commission_rate: number
@@ -743,6 +744,7 @@ export type Database = {
         }
         Insert: {
           allow_affiliates?: boolean
+          auto_send_access_email?: boolean | null
           checkout_template_id?: string | null
           checkout_theme?: string | null
           commission_rate?: number
@@ -769,6 +771,7 @@ export type Database = {
         }
         Update: {
           allow_affiliates?: boolean
+          auto_send_access_email?: boolean | null
           checkout_template_id?: string | null
           checkout_theme?: string | null
           commission_rate?: number
