@@ -21,7 +21,9 @@ import {
   Clock,
   Ban,
   CalendarPlus,
-  MoreHorizontal
+  MoreHorizontal,
+  Send,
+  Loader2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -100,6 +102,7 @@ const Members = () => {
   const [extendDialogOpen, setExtendDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [extendDays, setExtendDays] = useState("30");
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -301,6 +304,41 @@ const Members = () => {
         description: "Erro ao estender acesso.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSendAccessEmail = async (member: Member) => {
+    setSendingEmail(member.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-member-access-email", {
+        body: {
+          memberEmail: member.user_email,
+          memberName: member.user_email?.split("@")[0],
+          productName: member.product.name,
+          productId: member.product_id,
+          expiresAt: member.expires_at,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "Email enviado!",
+          description: `Email de acesso enviado para ${member.user_email}`,
+        });
+      } else {
+        throw new Error(data?.error || "Erro ao enviar email");
+      }
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+      toast({
+        title: "Erro ao enviar email",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingEmail(null);
     }
   };
 
@@ -579,6 +617,17 @@ const Members = () => {
                               <DropdownMenuItem onClick={() => { setSelectedMember(member); setExtendDialogOpen(true); }}>
                                 <CalendarPlus className="h-4 w-4 mr-2" />
                                 Estender Acesso
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleSendAccessEmail(member)}
+                                disabled={sendingEmail === member.id}
+                              >
+                                {sendingEmail === member.id ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Send className="h-4 w-4 mr-2" />
+                                )}
+                                Enviar Email de Acesso
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
