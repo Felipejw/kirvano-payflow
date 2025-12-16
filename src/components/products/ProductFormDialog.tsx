@@ -55,6 +55,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const [slugError, setSlugError] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [verifyingDomain, setVerifyingDomain] = useState(false);
+  const [domainShared, setDomainShared] = useState(false);
+  const [slugRequired, setSlugRequired] = useState(false);
   
   const [formData, setFormData] = useState<Product>({
     name: "",
@@ -183,6 +185,13 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         auto_send_access_email: product.auto_send_access_email ?? true,
       });
       setSlugError(null);
+      // Check domain usage for existing product
+      if (product.custom_domain) {
+        checkDomainUsage(product.custom_domain);
+      } else {
+        setDomainShared(false);
+        setSlugRequired(false);
+      }
     } else {
       setFormData({
         name: "",
@@ -207,6 +216,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         auto_send_access_email: true,
       });
       setSlugError(null);
+      setDomainShared(false);
+      setSlugRequired(false);
     }
   }, [product, open]);
 
@@ -241,13 +252,16 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
   const getPreviewUrl = () => {
     const baseUrl = window.location.origin;
     if (formData.custom_domain && formData.domain_verified) {
-      // Custom domain verified - use HTTPS directly
+      // Custom domain verified - include slug if domain is shared
+      if (domainShared && formData.custom_slug) {
+        return `https://${formData.custom_domain}/${formData.custom_slug}`;
+      }
       return `https://${formData.custom_domain}`;
     }
     if (formData.custom_slug) {
-      return `${baseUrl}/checkout/s/${formData.custom_slug}`;
+      return `${baseUrl}/?s=${formData.custom_slug}`;
     }
-    return `${baseUrl}/checkout/${formData.id || 'uuid'}`;
+    return `${baseUrl}/?id=${formData.id || 'uuid'}`;
   };
 
   const copyUrl = async () => {
@@ -299,6 +313,47 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     }
   };
 
+  // Check if domain is already in use by other products
+  const checkDomainUsage = async (domain: string) => {
+    if (!domain) {
+      setDomainShared(false);
+      setSlugRequired(false);
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Check if other products use this domain
+    let query = supabase
+      .from('products')
+      .select('id, name, custom_slug')
+      .eq('seller_id', user.id)
+      .eq('custom_domain', domain);
+
+    // Exclude current product if editing
+    if (product?.id) {
+      query = query.neq('id', product.id);
+    }
+
+    const { data: existingProducts } = await query;
+
+    if (existingProducts && existingProducts.length > 0) {
+      setDomainShared(true);
+      setSlugRequired(true);
+      toast.info(`Domínio já em uso por ${existingProducts.length} produto(s). Slug obrigatório para diferenciar.`);
+    } else {
+      setDomainShared(false);
+      setSlugRequired(false);
+    }
+  };
+
+  const handleDomainChange = (value: string) => {
+    setFormData({ ...formData, custom_domain: value, domain_verified: false });
+    // Debounce check domain usage
+    const timeoutId = setTimeout(() => checkDomainUsage(value), 500);
+    return () => clearTimeout(timeoutId);
+  };
 
   const fetchAvailableProducts = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -349,6 +404,13 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
       if (formData.custom_slug && !validateSlug(formData.custom_slug)) {
         toast.error("Slug inválido");
+        setLoading(false);
+        return;
+      }
+
+      // Validate slug is required when domain is shared
+      if (slugRequired && !formData.custom_slug) {
+        toast.error("Slug obrigatório quando o domínio é compartilhado com outros produtos");
         setLoading(false);
         return;
       }
@@ -618,14 +680,16 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
               <div className="space-y-4">
                 {/* Slug personalizado */}
                 <div className="space-y-2">
-                  <Label htmlFor="custom_slug">Slug Personalizado</Label>
+                  <Label htmlFor="custom_slug">
+                    Slug Personalizado {slugRequired && <span className="text-destructive">*</span>}
+                  </Label>
                   <div className="flex gap-2">
                     <Input
                       id="custom_slug"
                       value={formData.custom_slug || ""}
                       onChange={(e) => handleSlugChange(e.target.value)}
                       placeholder="meu-produto"
-                      className={slugError ? "border-destructive" : ""}
+                      className={slugError ? "border-destructive" : slugRequired && !formData.custom_slug ? "border-yellow-500" : ""}
                     />
                   </div>
                   {slugError && (
@@ -634,20 +698,31 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                       {slugError}
                     </p>
                   )}
+                  {slugRequired && !slugError && (
+                    <p className="text-xs text-yellow-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Obrigatório - domínio compartilhado com outros produtos
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Use apenas letras minúsculas, números e hífens. Ex: meu-curso-digital
                   </p>
                 </div>
 
-                {/* Domínio personalizado */}
                 <div className="space-y-2">
                   <Label htmlFor="custom_domain">Domínio Personalizado (opcional)</Label>
                   <Input
                     id="custom_domain"
                     value={formData.custom_domain || ""}
-                    onChange={(e) => setFormData({ ...formData, custom_domain: e.target.value })}
+                    onChange={(e) => handleDomainChange(e.target.value)}
                     placeholder="checkout.seusite.com"
                   />
+                  {domainShared && (
+                    <p className="text-xs text-blue-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Este domínio já está em uso. Cada produto precisará de um slug único.
+                    </p>
+                  )}
                   {formData.custom_domain && (
                     <div className="p-3 bg-muted/50 rounded-lg text-xs space-y-3">
                       <p className="font-medium">Configuração necessária:</p>

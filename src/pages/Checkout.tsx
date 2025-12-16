@@ -144,8 +144,7 @@ const Checkout = () => {
     return isCustomDomain ? hostname : null;
   }, []);
   
-  // Extract slug: from route params OR query parameter (?s=)
-  // Custom domains DON'T use slugs - they're identified by domain only
+  // Extract slug: from route params, query parameter (?s=), or pathname for custom domains
   const slug = useMemo(() => {
     // First try route params (/checkout/s/:slug)
     if (routeSlug) return routeSlug;
@@ -154,9 +153,19 @@ const Checkout = () => {
     const querySlug = searchParams.get('s');
     if (querySlug) return querySlug;
     
-    // Custom domains don't use slugs - identified by domain only
+    // For custom domains, extract slug from pathname (e.g., /product-slug)
+    if (customDomain) {
+      const pathname = window.location.pathname;
+      // Remove leading slash and check if there's a path segment
+      const pathSlug = pathname.replace(/^\//, '').split('/')[0];
+      // Only return if it looks like a valid slug (not empty, not standard routes)
+      if (pathSlug && !['checkout', 'auth', 'dashboard'].includes(pathSlug)) {
+        return pathSlug;
+      }
+    }
+    
     return null;
-  }, [routeSlug, searchParams]);
+  }, [routeSlug, searchParams, customDomain]);
   
   // Extract product ID: from route params OR query parameter (?id=)
   const effectiveProductId = useMemo(() => {
@@ -563,10 +572,20 @@ const Checkout = () => {
       .select('*')
       .eq('status', 'active');
 
-    // Priority: customDomain (no slug), slug (main domain only), effectiveProductId
+    // Priority: customDomain (with optional slug), slug (main domain only), effectiveProductId
     if (customDomain) {
-      // Custom domain identifies the product - no slug needed
-      query = query.eq('custom_domain', customDomain).eq('domain_verified', true);
+      // Custom domain + slug combination
+      if (slug) {
+        query = query
+          .eq('custom_domain', customDomain)
+          .eq('custom_slug', slug)
+          .eq('domain_verified', true);
+      } else {
+        // Only domain - check if there's a single product or multiple
+        query = query
+          .eq('custom_domain', customDomain)
+          .eq('domain_verified', true);
+      }
     } else if (slug) {
       // Slug only works on main domain
       query = query.eq('custom_slug', slug);
@@ -575,21 +594,36 @@ const Checkout = () => {
       query = query.eq('id', effectiveProductId);
     }
 
-    const { data, error } = await query.maybeSingle();
+    const { data, error } = await query;
 
-    if (error || !data) {
+    if (error) {
+      console.error('Error fetching product:', error);
       setProductNotFound(true);
       return;
     }
 
-    setProduct(data);
+    // Handle multiple products on same domain (without slug)
+    if (!data || data.length === 0) {
+      setProductNotFound(true);
+      return;
+    }
+
+    // If multiple products found and no slug specified, show error
+    if (data.length > 1 && !slug) {
+      console.error('Multiple products found for domain without slug');
+      setProductNotFound(true);
+      return;
+    }
+
+    const productData = data[0];
+    setProduct(productData);
 
     // Fetch checkout template if assigned
-    if (data.checkout_template_id) {
+    if (productData.checkout_template_id) {
       const { data: templateData } = await supabase
         .from('checkout_templates')
         .select('*')
-        .eq('id', data.checkout_template_id)
+        .eq('id', productData.checkout_template_id)
         .single();
 
       if (templateData) {
@@ -598,11 +632,11 @@ const Checkout = () => {
     }
 
     // Fetch order bumps if they exist
-    if (data.order_bumps && data.order_bumps.length > 0) {
+    if (productData.order_bumps && productData.order_bumps.length > 0) {
       const { data: bumpsData } = await supabase
         .from('products')
         .select('id, name, description, price, cover_url')
-        .in('id', data.order_bumps)
+        .in('id', productData.order_bumps)
         .eq('status', 'active');
 
       if (bumpsData) {
