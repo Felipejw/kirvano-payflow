@@ -90,6 +90,7 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<DomainRouter />} />
                 <Route path="/auth" element={<Auth />} />
+              <Route path="/checkout" element={<Checkout />} />
               <Route path="/checkout/s/:slug" element={<Checkout />} />
               <Route path="/checkout/:productId" element={<Checkout />} />
               <Route path="/dashboard" element={<Dashboard />} />
