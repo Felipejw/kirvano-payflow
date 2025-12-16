@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Zap, Ban, Wallet, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { getPageUrl } from "@/lib/routes";
 const features = ["Checkout customizável", "Pagamentos PIX instantâneo", "Sistema de afiliados completo", "Área de membros", "Order bump & upsell", "Webhooks e integrações", "Dashboard analítico", "Suporte dedicado"];
 const differentials = [{
   icon: Ban,
@@ -95,7 +96,7 @@ export function Pricing() {
                 </div>
               </div>
 
-              <Link to="/auth" className="block">
+              <Link to={getPageUrl("auth")} className="block">
                 <Button variant="gradient" className="w-full group/btn relative overflow-hidden" size="lg">
                   <span className="relative z-10">Começar Agora - É Grátis</span>
                   <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] opacity-0 group-hover/btn:opacity-100 group-hover/btn:animate-shimmer transition-opacity" />

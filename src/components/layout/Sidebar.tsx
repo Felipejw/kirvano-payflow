@@ -17,63 +17,64 @@ import {
   X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import gateflowLogo from "@/assets/gateflow-logo.png";
+import { getPageUrl, useAppNavigate, useCurrentPage } from "@/lib/routes";
 
 const sellerMenuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Package, label: "Produtos", path: "/dashboard/products" },
-  { icon: ShoppingCart, label: "Vendas", path: "/dashboard/sales" },
-  { icon: CreditCard, label: "Transações", path: "/dashboard/transactions" },
-  { icon: Users, label: "Clientes", path: "/dashboard/clients" },
-  { icon: UserCheck, label: "Área de Membros", path: "/dashboard/members" },
-  { icon: RefreshCw, label: "Recuperação", path: "/dashboard/recovery" },
-  { icon: Wallet, label: "Formas de Pagamento", path: "/dashboard/payment-methods" },
-  { icon: CreditCard, label: "Financeiro", path: "/dashboard/finance" },
+  { icon: LayoutDashboard, label: "Dashboard", page: "dashboard" },
+  { icon: Package, label: "Produtos", page: "dashboard/products" },
+  { icon: ShoppingCart, label: "Vendas", page: "dashboard/sales" },
+  { icon: CreditCard, label: "Transações", page: "dashboard/transactions" },
+  { icon: Users, label: "Clientes", page: "dashboard/clients" },
+  { icon: UserCheck, label: "Área de Membros", page: "dashboard/members" },
+  { icon: RefreshCw, label: "Recuperação", page: "dashboard/recovery" },
+  { icon: Wallet, label: "Formas de Pagamento", page: "dashboard/payment-methods" },
+  { icon: CreditCard, label: "Financeiro", page: "dashboard/finance" },
 ];
 
 const adminMenuItems = [
-  { icon: LayoutDashboard, label: "Visão Geral", path: "/admin" },
-  { icon: Users, label: "Usuários", path: "/admin/users" },
-  { icon: ShoppingCart, label: "Transações", path: "/admin/transactions" },
-  { icon: Wallet, label: "Faturas", path: "/admin/invoices" },
-  { icon: CreditCard, label: "Gateways", path: "/admin/gateways" },
-  { icon: RefreshCw, label: "Recuperação", path: "/admin/recovery" },
-  { icon: TrendingUp, label: "Analytics", path: "/admin/analytics" },
-  { icon: Lightbulb, label: "Sugestões", path: "/admin/suggestions" },
-  { icon: Settings, label: "Configurações", path: "/admin/settings" },
+  { icon: LayoutDashboard, label: "Visão Geral", page: "admin" },
+  { icon: Users, label: "Usuários", page: "admin/users" },
+  { icon: ShoppingCart, label: "Transações", page: "admin/transactions" },
+  { icon: Wallet, label: "Faturas", page: "admin/invoices" },
+  { icon: CreditCard, label: "Gateways", page: "admin/gateways" },
+  { icon: RefreshCw, label: "Recuperação", page: "admin/recovery" },
+  { icon: TrendingUp, label: "Analytics", page: "admin/analytics" },
+  { icon: Lightbulb, label: "Sugestões", page: "admin/suggestions" },
+  { icon: Settings, label: "Configurações", page: "admin/settings" },
 ];
 
 const bottomMenuItems = [
-  { icon: Lightbulb, label: "Sugestões", path: "/dashboard/suggestions" },
-  { icon: Settings, label: "Configurações", path: "/dashboard/settings" },
+  { icon: Lightbulb, label: "Sugestões", page: "dashboard/suggestions" },
+  { icon: Settings, label: "Configurações", page: "dashboard/settings" },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { collapsed, toggle, isMobile } = useSidebar();
-  const location = useLocation();
-  const navigate = useNavigate();
+  const currentPage = useCurrentPage();
+  const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
   const { signOut } = useAuth();
 
-  const isOnAdminRoute = location.pathname.startsWith("/admin");
+  const isOnAdminRoute = currentPage.startsWith("admin");
   const menuItems = isOnAdminRoute ? adminMenuItems : sellerMenuItems;
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/");
+    navigate("");
   };
 
   const toggleView = () => {
     if (isOnAdminRoute) {
-      navigate("/dashboard");
+      navigate("dashboard");
     } else {
-      navigate("/admin");
+      navigate("admin");
     }
     onNavigate?.();
   };
@@ -133,11 +134,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         <div className="space-y-1">
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = currentPage === item.page;
             return (
               <Link
-                key={item.path}
-                to={item.path}
+                key={item.page}
+                to={getPageUrl(item.page)}
                 onClick={handleNavClick}
                 className={cn(
                   "sidebar-item",
@@ -156,11 +157,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Bottom Navigation */}
       <div className="border-t border-sidebar-border px-3 py-4 space-y-1">
         {!isOnAdminRoute && bottomMenuItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = currentPage === item.page;
           return (
             <Link
-              key={item.path}
-              to={item.path}
+              key={item.page}
+              to={getPageUrl(item.page)}
               onClick={handleNavClick}
               className={cn(
                 "sidebar-item",

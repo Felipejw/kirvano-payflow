@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "@/lib/routes";
 import { useUserRole } from "@/hooks/useUserRole";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -62,7 +62,7 @@ export default function AdminDashboard() {
   const [newTransactionAlert, setNewTransactionAlert] = useState(false);
   const [newWithdrawalAlert, setNewWithdrawalAlert] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
@@ -72,7 +72,7 @@ export default function AdminDashboard() {
         description: "Você não tem permissão para acessar esta página",
         variant: "destructive"
       });
-      navigate("/dashboard");
+      navigate("dashboard");
     }
   }, [isAdmin, roleLoading, navigate, toast]);
 
@@ -276,11 +276,11 @@ export default function AdminDashboard() {
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
-            <Button variant="outline" onClick={() => navigate("/admin/users")}>
+            <Button variant="outline" onClick={() => navigate("admin/users")}>
               <UserCog className="mr-2 h-4 w-4" />
               Usuários
             </Button>
-            <Button variant="outline" onClick={() => navigate("/admin/settings")}>
+            <Button variant="outline" onClick={() => navigate("admin/settings")}>
               <Settings className="mr-2 h-4 w-4" />
               Configurações
             </Button>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "@/lib/routes";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -38,12 +38,12 @@ const MembersArea = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const [memberships, setMemberships] = useState<MemberProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate("/members/login");
+      navigate("members/login");
     }
   }, [user, authLoading, navigate]);
 
@@ -99,7 +99,7 @@ const MembersArea = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/members/login");
+    navigate("members/login");
   };
 
   const isExpired = (expiresAt: string | null) => {

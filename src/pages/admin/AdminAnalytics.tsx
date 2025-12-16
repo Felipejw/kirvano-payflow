@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "@/lib/routes";
 import { useUserRole } from "@/hooks/useUserRole";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -53,7 +53,7 @@ export default function AdminAnalytics() {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("30");
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export default function AdminAnalytics() {
         description: "Você não tem permissão para acessar esta página",
         variant: "destructive"
       });
-      navigate("/dashboard");
+      navigate("dashboard");
     }
   }, [isAdmin, roleLoading, navigate, toast]);
 

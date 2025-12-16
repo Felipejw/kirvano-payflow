@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Save, ArrowLeft, Trash2, AlertTriangle, Package, CreditCard, Users, ShoppingCart, Percent, DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "@/lib/routes";
 import { useUserRole } from "@/hooks/useUserRole";
 import { GatewayManagement } from "@/components/admin/GatewayManagement";
 import {
@@ -44,7 +44,7 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
 
   const handleClearData = async (type: 'all' | 'products' | 'transactions' | 'affiliates' | 'charges') => {
@@ -79,7 +79,7 @@ export default function AdminSettings() {
         description: "Você não tem permissão para acessar esta página",
         variant: "destructive"
       });
-      navigate("/dashboard");
+      navigate("dashboard");
     }
   }, [isAdmin, roleLoading, navigate, toast]);
 
@@ -179,7 +179,7 @@ export default function AdminSettings() {
       <div className="space-y-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("admin")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>

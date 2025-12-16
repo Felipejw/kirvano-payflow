@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "@/lib/routes";
 import { useUserRole } from "@/hooks/useUserRole";
 import { AdminTransactions } from "@/components/admin/AdminTransactions";
 
 export default function AdminTransactionsPage() {
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export default function AdminTransactionsPage() {
         description: "Você não tem permissão para acessar esta página",
         variant: "destructive"
       });
-      navigate("/dashboard");
+      navigate("dashboard");
     }
   }, [isAdmin, roleLoading, navigate, toast]);
 

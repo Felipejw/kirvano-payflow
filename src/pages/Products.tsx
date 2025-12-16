@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "@/lib/routes";
 
 interface Product {
   id: string;
@@ -67,7 +67,7 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
 
   useEffect(() => {
     fetchProducts();
@@ -78,7 +78,7 @@ const Products = () => {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      navigate('/auth');
+      navigate('auth');
       return;
     }
 
