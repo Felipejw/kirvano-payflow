@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Ban, Wallet, Clock, Sparkles } from "lucide-react";
+import { ArrowRight, Ban, Wallet, Clock, Sparkles, Calculator } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getPageUrl } from "@/lib/routes";
 
@@ -36,33 +36,44 @@ export function Hero() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 mb-8 animate-fade-in hover:scale-105 transition-transform cursor-default group">
             <Sparkles className="h-4 w-4 text-accent group-hover:animate-spin" />
-            <span className="text-sm font-bold text-accent">Taxa de apenas 4,99%</span>
+            <span className="text-sm font-bold text-accent">Taxa mais baixa do mercado</span>
           </div>
 
           {/* Main Heading */}
           <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6 animate-slide-up">
             Venda Produtos Digitais
             <br />
-            <span className="gradient-text bg-clip-text">com PIX Instantâneo</span>
+            <span className="gradient-text bg-clip-text">com a Menor Taxa do Mercado</span>
           </h1>
 
-          {/* Subtitle */}
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: '100ms' }}>
-            A plataforma mais completa para infoprodutores. Checkout otimizado, 
-            sistema de afiliados e área de membros em um só lugar.
+          {/* Subtitle with pricing highlight */}
+          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
+            A plataforma mais completa para infoprodutores.
           </p>
+          
+          {/* Pricing Highlight */}
+          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-primary/10 border border-primary/20 mb-10 animate-slide-up" style={{ animationDelay: '150ms' }}>
+            <span className="text-2xl md:text-3xl font-bold text-primary">4,99% + R$1</span>
+            <span className="text-muted-foreground">por venda aprovada</span>
+          </div>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-slide-up" style={{ animationDelay: '200ms' }}>
             <Link to={getPageUrl("auth")}>
               <Button variant="gradient" size="xl" className="group relative overflow-hidden">
                 <span className="relative z-10 flex items-center gap-2">
-                  Começar Agora
+                  Criar Conta Grátis
                   <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] group-hover:animate-shimmer" />
               </Button>
             </Link>
+            <a href="#pricing">
+              <Button variant="outline" size="xl" className="group">
+                <Calculator className="h-5 w-5 mr-2" />
+                Simular Economia
+              </Button>
+            </a>
           </div>
 
           {/* Feature Pills - Diferenciais */}
@@ -70,7 +81,7 @@ export function Hero() {
             {[
               { icon: Ban, text: "0 Estorno", color: "text-destructive", hoverBg: "hover:bg-destructive/10" },
               { icon: Wallet, text: "Sem Taxa de Saque", color: "text-accent", hoverBg: "hover:bg-accent/10" },
-              { icon: Clock, text: "Saque a Qualquer Hora", color: "text-primary", hoverBg: "hover:bg-primary/10" },
+              { icon: Clock, text: "Saque 24/7", color: "text-primary", hoverBg: "hover:bg-primary/10" },
             ].map((item, index) => (
               <div 
                 key={item.text}
@@ -83,7 +94,6 @@ export function Hero() {
             ))}
           </div>
         </div>
-
       </div>
     </section>
   );

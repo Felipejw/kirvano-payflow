@@ -8,7 +8,7 @@ import { getPageUrl } from "@/lib/routes";
 const navItems = [
   { label: "Funcionalidades", href: "#features" },
   { label: "Preços", href: "#pricing" },
-  { label: "Documentação", href: "#docs" },
+  { label: "Depoimentos", href: "#testimonials" },
 ];
 
 export function Navbar() {
@@ -20,8 +20,8 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <img src={gateflowLogo} alt="Gateflow" className="h-8 w-auto" />
-            <span className="font-bold text-xl">Gateflow</span>
+            <img src={gateflowLogo} alt="Gatteflow" className="h-8 w-auto" />
+            <span className="font-bold text-xl">Gatteflow</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -37,13 +37,17 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* CTA Buttons */}
-          <div className="hidden md:flex items-center gap-4">
+          {/* CTA Buttons - 2 buttons: Criar Conta and Login */}
+          <div className="hidden md:flex items-center gap-3">
             <Link to={getPageUrl("auth")}>
-              <Button variant="ghost">Cadastrar-se</Button>
+              <Button variant="outline" size="sm">
+                Criar Conta
+              </Button>
             </Link>
             <Link to={getPageUrl("auth")}>
-              <Button variant="gradient">Entrar</Button>
+              <Button variant="gradient" size="sm">
+                Login
+              </Button>
             </Link>
           </div>
 
@@ -73,11 +77,11 @@ export function Navbar() {
                 </a>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Link to={getPageUrl("auth")}>
-                  <Button variant="ghost" className="justify-start w-full">Cadastrar-se</Button>
+                <Link to={getPageUrl("auth")} onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full">Criar Conta</Button>
                 </Link>
-                <Link to={getPageUrl("auth")}>
-                  <Button variant="gradient" className="w-full">Entrar</Button>
+                <Link to={getPageUrl("auth")} onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="gradient" className="w-full">Login</Button>
                 </Link>
               </div>
             </div>
