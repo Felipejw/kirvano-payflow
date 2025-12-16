@@ -269,6 +269,13 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       const response = await fetch(`https://dns.google/resolve?name=${formData.custom_domain}&type=A`);
       const data = await response.json();
       
+      // Status 3 = NXDOMAIN (domain doesn't exist or no records)
+      if (data.Status === 3) {
+        setFormData({ ...formData, domain_verified: false });
+        toast.error(`Domínio sem registro A configurado. Adicione um registro A apontando para 72.60.60.102`);
+        return;
+      }
+      
       if (data.Answer && data.Answer.length > 0) {
         const ips = data.Answer.map((record: { data: string }) => record.data);
         const targetIp = "72.60.60.102";
@@ -282,7 +289,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         }
       } else {
         setFormData({ ...formData, domain_verified: false });
-        toast.error("Não foi possível resolver o domínio. Verifique a configuração de DNS.");
+        toast.error(`Nenhum registro A encontrado. Configure o DNS apontando para 72.60.60.102`);
       }
     } catch (error) {
       console.error("Error verifying domain:", error);
