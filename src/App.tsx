@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +13,13 @@ import Products from "./pages/Products";
 import Transactions from "./pages/Transactions";
 
 import Checkout from "./pages/Checkout";
+
+// Detect if we're on a custom domain (not Lovable/Gateflow domains)
+const isCustomDomain = (() => {
+  const hostname = window.location.hostname;
+  const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
+  return !ignoredDomains.some(d => hostname.includes(d));
+})();
 import Sales from "./pages/Sales";
 import Finance from "./pages/Finance";
 import PaymentMethods from "./pages/PaymentMethods";
@@ -50,17 +58,38 @@ const queryClient = new QueryClient({
   },
 });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <SidebarProvider>
+const App = () => {
+  // If custom domain, render ONLY Checkout routes
+  if (isCustomDomain) {
+    return (
+      <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<DomainRouter />} />
-              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<Checkout />} />
+              <Route path="/:slug" element={<Checkout />} />
+              <Route path="*" element={<Checkout />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  // Normal routes for main platform
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SidebarProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<DomainRouter />} />
+                <Route path="/auth" element={<Auth />} />
               <Route path="/checkout/:productId" element={<Checkout />} />
               <Route path="/checkout/s/:slug" element={<Checkout />} />
               <Route path="/dashboard" element={<Dashboard />} />
@@ -97,6 +126,7 @@ const App = () => (
       </SidebarProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
