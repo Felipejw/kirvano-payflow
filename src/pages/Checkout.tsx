@@ -158,6 +158,18 @@ const Checkout = () => {
     return null;
   }, [routeSlug, searchParams]);
   
+  // Extract product ID: from route params OR query parameter (?id=)
+  const effectiveProductId = useMemo(() => {
+    // First try route params (/checkout/:productId)
+    if (productId) return productId;
+    
+    // Then try query parameter (?id=) - universal fallback
+    const queryId = searchParams.get('id');
+    if (queryId) return queryId;
+    
+    return null;
+  }, [productId, searchParams]);
+  
   // Debug logs - temporary for troubleshooting
   useEffect(() => {
     console.log('🔍 Checkout Debug:', {
@@ -165,12 +177,14 @@ const Checkout = () => {
       slug,
       routeSlug,
       productId,
+      effectiveProductId,
       querySlugParam: searchParams.get('s'),
+      queryIdParam: searchParams.get('id'),
       pathname: window.location.pathname,
       hostname: window.location.hostname,
       isCustomDomainDetected: !!customDomain
     });
-  }, [customDomain, slug, routeSlug, productId, searchParams]);
+  }, [customDomain, slug, routeSlug, productId, effectiveProductId, searchParams]);
   
   // Extract UTM parameters
   const utmParams = useMemo(() => ({
@@ -422,10 +436,10 @@ const Checkout = () => {
   }, [product, template]);
 
   useEffect(() => {
-    if (customDomain || productId || slug) {
+    if (customDomain || effectiveProductId || slug) {
       fetchProduct();
     }
-  }, [customDomain, productId, slug]);
+  }, [customDomain, effectiveProductId, slug]);
 
   // Fetch payment methods when product is loaded
   useEffect(() => {
@@ -549,15 +563,16 @@ const Checkout = () => {
       .select('*')
       .eq('status', 'active');
 
-    // Priority: customDomain (no slug), slug (main domain only), productId
+    // Priority: customDomain (no slug), slug (main domain only), effectiveProductId
     if (customDomain) {
       // Custom domain identifies the product - no slug needed
       query = query.eq('custom_domain', customDomain).eq('domain_verified', true);
     } else if (slug) {
       // Slug only works on main domain
       query = query.eq('custom_slug', slug);
-    } else if (productId) {
-      query = query.eq('id', productId);
+    } else if (effectiveProductId) {
+      // Product ID from route or query param
+      query = query.eq('id', effectiveProductId);
     }
 
     const { data, error } = await query.maybeSingle();
