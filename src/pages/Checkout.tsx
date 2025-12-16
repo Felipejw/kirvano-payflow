@@ -200,7 +200,7 @@ const Checkout = () => {
     }
   };
 
-  // Track InitiateCheckout and AddToCart when product is loaded
+  // Track AddToCart when product is loaded
   useEffect(() => {
     if (product) {
       const eventParams = {
@@ -210,9 +210,6 @@ const Checkout = () => {
         content_type: 'product',
         num_items: 1
       };
-
-      // Dispara InitiateCheckout
-      trackAllPixels('InitiateCheckout', eventParams);
 
       // Dispara AddToCart
       trackAllPixels('AddToCart', eventParams);
@@ -290,9 +287,16 @@ const Checkout = () => {
           );
         }
         
-        // Initialize and track PageView
+        // Initialize and track PageView + InitiateCheckout together
         (window as any).fbq('init', product.facebook_pixel);
         (window as any).fbq('track', 'PageView');
+        (window as any).fbq('track', 'InitiateCheckout', {
+          value: product.price,
+          currency: 'BRL',
+          content_ids: [product.id],
+          content_type: 'product',
+          num_items: 1
+        });
       }
 
       // Google Analytics
@@ -308,6 +312,11 @@ const Checkout = () => {
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
           gtag('config', '${product.google_analytics}');
+          gtag('event', 'begin_checkout', {
+            value: ${product.price},
+            currency: 'BRL',
+            items: [{ item_id: '${product.id}' }]
+          });
         `;
         document.head.appendChild(gaConfig);
       }
@@ -328,6 +337,12 @@ const Checkout = () => {
             var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
             ttq.load('${product.tiktok_pixel}');
             ttq.page();
+            ttq.track('InitiateCheckout', {
+              value: ${product.price},
+              currency: 'BRL',
+              content_id: '${product.id}',
+              content_type: 'product'
+            });
           }(window, document, 'ttq');
         `;
         document.head.appendChild(ttScript);
