@@ -72,6 +72,7 @@ interface Member {
   id: string;
   user_id: string;
   product_id: string;
+  transaction_id: string | null;
   access_level: string;
   expires_at: string | null;
   created_at: string;
@@ -83,6 +84,7 @@ interface Member {
     cover_url: string | null;
   };
   user_email?: string;
+  buyer_name?: string;
 }
 
 interface EmailLog {
@@ -152,6 +154,7 @@ const Members = () => {
           id,
           user_id,
           product_id,
+          transaction_id,
           access_level,
           expires_at,
           created_at,
@@ -168,29 +171,44 @@ const Members = () => {
 
       if (membersError) throw membersError;
 
-      // Get unique user_ids to fetch emails from pix_charges
-      const userIds = [...new Set((membersData || []).map(m => m.user_id))];
-      
-      // Try to get user emails from pix_charges via transaction_id
-      const membersWithEmail = await Promise.all(
+      // Get buyer info from pix_charges via transaction_id -> transactions -> charge_id
+      const membersWithBuyerInfo = await Promise.all(
         (membersData || []).map(async (member) => {
-          // Try to get email from pix_charges through the transaction
-          const { data: chargeData } = await supabase
-            .from("pix_charges")
-            .select("buyer_email")
-            .eq("product_id", member.product_id)
-            .limit(1)
-            .maybeSingle();
+          let buyerEmail = "Email não disponível";
+          let buyerName: string | null = null;
+
+          if (member.transaction_id) {
+            // Buscar através de transactions → pix_charges
+            const { data: transactionData } = await supabase
+              .from("transactions")
+              .select("charge_id")
+              .eq("id", member.transaction_id)
+              .maybeSingle();
+
+            if (transactionData?.charge_id) {
+              const { data: chargeData } = await supabase
+                .from("pix_charges")
+                .select("buyer_email, buyer_name")
+                .eq("id", transactionData.charge_id)
+                .maybeSingle();
+
+              if (chargeData) {
+                buyerEmail = chargeData.buyer_email || buyerEmail;
+                buyerName = chargeData.buyer_name || null;
+              }
+            }
+          }
 
           return {
             ...member,
             product: member.product as Member["product"],
-            user_email: chargeData?.buyer_email || "Email não disponível"
+            user_email: buyerEmail,
+            buyer_name: buyerName
           };
         })
       );
 
-      setMembers(membersWithEmail.filter(m => m.product !== null));
+      setMembers(membersWithBuyerInfo.filter(m => m.product !== null));
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({
@@ -329,7 +347,7 @@ const Members = () => {
       const { data, error } = await supabase.functions.invoke("send-member-access-email", {
         body: {
           memberEmail: member.user_email,
-          memberName: member.user_email?.split("@")[0],
+          memberName: member.buyer_name || member.user_email?.split("@")[0],
           productName: member.product.name,
           productId: member.product_id,
           memberId: member.id,
@@ -388,6 +406,7 @@ const Members = () => {
   const filteredMembers = members.filter(member => {
     const matchesSearch = 
       member.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.product.name.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesProduct = selectedProduct === "all" || member.product_id === selectedProduct;
@@ -566,7 +585,7 @@ const Members = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Email</TableHead>
+                    <TableHead>Cliente</TableHead>
                     <TableHead>Produto</TableHead>
                     <TableHead>Último Acesso</TableHead>
                     <TableHead>Expiração</TableHead>
@@ -581,9 +600,16 @@ const Members = () => {
                     return (
                       <TableRow key={member.id} className={isRevoked ? "opacity-60" : ""}>
                         <TableCell>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <Mail className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{member.user_email}</span>
+                            <div className="flex flex-col">
+                              <span className="font-medium">
+                                {member.buyer_name || member.user_email?.split("@")[0] || "Não identificado"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {member.user_email}
+                              </span>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
