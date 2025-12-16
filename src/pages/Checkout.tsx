@@ -525,9 +525,15 @@ const Checkout = () => {
       .select('*')
       .eq('status', 'active');
 
-    // Priority: 1) customDomain, 2) slug, 3) productId
+    // Priority: customDomain+slug, customDomain only, slug only, productId
     if (customDomain) {
-      query = query.eq('custom_domain', customDomain).eq('domain_verified', true);
+      if (slug) {
+        // Custom domain with slug path - look up by both domain and slug
+        query = query.eq('custom_domain', customDomain).eq('custom_slug', slug).eq('domain_verified', true);
+      } else {
+        // Custom domain root - look up by domain only
+        query = query.eq('custom_domain', customDomain).eq('domain_verified', true);
+      }
     } else if (slug) {
       query = query.eq('custom_slug', slug);
     } else if (productId) {
