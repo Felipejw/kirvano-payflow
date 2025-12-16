@@ -616,6 +616,11 @@ export type Database = {
           recovery_message_id: string | null
           seller_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
         }
         Insert: {
           affiliate_id?: string | null
@@ -639,6 +644,11 @@ export type Database = {
           recovery_message_id?: string | null
           seller_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Update: {
           affiliate_id?: string | null
@@ -662,6 +672,11 @@ export type Database = {
           recovery_message_id?: string | null
           seller_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Relationships: [
           {

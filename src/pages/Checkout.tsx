@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -136,8 +136,17 @@ const Checkout = () => {
   
   // Detect if this is a direct slug route (e.g., /:slug from custom domain)
   const isDirectSlugRoute = !routeProductId && routeSlug && !window.location.pathname.includes('/checkout/');
-  const slug = routeSlug;
+const slug = routeSlug;
   const affiliateCode = searchParams.get("ref");
+  
+  // Extract UTM parameters
+  const utmParams = useMemo(() => ({
+    utm_source: searchParams.get("utm_source") || undefined,
+    utm_medium: searchParams.get("utm_medium") || undefined,
+    utm_campaign: searchParams.get("utm_campaign") || undefined,
+    utm_content: searchParams.get("utm_content") || undefined,
+    utm_term: searchParams.get("utm_term") || undefined,
+  }), [searchParams]);
   
   const [product, setProduct] = useState<Product | null>(null);
   const [template, setTemplate] = useState<CheckoutTemplate | null>(null);
@@ -694,6 +703,7 @@ const Checkout = () => {
           expires_in_minutes: 30,
           order_bumps: selectedBumps.length > 0 ? selectedBumps : undefined,
           payment_method: selectedPaymentMethod,
+          ...utmParams,
         },
       });
 
