@@ -2,7 +2,8 @@ import { MessageCircle } from "lucide-react";
 
 export function WhatsAppButton() {
   const whatsappNumber = "5511969315095";
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20gostaria%20de%20saber%20mais%20sobre%20a%20Gatteflow.`;
+  const message = encodeURIComponent("Olá, gostaria de saber um pouco mais sobre a Gatteflow");
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${message}`;
 
   return (
     <a
