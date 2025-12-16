@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -143,6 +143,7 @@ const Checkout = () => {
   const [template, setTemplate] = useState<CheckoutTemplate | null>(null);
   const [orderBumps, setOrderBumps] = useState<OrderBumpProduct[]>([]);
   const [charge, setCharge] = useState<Charge | null>(null);
+  const pixelInitializedRef = useRef<string | null>(null);
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerName, setBuyerName] = useState("");
   const [buyerCpf, setBuyerCpf] = useState("");
@@ -259,6 +260,11 @@ const Checkout = () => {
     if (product) {
       // Facebook Pixel
       if (product.facebook_pixel) {
+        // Check if we've already initialized this pixel to prevent duplicate events
+        if (pixelInitializedRef.current === product.facebook_pixel) {
+          return;
+        }
+        
         // Check if fbq already exists
         if (!(window as any).fbq) {
           // Create and execute the Facebook Pixel base code
@@ -297,6 +303,9 @@ const Checkout = () => {
           content_type: 'product',
           num_items: 1
         });
+        
+        // Mark as initialized to prevent duplicate events
+        pixelInitializedRef.current = product.facebook_pixel;
       }
 
       // Google Analytics
