@@ -160,6 +160,19 @@ const Checkout = () => {
     return null;
   }, [routeSlug, customDomain]);
   
+  // Debug logs - temporary for troubleshooting
+  useEffect(() => {
+    console.log('🔍 Checkout Debug:', {
+      customDomain,
+      slug,
+      routeSlug,
+      productId,
+      pathname: window.location.pathname,
+      hostname: window.location.hostname,
+      isCustomDomainDetected: !!customDomain
+    });
+  }, [customDomain, slug, routeSlug, productId]);
+  
   // Extract UTM parameters
   const utmParams = useMemo(() => ({
     utm_source: searchParams.get("utm_source") || undefined,
