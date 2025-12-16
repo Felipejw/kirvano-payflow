@@ -58,10 +58,20 @@ const queryClient = new QueryClient({
   },
 });
 
-// Page Router component that reads ?page= param
+// Page Router component that reads ?page= param OR pathname for backward compatibility
 function PageRouter() {
   const [searchParams] = useSearchParams();
-  const page = searchParams.get("page") || "";
+  const location = window.location;
+  
+  // First check query param, then fallback to pathname
+  let page = searchParams.get("page") || "";
+  
+  // If no page param, check pathname (backward compatibility)
+  if (!page && location.pathname !== "/") {
+    // Remove leading slash and use as page
+    page = location.pathname.slice(1);
+  }
+  
   const productId = searchParams.get("productId") || searchParams.get("id") || "";
   const slug = searchParams.get("slug") || searchParams.get("s") || "";
   
