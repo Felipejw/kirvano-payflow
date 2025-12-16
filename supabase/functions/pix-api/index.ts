@@ -27,6 +27,11 @@ interface CreateChargeRequest {
   description?: string;
   order_bumps?: string[];
   payment_method?: 'pix' | 'card' | 'boleto';
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
 }
 
 interface ChargeResponse {
@@ -538,6 +543,11 @@ serve(async (req) => {
           affiliate_id: affiliateId,
           expires_at: expiresAt.toISOString(),
           order_bumps: body.order_bumps || [],
+          utm_source: body.utm_source || null,
+          utm_medium: body.utm_medium || null,
+          utm_campaign: body.utm_campaign || null,
+          utm_content: body.utm_content || null,
+          utm_term: body.utm_term || null,
         })
         .select()
         .single();

@@ -32,7 +32,8 @@ import {
   Package,
   Calendar,
   CreditCard,
-  Trash2
+  Trash2,
+  Link2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
@@ -59,6 +60,11 @@ interface Sale {
   order_bump_products?: { id: string; name: string }[];
   platform_fee?: number;
   seller_amount?: number;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
 }
 
 const statusConfig = {
@@ -127,6 +133,11 @@ const Sales = () => {
         expires_at,
         seller_id,
         order_bumps,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        utm_content,
+        utm_term,
         products:product_id (
           id,
           name
@@ -600,6 +611,43 @@ const Sales = () => {
                         <p className="font-medium text-yellow-500">
                           {format(new Date(selectedSale.expires_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                         </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* UTM Parameters */}
+                  {(selectedSale.utm_source || selectedSale.utm_medium || selectedSale.utm_campaign) && (
+                    <div className="flex items-start gap-3 pt-2 border-t border-border">
+                      <Link2 className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground mb-1">Origem (UTM)</p>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedSale.utm_source && (
+                            <Badge variant="outline" className="text-xs">
+                              source: {selectedSale.utm_source}
+                            </Badge>
+                          )}
+                          {selectedSale.utm_medium && (
+                            <Badge variant="outline" className="text-xs">
+                              medium: {selectedSale.utm_medium}
+                            </Badge>
+                          )}
+                          {selectedSale.utm_campaign && (
+                            <Badge variant="outline" className="text-xs">
+                              campaign: {selectedSale.utm_campaign}
+                            </Badge>
+                          )}
+                          {selectedSale.utm_content && (
+                            <Badge variant="outline" className="text-xs">
+                              content: {selectedSale.utm_content}
+                            </Badge>
+                          )}
+                          {selectedSale.utm_term && (
+                            <Badge variant="outline" className="text-xs">
+                              term: {selectedSale.utm_term}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
