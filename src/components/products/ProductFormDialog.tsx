@@ -240,8 +240,9 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
 
   const getPreviewUrl = () => {
     const baseUrl = window.location.origin;
-    if (formData.custom_domain) {
-      return `https://${formData.custom_domain}/${formData.custom_slug || formData.id || 'seu-produto'}`;
+    if (formData.custom_domain && formData.domain_verified) {
+      // Custom domain verified - use HTTPS directly
+      return `https://${formData.custom_domain}`;
     }
     if (formData.custom_slug) {
       return `${baseUrl}/checkout/s/${formData.custom_slug}`;
@@ -642,21 +643,26 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
                   />
                   {formData.custom_domain && (
                     <div className="p-3 bg-muted/50 rounded-lg text-xs space-y-3">
-                      <p className="font-medium">Configuração de DNS necessária:</p>
-                      <p>Adicione um registro A apontando para: <code className="bg-background px-1 py-0.5 rounded">72.60.60.102</code></p>
-                      <p className="text-muted-foreground">
-                        Configure o proxy reverso no seu servidor (Nginx/Apache) para redirecionar ao checkout.
-                      </p>
+                      <p className="font-medium">Configuração necessária:</p>
+                      <div className="space-y-2">
+                        <p>1. Adicione um registro <strong>A</strong> no DNS do seu domínio:</p>
+                        <code className="block bg-background px-2 py-1 rounded text-center">
+                          {formData.custom_domain} → 72.60.60.102
+                        </code>
+                        <p className="text-muted-foreground">
+                          O SSL será gerado automaticamente após a verificação.
+                        </p>
+                      </div>
                       <div className="flex items-center justify-between pt-1">
                         <div className="flex items-center gap-2">
                           <span>Status:</span>
                           {formData.domain_verified ? (
                             <span className="text-green-500 flex items-center gap-1">
-                              <Check className="h-3 w-3" /> Verificado
+                              <Check className="h-3 w-3" /> Pronto para uso
                             </span>
                           ) : (
                             <span className="text-yellow-500 flex items-center gap-1">
-                              <AlertCircle className="h-3 w-3" /> Pendente
+                              <AlertCircle className="h-3 w-3" /> DNS não verificado
                             </span>
                           )}
                         </div>
