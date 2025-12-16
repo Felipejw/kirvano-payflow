@@ -254,7 +254,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     if (formData.custom_domain && formData.domain_verified) {
       // Custom domain verified - include slug if domain is shared
       if (domainShared && formData.custom_slug) {
-        return `https://${formData.custom_domain}/${formData.custom_slug}`;
+        return `https://${formData.custom_domain}?s=${formData.custom_slug}`;
       }
       return `https://${formData.custom_domain}`;
     }

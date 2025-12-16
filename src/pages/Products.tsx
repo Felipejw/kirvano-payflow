@@ -130,7 +130,7 @@ const Products = () => {
       
       // If domain is shared, include slug in URL
       if (productsWithSameDomain.length > 1 && product.custom_slug) {
-        return `https://${product.custom_domain}/${product.custom_slug}`;
+        return `https://${product.custom_domain}?s=${product.custom_slug}`;
       }
       
       // Single product on domain - no slug needed
