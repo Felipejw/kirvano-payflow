@@ -271,7 +271,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
       
       if (data.Answer && data.Answer.length > 0) {
         const ips = data.Answer.map((record: { data: string }) => record.data);
-        const targetIp = "72.60.60.102";
+        const targetIp = "185.158.133.1";
         
         if (ips.includes(targetIp)) {
           setFormData({ ...formData, domain_verified: true });
