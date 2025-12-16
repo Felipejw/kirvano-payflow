@@ -136,8 +136,17 @@ const Checkout = () => {
   
   // Detect if this is a direct slug route (e.g., /:slug from custom domain)
   const isDirectSlugRoute = !routeProductId && routeSlug && !window.location.pathname.includes('/checkout/');
-const slug = routeSlug;
+  const slug = routeSlug;
   const affiliateCode = searchParams.get("ref");
+  
+  // Detect custom domain via hostname
+  const customDomain = useMemo(() => {
+    const hostname = window.location.hostname;
+    // Ignore Lovable/Gateflow domains
+    const ignoredDomains = ['localhost', 'lovable.app', 'gateflow.store', '127.0.0.1', 'lovableproject.com'];
+    const isCustomDomain = !ignoredDomains.some(d => hostname.includes(d));
+    return isCustomDomain ? hostname : null;
+  }, []);
   
   // Extract UTM parameters
   const utmParams = useMemo(() => ({
@@ -388,10 +397,10 @@ const slug = routeSlug;
   }, [product, template]);
 
   useEffect(() => {
-    if (productId || slug) {
+    if (customDomain || productId || slug) {
       fetchProduct();
     }
-  }, [productId, slug]);
+  }, [customDomain, productId, slug]);
 
   // Fetch payment methods when product is loaded
   useEffect(() => {
@@ -515,8 +524,10 @@ const slug = routeSlug;
       .select('*')
       .eq('status', 'active');
 
-    // Fetch by slug or productId
-    if (slug) {
+    // Priority: 1) customDomain, 2) slug, 3) productId
+    if (customDomain) {
+      query = query.eq('custom_domain', customDomain).eq('domain_verified', true);
+    } else if (slug) {
       query = query.eq('custom_slug', slug);
     } else if (productId) {
       query = query.eq('id', productId);
@@ -527,7 +538,9 @@ const slug = routeSlug;
     if (error || !data) {
       toast({
         title: "Produto não encontrado",
-        description: "O produto solicitado não está disponível.",
+        description: customDomain 
+          ? `Nenhum produto configurado para ${customDomain}` 
+          : "O produto solicitado não está disponível.",
         variant: "destructive",
       });
       return;
