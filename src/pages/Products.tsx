@@ -121,12 +121,23 @@ const Products = () => {
   };
 
   const getCheckoutUrl = (product: Product) => {
-    // Custom domain - produto identificado APENAS pelo domínio (sem slug)
+    // Custom domain with verified status
     if (product.custom_domain && product.domain_verified) {
+      // Check if there are other products with the same domain
+      const productsWithSameDomain = products.filter(
+        p => p.custom_domain === product.custom_domain && p.domain_verified
+      );
+      
+      // If domain is shared, include slug in URL
+      if (productsWithSameDomain.length > 1 && product.custom_slug) {
+        return `https://${product.custom_domain}/${product.custom_slug}`;
+      }
+      
+      // Single product on domain - no slug needed
       return `https://${product.custom_domain}`;
     }
     
-    // Para outros produtos, usar APENAS a raiz / com query params
+    // For other products, usar APENAS a raiz / com query params
     // Isso funciona em QUALQUER servidor sem precisar de SPA fallback
     const baseUrl = window.location.origin;
     
@@ -280,8 +291,10 @@ const Products = () => {
                         <Link className="h-3 w-3" />
                         <span className="truncate">
                           {product.custom_domain 
-                            ? `${product.custom_domain}/${product.custom_slug || ''}` 
-                            : `/s/${product.custom_slug}`}
+                            ? product.custom_slug 
+                              ? `${product.custom_domain}/${product.custom_slug}` 
+                              : product.custom_domain
+                            : `?s=${product.custom_slug}`}
                         </span>
                         {product.custom_domain && !product.domain_verified && (
                           <Badge variant="warning" className="text-[10px] px-1 py-0">Pendente</Badge>
