@@ -143,7 +143,7 @@ const Checkout = () => {
   const customDomain = useMemo(() => {
     const hostname = window.location.hostname;
     // Ignore Lovable/Gateflow domains
-    const ignoredDomains = ['localhost', 'lovable.app', 'gateflow.store', '127.0.0.1', 'lovableproject.com'];
+    const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
     const isCustomDomain = !ignoredDomains.some(d => hostname.includes(d));
     return isCustomDomain ? hostname : null;
   }, []);
@@ -176,6 +176,7 @@ const Checkout = () => {
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellAccepted, setUpsellAccepted] = useState(false);
   const [isOrderSummaryOpen, setIsOrderSummaryOpen] = useState(false);
+  const [productNotFound, setProductNotFound] = useState(false);
   
   // Payment method states
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentMethod[]>([]);
@@ -536,13 +537,7 @@ const Checkout = () => {
     const { data, error } = await query.maybeSingle();
 
     if (error || !data) {
-      toast({
-        title: "Produto não encontrado",
-        description: customDomain 
-          ? `Nenhum produto configurado para ${customDomain}` 
-          : "O produto solicitado não está disponível.",
-        variant: "destructive",
-      });
+      setProductNotFound(true);
       return;
     }
 
@@ -858,6 +853,28 @@ const Checkout = () => {
         return 'Boleto';
     }
   };
+
+  // Product not found screen
+  if (productNotFound) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <AlertTriangle className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+            <CardTitle className="text-xl">Produto não encontrado</CardTitle>
+            <CardDescription className="text-base">
+              O link que você acessou não está disponível ou foi removido.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-sm text-muted-foreground">
+              Verifique se o endereço está correto ou entre em contato com o vendedor.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Upsell Screen
   if (showUpsell) {

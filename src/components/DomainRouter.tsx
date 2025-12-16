@@ -5,7 +5,7 @@ import Checkout from '@/pages/Checkout';
 const DomainRouter = () => {
   const isCustomDomain = useMemo(() => {
     const hostname = window.location.hostname;
-    const ignoredDomains = ['localhost', 'lovable.app', 'gateflow.store', '127.0.0.1', 'lovableproject.com'];
+    const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
     return !ignoredDomains.some(d => hostname.includes(d));
   }, []);
 
