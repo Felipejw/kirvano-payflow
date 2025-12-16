@@ -144,21 +144,19 @@ const Checkout = () => {
     return isCustomDomain ? hostname : null;
   }, []);
   
-  // Extract slug: from route params OR from pathname (for custom domains)
+  // Extract slug: from route params OR query parameter (?s=)
+  // Custom domains DON'T use slugs - they're identified by domain only
   const slug = useMemo(() => {
-    // First try route params
+    // First try route params (/checkout/s/:slug)
     if (routeSlug) return routeSlug;
     
-    // For custom domains, extract slug from pathname (e.g., /desparasitacao -> desparasitacao)
-    if (customDomain) {
-      const pathParts = window.location.pathname.split('/').filter(Boolean);
-      if (pathParts.length > 0) {
-        return pathParts[0];
-      }
-    }
+    // Then try query parameter (?s=slug) - universal fallback
+    const querySlug = searchParams.get('s');
+    if (querySlug) return querySlug;
     
+    // Custom domains don't use slugs - identified by domain only
     return null;
-  }, [routeSlug, customDomain]);
+  }, [routeSlug, searchParams]);
   
   // Debug logs - temporary for troubleshooting
   useEffect(() => {
@@ -167,11 +165,12 @@ const Checkout = () => {
       slug,
       routeSlug,
       productId,
+      querySlugParam: searchParams.get('s'),
       pathname: window.location.pathname,
       hostname: window.location.hostname,
       isCustomDomainDetected: !!customDomain
     });
-  }, [customDomain, slug, routeSlug, productId]);
+  }, [customDomain, slug, routeSlug, productId, searchParams]);
   
   // Extract UTM parameters
   const utmParams = useMemo(() => ({
@@ -550,16 +549,12 @@ const Checkout = () => {
       .select('*')
       .eq('status', 'active');
 
-    // Priority: customDomain+slug, customDomain only, slug only, productId
+    // Priority: customDomain (no slug), slug (main domain only), productId
     if (customDomain) {
-      if (slug) {
-        // Custom domain with slug path - look up by both domain and slug
-        query = query.eq('custom_domain', customDomain).eq('custom_slug', slug).eq('domain_verified', true);
-      } else {
-        // Custom domain root - look up by domain only
-        query = query.eq('custom_domain', customDomain).eq('domain_verified', true);
-      }
+      // Custom domain identifies the product - no slug needed
+      query = query.eq('custom_domain', customDomain).eq('domain_verified', true);
     } else if (slug) {
+      // Slug only works on main domain
       query = query.eq('custom_slug', slug);
     } else if (productId) {
       query = query.eq('id', productId);

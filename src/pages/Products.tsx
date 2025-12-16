@@ -122,18 +122,18 @@ const Products = () => {
 
   const getCheckoutUrl = (product: Product) => {
     const baseUrl = window.location.origin;
+    
+    // Custom domain - produto identificado APENAS pelo domínio (sem slug)
     if (product.custom_domain && product.domain_verified) {
-      // Custom domain with optional slug path
-      if (product.custom_slug) {
-        return `https://${product.custom_domain}/${product.custom_slug}`;
-      }
-      // Custom domain root (no slug)
       return `https://${product.custom_domain}`;
     }
-    // Standard links on main platform
+    
+    // Main platform - usar slug se disponível
     if (product.custom_slug) {
       return `${baseUrl}/checkout/s/${product.custom_slug}`;
     }
+    
+    // Fallback - usar ID do produto
     return `${baseUrl}/checkout/${product.id}`;
   };
 
