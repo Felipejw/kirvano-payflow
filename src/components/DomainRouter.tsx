@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import Checkout from '@/pages/Checkout';
+import Index from '@/pages/Index';
 
 const DomainRouter = () => {
   const [searchParams] = useSearchParams();
@@ -19,8 +20,8 @@ const DomainRouter = () => {
     return <Checkout />;
   }
 
-  // Se for domínio principal sem params, redireciona para auth
-  return <Navigate to="/auth" replace />;
+  // Se for domínio principal sem params, mostra a landing page
+  return <Index />;
 };
 
 export default DomainRouter;
