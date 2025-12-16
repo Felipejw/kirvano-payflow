@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,10 @@ import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { Calculator, ArrowRight, Check, TrendingDown, Sparkles } from "lucide-react";
 
 const competitors = [
-  { name: "Kiwify", percentageFee: 8.99, fixedFee: 2.49, color: "bg-red-500/10 border-red-500/20" },
-  { name: "Cakto", percentageFee: 4.99, fixedFee: 2.49, color: "bg-orange-500/10 border-orange-500/20" },
-  { name: "Hotmart", percentageFee: 9.9, fixedFee: 1, color: "bg-yellow-500/10 border-yellow-500/20" },
-  { name: "Ticto", percentageFee: 6.99, fixedFee: 2.49, color: "bg-purple-500/10 border-purple-500/20" },
+  { name: "Kiwify", percentageFee: 8.99, fixedFee: 2.49, color: "bg-red-500" },
+  { name: "Cakto", percentageFee: 4.99, fixedFee: 2.49, color: "bg-orange-500" },
+  { name: "Hotmart", percentageFee: 9.9, fixedFee: 1, color: "bg-yellow-500" },
+  { name: "Ticto", percentageFee: 6.99, fixedFee: 2.49, color: "bg-purple-500" },
 ];
 
 const gatteflow = { name: "Gatteflow", percentageFee: 4.99, fixedFee: 1 };
@@ -32,6 +32,27 @@ export function FeeSimulator() {
 
   const gatteflowFee = calculateFee(productPrice, gatteflow.percentageFee, gatteflow.fixedFee);
   const gatteflowTotal = gatteflowFee * salesQuantity;
+
+  // Calculate all fees for chart
+  const chartData = useMemo(() => {
+    const allPlatforms = [
+      { ...gatteflow, color: "bg-primary", isGatteflow: true },
+      ...competitors.map(c => ({ ...c, isGatteflow: false })),
+    ];
+    
+    const fees = allPlatforms.map(platform => ({
+      ...platform,
+      fee: calculateFee(productPrice, platform.percentageFee, platform.fixedFee),
+      totalMonthly: calculateFee(productPrice, platform.percentageFee, platform.fixedFee) * salesQuantity,
+    }));
+    
+    const maxFee = Math.max(...fees.map(f => f.fee));
+    
+    return fees.map(f => ({
+      ...f,
+      percentage: (f.fee / maxFee) * 100,
+    }));
+  }, [productPrice, salesQuantity]);
 
   return (
     <section ref={ref} id="pricing" className="py-24 bg-muted/30 relative overflow-hidden">
@@ -93,32 +114,89 @@ export function FeeSimulator() {
             </CardContent>
           </Card>
 
-          {/* Gatteflow Card - Highlighted */}
-          <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 border-primary/30 mb-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 px-4 py-2 bg-primary text-primary-foreground text-sm font-bold rounded-bl-lg flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              Menor taxa
-            </div>
+          {/* Visual Bar Chart */}
+          <Card className="bg-background/80 backdrop-blur-sm border-border/50 mb-8">
             <CardContent className="p-6 md:p-8">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-2xl font-bold text-primary mb-1">Gatteflow</h3>
-                  <p className="text-lg text-muted-foreground">
-                    {gatteflow.percentageFee}% + {formatCurrency(gatteflow.fixedFee)} por venda
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-muted-foreground mb-1">Taxa por venda</div>
-                  <div className="text-3xl font-bold text-primary">{formatCurrency(gatteflowFee)}</div>
-                  <div className="text-sm text-muted-foreground mt-2">
-                    Total mensal: <span className="font-semibold text-foreground">{formatCurrency(gatteflowTotal)}</span>
+              <h3 className="text-lg font-semibold mb-6 text-center">Taxa por venda de {formatCurrency(productPrice)}</h3>
+              <div className="space-y-4">
+                {chartData.map((platform, index) => (
+                  <div 
+                    key={platform.name}
+                    className={`transition-all duration-700 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}
+                    style={{ transitionDelay: `${300 + index * 100}ms` }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-medium ${platform.isGatteflow ? 'text-primary' : 'text-foreground'}`}>
+                          {platform.name}
+                        </span>
+                        {platform.isGatteflow && (
+                          <span className="px-2 py-0.5 text-xs font-bold bg-primary/20 text-primary rounded-full">
+                            Menor taxa
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-bold ${platform.isGatteflow ? 'text-primary' : 'text-foreground'}`}>
+                          {formatCurrency(platform.fee)}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          ({platform.percentageFee}% + {formatCurrency(platform.fixedFee)})
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-8 bg-muted/50 rounded-full overflow-hidden relative">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-1000 ease-out flex items-center justify-end pr-3 ${
+                          platform.isGatteflow 
+                            ? 'bg-gradient-to-r from-primary to-accent' 
+                            : platform.color + '/70'
+                        }`}
+                        style={{ 
+                          width: isVisible ? `${platform.percentage}%` : '0%',
+                          transitionDelay: `${400 + index * 100}ms`
+                        }}
+                      >
+                        {!platform.isGatteflow && platform.fee > gatteflowFee && (
+                          <span className="text-xs font-medium text-white whitespace-nowrap">
+                            +{formatCurrency(platform.fee - gatteflowFee)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                ))}
+              </div>
+              
+              {/* Monthly Total Comparison */}
+              <div className="mt-8 pt-6 border-t border-border/50">
+                <h4 className="text-sm font-medium text-muted-foreground mb-4 text-center">
+                  Total mensal com {salesQuantity} vendas
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {chartData.map((platform) => (
+                    <div 
+                      key={platform.name}
+                      className={`text-center p-3 rounded-xl ${
+                        platform.isGatteflow 
+                          ? 'bg-primary/10 border-2 border-primary/30' 
+                          : 'bg-muted/50'
+                      }`}
+                    >
+                      <div className={`text-xs mb-1 ${platform.isGatteflow ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+                        {platform.name}
+                      </div>
+                      <div className={`font-bold ${platform.isGatteflow ? 'text-primary' : 'text-foreground'}`}>
+                        {formatCurrency(platform.totalMonthly)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Competitors Grid */}
+          {/* Savings Cards Grid */}
           <div className="grid md:grid-cols-2 gap-4 mb-8">
             {competitors.map((competitor, index) => {
               const competitorFee = calculateFee(productPrice, competitor.percentageFee, competitor.fixedFee);
@@ -128,34 +206,25 @@ export function FeeSimulator() {
               return (
                 <Card 
                   key={competitor.name}
-                  className={`${competitor.color} border transition-all duration-300 hover:scale-[1.02] ${
+                  className={`bg-background/60 border-border/50 transition-all duration-300 hover:scale-[1.02] ${
                     isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                   }`}
-                  style={{ transitionDelay: `${300 + index * 100}ms` }}
+                  style={{ transitionDelay: `${600 + index * 100}ms` }}
                 >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-lg font-semibold text-foreground">{competitor.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {competitor.percentageFee}% + {formatCurrency(competitor.fixedFee)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-foreground">{formatCurrency(competitorFee)}</div>
-                        <div className="text-xs text-muted-foreground">por venda</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-4 border-t border-border/50">
-                      <div className="flex items-center gap-2 text-accent">
-                        <TrendingDown className="h-5 w-5" />
-                        <span className="font-semibold">Economia</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-accent">
-                          {formatCurrency(savings)}/venda
+                        <h4 className="font-medium text-muted-foreground text-sm">vs {competitor.name}</h4>
+                        <div className="text-2xl font-bold text-accent">
+                          {formatCurrency(savings)}<span className="text-sm font-normal">/venda</span>
                         </div>
-                        <div className="text-sm text-accent/80">
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-1 text-accent">
+                          <TrendingDown className="h-4 w-4" />
+                          <span className="text-sm font-medium">Economia</span>
+                        </div>
+                        <div className="text-lg font-bold text-accent">
                           {formatCurrency(totalSavings)}/mês
                         </div>
                       </div>
