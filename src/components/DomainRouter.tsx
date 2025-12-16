@@ -1,20 +1,25 @@
 import { useMemo } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import Checkout from '@/pages/Checkout';
 
 const DomainRouter = () => {
+  const [searchParams] = useSearchParams();
+  
   const isCustomDomain = useMemo(() => {
     const hostname = window.location.hostname;
     const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
     return !ignoredDomains.some(d => hostname.includes(d));
   }, []);
 
-  // Se for domínio personalizado, renderiza Checkout direto na raiz
-  if (isCustomDomain) {
+  // Check for checkout query params (?s= or ?id=)
+  const hasCheckoutParams = searchParams.get('s') || searchParams.get('id');
+
+  // Se for domínio personalizado OU tiver params de checkout, renderiza Checkout
+  if (isCustomDomain || hasCheckoutParams) {
     return <Checkout />;
   }
 
-  // Se for domínio principal, redireciona para auth
+  // Se for domínio principal sem params, redireciona para auth
   return <Navigate to="/auth" replace />;
 };
 

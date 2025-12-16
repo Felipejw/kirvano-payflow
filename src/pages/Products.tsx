@@ -126,17 +126,17 @@ const Products = () => {
       return `https://${product.custom_domain}`;
     }
     
-    // Para outros produtos, usar query params que funcionam em QUALQUER servidor
-    // Isso evita problemas de SPA fallback
+    // Para outros produtos, usar APENAS a raiz / com query params
+    // Isso funciona em QUALQUER servidor sem precisar de SPA fallback
     const baseUrl = window.location.origin;
     
     // Usar query param ?s= para slug
     if (product.custom_slug) {
-      return `${baseUrl}/checkout?s=${product.custom_slug}`;
+      return `${baseUrl}/?s=${product.custom_slug}`;
     }
     
     // Usar query param ?id= para ID do produto
-    return `${baseUrl}/checkout?id=${product.id}`;
+    return `${baseUrl}/?id=${product.id}`;
   };
 
   const openCheckout = (product: Product) => {
