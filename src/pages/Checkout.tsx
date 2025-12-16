@@ -133,10 +133,6 @@ const Checkout = () => {
   const { productId: routeProductId, slug: routeSlug } = useParams();
   const [searchParams] = useSearchParams();
   const productId = routeProductId || searchParams.get("product");
-  
-  // Detect if this is a direct slug route (e.g., /:slug from custom domain)
-  const isDirectSlugRoute = !routeProductId && routeSlug && !window.location.pathname.includes('/checkout/');
-  const slug = routeSlug;
   const affiliateCode = searchParams.get("ref");
   
   // Detect custom domain via hostname
@@ -147,6 +143,22 @@ const Checkout = () => {
     const isCustomDomain = !ignoredDomains.some(d => hostname.includes(d));
     return isCustomDomain ? hostname : null;
   }, []);
+  
+  // Extract slug: from route params OR from pathname (for custom domains)
+  const slug = useMemo(() => {
+    // First try route params
+    if (routeSlug) return routeSlug;
+    
+    // For custom domains, extract slug from pathname (e.g., /desparasitacao -> desparasitacao)
+    if (customDomain) {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        return pathParts[0];
+      }
+    }
+    
+    return null;
+  }, [routeSlug, customDomain]);
   
   // Extract UTM parameters
   const utmParams = useMemo(() => ({
