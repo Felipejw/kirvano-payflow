@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Star, Quote, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Quote, ChevronLeft, ChevronRight, ArrowRight, BadgeCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { Link } from "react-router-dom";
+import { getPageUrl } from "@/lib/routes";
 
 const testimonials = [
   {
@@ -12,6 +14,7 @@ const testimonials = [
     content: "Migrei da Hotmart e minha margem de lucro aumentou 40%. A taxa de 4,99% é imbatível e o saque instantâneo mudou meu fluxo de caixa.",
     revenue: "R$ 127.000/mês",
     rating: 5,
+    verified: true,
   },
   {
     name: "Ana Carolina",
@@ -20,6 +23,7 @@ const testimonials = [
     content: "Zero chargebacks em 6 meses! Antes eu perdia cerca de 8% com estornos. Agora esse dinheiro fica comigo.",
     revenue: "R$ 89.000/mês",
     rating: 5,
+    verified: true,
   },
   {
     name: "Rafael Silva",
@@ -28,6 +32,7 @@ const testimonials = [
     content: "O melhor é poder sacar a qualquer hora sem pagar taxa. Já economizei mais de R$ 15.000 só em taxas de saque.",
     revenue: "R$ 210.000/mês",
     rating: 5,
+    verified: true,
   },
   {
     name: "Juliana Costa",
@@ -36,14 +41,17 @@ const testimonials = [
     content: "A simplicidade do checkout aumentou minha conversão em 23%. Menos fricção = mais vendas.",
     revenue: "R$ 156.000/mês",
     rating: 5,
+    verified: true,
   },
-];
-
-const stats = [
-  { value: "R$ 12M+", label: "Processados" },
-  { value: "2.500+", label: "Produtores" },
-  { value: "99.9%", label: "Uptime" },
-  { value: "0", label: "Estorno" },
+  {
+    name: "Pedro Almeida",
+    role: "Expert em Tráfego",
+    avatar: "PA",
+    content: "O pixel integrado com Meta e TikTok facilitou muito. Configurei em 2 minutos e já estava rastreando tudo.",
+    revenue: "R$ 78.000/mês",
+    rating: 5,
+    verified: true,
+  },
 ];
 
 export const Testimonials = () => {
@@ -51,7 +59,6 @@ export const Testimonials = () => {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   
   const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.2 });
-  const { ref: statsRef, isVisible: statsVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.2 });
   const { ref: carouselRef, isVisible: carouselVisible } = useScrollReveal<HTMLDivElement>({ threshold: 0.2 });
 
   useEffect(() => {
@@ -73,7 +80,7 @@ export const Testimonials = () => {
   };
 
   return (
-    <section className="py-24 bg-muted/30 relative overflow-hidden">
+    <section id="testimonials" className="py-24 bg-muted/30 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl animate-pulse" />
@@ -96,26 +103,8 @@ export const Testimonials = () => {
             Quem usa, <span className="text-primary">recomenda</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Milhares de infoprodutores já aumentaram seus lucros com a Gateflow
+            Milhares de infoprodutores já aumentaram seus lucros com a Gatteflow
           </p>
-        </div>
-
-        {/* Stats bar */}
-        <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
-          {stats.map((stat, index) => (
-            <div 
-              key={stat.label}
-              className={`text-center p-6 bg-background/50 backdrop-blur-sm rounded-2xl border border-border/50 hover:border-primary/50 transition-all duration-500 hover:scale-105 hover:shadow-lg group ${
-                statsVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'
-              }`}
-              style={{ transitionDelay: `${index * 100}ms` }}
-            >
-              <div className="text-2xl md:text-3xl font-bold text-primary mb-1 group-hover:scale-110 transition-transform">
-                {stat.value}
-              </div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
-            </div>
-          ))}
         </div>
 
         {/* Testimonials carousel */}
@@ -146,7 +135,12 @@ export const Testimonials = () => {
                             {testimonial.avatar}
                           </div>
                           <div>
-                            <div className="font-semibold text-foreground">{testimonial.name}</div>
+                            <div className="font-semibold text-foreground flex items-center gap-2">
+                              {testimonial.name}
+                              {testimonial.verified && (
+                                <BadgeCheck className="h-5 w-5 text-primary fill-primary/20" />
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground">{testimonial.role}</div>
                           </div>
                         </div>
@@ -204,6 +198,16 @@ export const Testimonials = () => {
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
+        </div>
+
+        {/* CTA */}
+        <div className={`text-center mt-12 transition-all duration-700 delay-300 ${carouselVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <Link to={getPageUrl("auth")}>
+            <Button variant="gradient" size="lg" className="group">
+              Junte-se a Milhares de Vendedores
+              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
         </div>
       </div>
     </section>
