@@ -121,20 +121,22 @@ const Products = () => {
   };
 
   const getCheckoutUrl = (product: Product) => {
-    const baseUrl = window.location.origin;
-    
     // Custom domain - produto identificado APENAS pelo domínio (sem slug)
     if (product.custom_domain && product.domain_verified) {
       return `https://${product.custom_domain}`;
     }
     
-    // Main platform - usar slug se disponível
+    // Para outros produtos, usar query params que funcionam em QUALQUER servidor
+    // Isso evita problemas de SPA fallback
+    const baseUrl = window.location.origin;
+    
+    // Usar query param ?s= para slug
     if (product.custom_slug) {
-      return `${baseUrl}/checkout/s/${product.custom_slug}`;
+      return `${baseUrl}/checkout?s=${product.custom_slug}`;
     }
     
-    // Fallback - usar ID do produto
-    return `${baseUrl}/checkout/${product.id}`;
+    // Usar query param ?id= para ID do produto
+    return `${baseUrl}/checkout?id=${product.id}`;
   };
 
   const openCheckout = (product: Product) => {
