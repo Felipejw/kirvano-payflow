@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import Auth from "./pages/Auth";
+import DomainRouter from "./components/DomainRouter";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Transactions from "./pages/Transactions";
@@ -58,7 +59,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Navigate to="/auth" replace />} />
+              <Route path="/" element={<DomainRouter />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/checkout/:productId" element={<Checkout />} />
               <Route path="/checkout/s/:slug" element={<Checkout />} />
