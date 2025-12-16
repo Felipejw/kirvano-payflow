@@ -10,7 +10,7 @@ import {
   Search, Ban, RefreshCw, DollarSign, TrendingUp, Users, AlertCircle, X 
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "@/lib/routes";
 import { useUserRole } from "@/hooks/useUserRole";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -60,12 +60,12 @@ export default function AdminInvoicesPage() {
     paidAmount: 0,
   });
   const [blockingInvoice, setBlockingInvoice] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
-      navigate("/dashboard");
+      navigate("dashboard");
     }
   }, [isAdmin, roleLoading, navigate]);
 
@@ -322,7 +322,7 @@ export default function AdminInvoicesPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("admin")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1">

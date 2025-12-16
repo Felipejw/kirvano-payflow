@@ -1,12 +1,13 @@
-import { useLocation, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useEffect } from "react";
+import { useCurrentPage } from "@/lib/routes";
 
 const NotFound = () => {
-  const location = useLocation();
+  const currentPage = useCurrentPage();
 
   useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
+    console.error("404 Error: User attempted to access non-existent page:", currentPage);
+  }, [currentPage]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted">

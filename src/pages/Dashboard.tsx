@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAppNavigate } from "@/lib/routes";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
@@ -64,7 +64,7 @@ const Dashboard = () => {
     salesChange: "+0%",
   });
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
 
   const fetchDashboardStats = useCallback(async (userId: string, range: DateRange) => {
     setLoading(true);
@@ -168,7 +168,7 @@ const Dashboard = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        navigate("/auth");
+        navigate("auth");
       } else {
         setUser(session.user);
       }
@@ -176,7 +176,7 @@ const Dashboard = () => {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        navigate("/auth");
+        navigate("auth");
       } else {
         setUser(session.user);
         fetchDashboardStats(session.user.id, dateRange);
@@ -219,7 +219,7 @@ const Dashboard = () => {
                 <span className="hidden sm:inline">Gerar PIX</span>
                 <span className="sm:hidden">PIX</span>
               </Button>
-              <Button className="btn-primary-gradient gap-2 flex-1 sm:flex-none" onClick={() => navigate('/dashboard/products')}>
+              <Button className="btn-primary-gradient gap-2 flex-1 sm:flex-none" onClick={() => navigate('dashboard/products')}>
                 <ArrowUpRight className="h-4 w-4" />
                 <span className="hidden sm:inline">Novo Produto</span>
                 <span className="sm:hidden">Novo</span>

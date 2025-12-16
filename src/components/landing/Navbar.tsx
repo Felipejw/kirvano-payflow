@@ -3,6 +3,7 @@ import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import gateflowLogo from "@/assets/gateflow-logo.png";
+import { getPageUrl } from "@/lib/routes";
 
 const navItems = [
   { label: "Funcionalidades", href: "#features" },
@@ -38,10 +39,10 @@ export function Navbar() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-4">
-            <Link to="/auth">
+            <Link to={getPageUrl("auth")}>
               <Button variant="ghost">Cadastrar-se</Button>
             </Link>
-            <Link to="/auth">
+            <Link to={getPageUrl("auth")}>
               <Button variant="gradient">Entrar</Button>
             </Link>
           </div>
@@ -72,10 +73,10 @@ export function Navbar() {
                 </a>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Link to="/auth">
+                <Link to={getPageUrl("auth")}>
                   <Button variant="ghost" className="justify-start w-full">Cadastrar-se</Button>
                 </Link>
-                <Link to="/auth">
+                <Link to={getPageUrl("auth")}>
                   <Button variant="gradient" className="w-full">Entrar</Button>
                 </Link>
               </div>

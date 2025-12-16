@@ -1,17 +1,18 @@
 import { LayoutDashboard, Package, ShoppingCart, Wallet, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { getPageUrl, useCurrentPage } from "@/lib/routes";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Home", path: "/dashboard" },
-  { icon: Package, label: "Produtos", path: "/dashboard/products" },
-  { icon: ShoppingCart, label: "Vendas", path: "/dashboard/sales" },
-  { icon: Wallet, label: "Financeiro", path: "/dashboard/finance" },
+  { icon: LayoutDashboard, label: "Home", page: "dashboard" },
+  { icon: Package, label: "Produtos", page: "dashboard/products" },
+  { icon: ShoppingCart, label: "Vendas", page: "dashboard/sales" },
+  { icon: Wallet, label: "Financeiro", page: "dashboard/finance" },
 ];
 
 export function MobileBottomNav() {
-  const location = useLocation();
+  const currentPage = useCurrentPage();
   const { setMobileOpen, isMobile } = useSidebar();
 
   if (!isMobile) return null;
@@ -20,11 +21,11 @@ export function MobileBottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border md:hidden">
       <div className="flex items-center justify-around h-16 px-2">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = currentPage === item.page;
           return (
             <Link
-              key={item.path}
-              to={item.path}
+              key={item.page}
+              to={getPageUrl(item.page)}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px]",
                 isActive 

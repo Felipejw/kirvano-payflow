@@ -1,6 +1,6 @@
 import { AlertTriangle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useAppNavigate } from "@/lib/routes";
 
 interface BlockedBannerProps {
   invoiceAmount?: number;
@@ -9,7 +9,7 @@ interface BlockedBannerProps {
 }
 
 export function BlockedBanner({ invoiceAmount, invoicePeriod, dueDate }: BlockedBannerProps) {
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -40,7 +40,7 @@ export function BlockedBanner({ invoiceAmount, invoicePeriod, dueDate }: Blocked
           <Button
             variant="destructive"
             className="mt-4"
-            onClick={() => navigate("/dashboard/finance")}
+            onClick={() => navigate("dashboard/finance")}
           >
             Pagar Agora
           </Button>

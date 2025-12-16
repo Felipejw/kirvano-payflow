@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, Ban, Wallet, Clock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getPageUrl } from "@/lib/routes";
 
 export function Hero() {
   return (
@@ -53,7 +54,7 @@ export function Hero() {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-slide-up" style={{ animationDelay: '200ms' }}>
-            <Link to="/auth">
+            <Link to={getPageUrl("auth")}>
               <Button variant="gradient" size="xl" className="group relative overflow-hidden">
                 <span className="relative z-10 flex items-center gap-2">
                   Começar Agora
