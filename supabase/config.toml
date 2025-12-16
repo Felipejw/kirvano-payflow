@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.process-sales-recovery]
 verify_jwt = false
+
+[functions.allow-domain]
+verify_jwt = false
