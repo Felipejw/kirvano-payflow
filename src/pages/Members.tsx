@@ -468,7 +468,7 @@ const Members = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/dashboard/members/config/${product.id}`)}
+                      onClick={() => navigate(`/?page=dashboard/members/config&productId=${product.id}`)}
                     >
                       <Settings className="h-4 w-4 mr-2" />
                       Configurar
