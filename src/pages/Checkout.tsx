@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { QRCodeSVG } from "qrcode.react";
+import { CreditCardForm } from "@/components/checkout/CreditCardForm";
+import { useMercadoPago } from "@/hooks/useMercadoPago";
 import { 
   QrCode, 
   Copy, 
@@ -229,6 +231,25 @@ const Checkout = () => {
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
+  
+  // Credit Card states
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardInstallments, setCardInstallments] = useState(1);
+  const [installmentOptions, setInstallmentOptions] = useState<Array<{
+    installments: number;
+    installment_amount: number;
+    total_amount: number;
+    recommended_message: string;
+  }>>([]);
+  const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
+  const [cardPaymentStatus, setCardPaymentStatus] = useState<'idle' | 'processing' | 'approved' | 'rejected'>('idle');
+  
+  // Mercado Pago hook
+  const { isReady: mpReady, isLoading: mpLoading, error: mpError, createCardToken, getInstallments, getCardBrand } = useMercadoPago(mpPublicKey);
+  const cardBrand = useMemo(() => getCardBrand(cardNumber.replace(/\s/g, '')), [cardNumber, getCardBrand]);
   
   const { toast } = useToast();
 
@@ -550,6 +571,11 @@ const Checkout = () => {
         const methods = result.methods as PaymentMethod[];
         setAvailablePaymentMethods(methods);
         
+        // Store public key if available for card payments
+        if (result.publicKey) {
+          setMpPublicKey(result.publicKey);
+        }
+        
         // Auto-select first available method
         if (methods.length > 0 && !selectedPaymentMethod) {
           setSelectedPaymentMethod(methods[0]);
@@ -565,6 +591,21 @@ const Checkout = () => {
       setLoadingPaymentMethods(false);
     }
   };
+
+  // Fetch installments when card number changes (need first 6 digits)
+  useEffect(() => {
+    const bin = cardNumber.replace(/\s/g, '');
+    if (bin.length >= 6 && mpReady && selectedPaymentMethod === 'card') {
+      getInstallments(totalPrice, bin).then(options => {
+        if (options.length > 0) {
+          setInstallmentOptions(options);
+          setCardInstallments(1);
+        }
+      });
+    } else {
+      setInstallmentOptions([]);
+    }
+  }, [cardNumber, mpReady, totalPrice, selectedPaymentMethod, getInstallments]);
 
   const fetchProduct = async () => {
     let query = supabase
@@ -774,6 +815,66 @@ const Checkout = () => {
     setLoading(true);
 
     try {
+      let cardToken: string | null = null;
+      
+      // If card payment, validate and tokenize
+      if (selectedPaymentMethod === 'card') {
+        // Validate card fields
+        if (!cardNumber || cardNumber.replace(/\s/g, '').length < 13) {
+          toast({ title: "Número do cartão inválido", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        if (!cardName.trim()) {
+          toast({ title: "Nome no cartão é obrigatório", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        if (!cardExpiry || cardExpiry.length < 5) {
+          toast({ title: "Validade inválida", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        if (!cardCvv || cardCvv.length < 3) {
+          toast({ title: "CVV inválido", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        
+        // CPF is required for card payments
+        const cleanCpf = buyerCpf.replace(/\D/g, '');
+        if (cleanCpf.length !== 11) {
+          toast({ title: "CPF é obrigatório para pagamentos com cartão", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        
+        // Tokenize card with Mercado Pago
+        setCardPaymentStatus('processing');
+        const [month, year] = cardExpiry.split('/');
+        
+        cardToken = await createCardToken({
+          cardNumber: cardNumber,
+          cardholderName: cardName,
+          expirationMonth: month,
+          expirationYear: year,
+          securityCode: cardCvv,
+          identificationType: 'CPF',
+          identificationNumber: cleanCpf,
+        });
+        
+        if (!cardToken) {
+          toast({ 
+            title: "Erro ao processar cartão", 
+            description: mpError || "Verifique os dados do cartão",
+            variant: "destructive" 
+          });
+          setCardPaymentStatus('idle');
+          setLoading(false);
+          return;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('pix-api', {
         body: {
           amount: totalPrice,
@@ -786,15 +887,16 @@ const Checkout = () => {
           expires_in_minutes: 30,
           order_bumps: selectedBumps.length > 0 ? selectedBumps : undefined,
           payment_method: selectedPaymentMethod,
+          // Card specific fields
+          card_token: cardToken,
+          installments: selectedPaymentMethod === 'card' ? cardInstallments : undefined,
           ...utmParams,
         },
       });
 
       if (error) throw error;
 
-      setCharge(data);
-      
-      // Track AddPaymentInfo event (PIX criado)
+      // Track AddPaymentInfo event
       trackAllPixels('AddPaymentInfo', {
         value: totalPrice,
         currency: 'BRL',
@@ -802,17 +904,48 @@ const Checkout = () => {
         content_type: 'product',
         num_items: allContentIds.length
       });
-      
-      const methodLabel = selectedPaymentMethod === 'pix' ? 'PIX' : selectedPaymentMethod === 'card' ? 'cartão' : 'boleto';
-      toast({
-        title: `Cobrança ${methodLabel.toUpperCase()} criada!`,
-        description: selectedPaymentMethod === 'pix' 
-          ? "Escaneie o QR Code ou copie o código para pagar."
-          : `Siga as instruções para pagar via ${methodLabel}.`,
-      });
+
+      // Handle card payment result
+      if (selectedPaymentMethod === 'card') {
+        if (data.status === 'approved' || data.status === 'paid') {
+          setCardPaymentStatus('approved');
+          setPaymentConfirmed(true);
+          toast({
+            title: "Pagamento aprovado!",
+            description: "Seu pagamento foi processado com sucesso.",
+          });
+        } else if (data.status === 'rejected') {
+          setCardPaymentStatus('rejected');
+          toast({
+            title: "Pagamento recusado",
+            description: data.status_detail || "Tente outro cartão ou forma de pagamento.",
+            variant: "destructive",
+          });
+        } else if (data.status === 'in_process' || data.status === 'pending') {
+          setCardPaymentStatus('processing');
+          setCharge(data);
+          toast({
+            title: "Pagamento em análise",
+            description: "Seu pagamento está sendo processado. Aguarde a confirmação.",
+          });
+        } else {
+          setCharge(data);
+        }
+      } else {
+        // PIX or Boleto - show charge data
+        setCharge(data);
+        const methodLabel = selectedPaymentMethod === 'pix' ? 'PIX' : 'boleto';
+        toast({
+          title: `Cobrança ${methodLabel.toUpperCase()} criada!`,
+          description: selectedPaymentMethod === 'pix' 
+            ? "Escaneie o QR Code ou copie o código para pagar."
+            : `Siga as instruções para pagar via ${methodLabel}.`,
+        });
+      }
     } catch (error: any) {
+      setCardPaymentStatus('idle');
       toast({
-        title: "Erro ao criar cobrança",
+        title: "Erro ao processar pagamento",
         description: error.message,
         variant: "destructive",
       });
@@ -1159,7 +1292,7 @@ const Checkout = () => {
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         <h3 className="font-semibold text-sm sm:text-base flex items-center gap-2" style={{ color: styles.textColor }}>
           <CreditCard className="h-5 w-5" style={{ color: styles.accentColor }} />
           Forma de Pagamento
@@ -1193,6 +1326,52 @@ const Checkout = () => {
             </button>
           ))}
         </div>
+        
+        {/* Credit Card Form - Show when card is selected */}
+        {selectedPaymentMethod === 'card' && mpPublicKey && (
+          <div className="pt-3 border-t" style={{ borderColor: styles.cardBorder }}>
+            {!mpReady ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin" style={{ color: styles.accentColor }} />
+                <span className="ml-2 text-sm" style={{ color: styles.textColor }}>Carregando...</span>
+              </div>
+            ) : (
+              <CreditCardForm
+                cardNumber={cardNumber}
+                setCardNumber={setCardNumber}
+                cardName={cardName}
+                setCardName={setCardName}
+                cardExpiry={cardExpiry}
+                setCardExpiry={setCardExpiry}
+                cardCvv={cardCvv}
+                setCardCvv={setCardCvv}
+                installments={cardInstallments}
+                setInstallments={setCardInstallments}
+                installmentOptions={installmentOptions}
+                cardBrand={cardBrand}
+                styles={{
+                  textColor: styles.textColor,
+                  cardBg: isLightTheme ? '#f9fafb' : styles.cardBg,
+                  cardBorder: styles.cardBorder,
+                  accentColor: styles.accentColor,
+                }}
+              />
+            )}
+          </div>
+        )}
+        
+        {/* Show message if card selected but no public key */}
+        {selectedPaymentMethod === 'card' && !mpPublicKey && (
+          <div 
+            className="p-3 rounded-lg text-center"
+            style={{ backgroundColor: '#ef444420' }}
+          >
+            <AlertTriangle className="h-5 w-5 text-amber-500 mx-auto mb-2" />
+            <p className="text-amber-500 text-sm">
+              Pagamento com cartão não disponível para este vendedor.
+            </p>
+          </div>
+        )}
       </div>
     );
   };
