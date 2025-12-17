@@ -17,6 +17,7 @@ interface SendAccessEmailRequest {
   expiresAt?: string;
   sellerName?: string;
   autoSend?: boolean;
+  password?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -35,6 +36,7 @@ const handler = async (req: Request): Promise<Response> => {
       expiresAt,
       sellerName,
       autoSend = false,
+      password,
     }: SendAccessEmailRequest = await req.json();
 
     console.log("Sending member access email to:", memberEmail);
@@ -116,6 +118,26 @@ const handler = async (req: Request): Promise<Response> => {
                       </tr>
                     </table>
                     
+                    <!-- Credentials -->
+                    <div style="background-color: #243352; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
+                      <h3 style="margin: 0 0 15px; color: #ffffff; font-size: 16px;">
+                        🔐 Suas credenciais de acesso:
+                      </h3>
+                      <table role="presentation" style="width: 100%;">
+                        <tr>
+                          <td style="color: #a0a0a0; padding: 8px 0; width: 80px;">Email:</td>
+                          <td style="color: #00b4d8; font-weight: bold;">${memberEmail}</td>
+                        </tr>
+                        <tr>
+                          <td style="color: #a0a0a0; padding: 8px 0;">Senha:</td>
+                          <td style="color: #00b4d8; font-weight: bold;">${password || '(use sua senha existente)'}</td>
+                        </tr>
+                      </table>
+                      ${password ? `<p style="margin: 15px 0 0; color: #ff9800; font-size: 12px;">
+                        ⚠️ Recomendamos alterar sua senha após o primeiro acesso.
+                      </p>` : ''}
+                    </div>
+                    
                     <!-- Instructions -->
                     <div style="background-color: #243352; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
                       <h3 style="margin: 0 0 15px; color: #ffffff; font-size: 16px;">
@@ -123,8 +145,7 @@ const handler = async (req: Request): Promise<Response> => {
                       </h3>
                       <ol style="margin: 0; padding-left: 20px; color: #a0a0a0; font-size: 14px; line-height: 1.8;">
                         <li>Clique no botão acima ou acesse o link abaixo</li>
-                        <li>Faça login com o email: <strong style="color: #00b4d8;">${memberEmail}</strong></li>
-                        <li>Se for seu primeiro acesso, cadastre uma senha</li>
+                        <li>Faça login com as credenciais acima</li>
                         <li>Aproveite todo o conteúdo!</li>
                       </ol>
                     </div>

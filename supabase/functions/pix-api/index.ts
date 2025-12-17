@@ -787,8 +787,8 @@ async function createMembershipForBuyer(
     userId = existingUser.id;
     console.log('Existing user found:', userId);
   } else {
-    // Create new user
-    password = generateRandomPassword();
+    // Create new user with default password
+    password = "123456";
     const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
       email: buyerEmail,
       password: password,
@@ -943,6 +943,7 @@ async function processPaymentConfirmation(
               productId: charge.product_id,
               memberId: memberData?.id,
               autoSend: true,
+              password: membershipResult.isNewUser ? membershipResult.password : null,
             }),
           });
           
