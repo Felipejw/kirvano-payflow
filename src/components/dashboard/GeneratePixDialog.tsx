@@ -68,9 +68,13 @@ export function GeneratePixDialog({ open, onOpenChange }: GeneratePixDialogProps
   }, [open]);
 
   const fetchProducts = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { data } = await supabase
       .from('products')
       .select('id, name, price')
+      .eq('seller_id', user.id)
       .eq('status', 'active')
       .order('name');
     
