@@ -1130,8 +1130,9 @@ serve(async (req) => {
 
       const paymentMethod = body.payment_method || 'pix';
       
-      // Get seller_id from product
+      // Get seller_id from product or authenticated user
       let sellerId: string | null = null;
+      
       if (body.product_id) {
         const { data: productData } = await supabase
           .from('products')
@@ -1143,10 +1144,23 @@ serve(async (req) => {
           sellerId = productData.seller_id;
         }
       }
+      
+      // If no product_id, try to get seller_id from JWT token (authenticated user)
+      if (!sellerId) {
+        const authHeader = req.headers.get('Authorization');
+        if (authHeader?.startsWith('Bearer ')) {
+          const token = authHeader.substring(7);
+          const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+          if (user && !userError) {
+            sellerId = user.id;
+            console.log('Using authenticated user as seller:', sellerId);
+          }
+        }
+      }
 
       if (!sellerId) {
         console.error('No seller_id found for product:', body.product_id);
-        return new Response(JSON.stringify({ error: 'Produto não encontrado ou sem vendedor associado' }), {
+        return new Response(JSON.stringify({ error: 'Produto não encontrado ou usuário não autenticado' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
