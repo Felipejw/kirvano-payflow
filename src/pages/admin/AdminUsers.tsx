@@ -20,7 +20,11 @@ import {
   Users as UsersIcon, 
   UserCheck,
   Edit,
-  MoreHorizontal
+  MoreHorizontal,
+  Package,
+  Eye,
+  DollarSign,
+  Calendar
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -36,9 +40,21 @@ import { useAppNavigate } from "@/lib/routes";
 import { useUserRole } from "@/hooks/useUserRole";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type AppRole = "admin" | "seller" | "affiliate" | "member";
 type DisplayRole = AppRole | "customer";
+
+interface ProductData {
+  id: string;
+  name: string;
+  price: number;
+  status: string;
+  type: string;
+  created_at: string;
+  sales_count: number;
+  total_revenue: number;
+}
 
 interface UserData {
   user_id: string;
@@ -59,6 +75,9 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [newRole, setNewRole] = useState<AppRole>("seller");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [productsDialogOpen, setProductsDialogOpen] = useState(false);
+  const [userProducts, setUserProducts] = useState<ProductData[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [processing, setProcessing] = useState(false);
   const { toast } = useToast();
   const navigate = useAppNavigate();
@@ -189,6 +208,53 @@ export default function AdminUsers() {
     setSelectedUser(user);
     setNewRole(user.role);
     setDialogOpen(true);
+  };
+
+  const openProductsDialog = async (user: UserData) => {
+    setSelectedUser(user);
+    setProductsDialogOpen(true);
+    setLoadingProducts(true);
+    
+    try {
+      // Fetch user products with sales data
+      const { data: products, error: productsError } = await supabase
+        .from("products")
+        .select("id, name, price, status, type, created_at")
+        .eq("seller_id", user.user_id);
+
+      if (productsError) throw productsError;
+
+      // Fetch transactions for each product
+      const { data: transactions } = await supabase
+        .from("transactions")
+        .select("product_id, amount, status")
+        .eq("seller_id", user.user_id)
+        .eq("status", "paid");
+
+      // Build products with sales data
+      const productsWithSales: ProductData[] = (products || []).map(product => {
+        const productTransactions = transactions?.filter(t => t.product_id === product.id) || [];
+        const salesCount = productTransactions.length;
+        const totalRevenue = productTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+        return {
+          ...product,
+          sales_count: salesCount,
+          total_revenue: totalRevenue
+        };
+      });
+
+      setUserProducts(productsWithSales);
+    } catch (error) {
+      console.error("Error fetching user products:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar produtos do usuário",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingProducts(false);
+    }
   };
 
   const handleRoleChange = async () => {
@@ -394,6 +460,10 @@ export default function AdminUsers() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Ações</DropdownMenuLabel>
                               <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => openProductsDialog(user)}>
+                                <Package className="h-4 w-4 mr-2" />
+                                Ver Produtos
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openRoleDialog(user)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Alterar Role
@@ -471,6 +541,86 @@ export default function AdminUsers() {
             </Button>
             <Button onClick={handleRoleChange} disabled={processing}>
               {processing ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Products Dialog */}
+      <Dialog open={productsDialogOpen} onOpenChange={setProductsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              Produtos de {selectedUser?.full_name}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedUser?.email} • {userProducts.length} produto(s) cadastrado(s)
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[400px]">
+            {loadingProducts ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : userProducts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>Nenhum produto cadastrado</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {userProducts.map((product) => (
+                  <div 
+                    key={product.id} 
+                    className="rounded-lg border bg-card p-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold">{product.name}</h4>
+                          <Badge 
+                            variant={product.status === 'active' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {product.status === 'active' ? 'Ativo' : 'Inativo'}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {product.type === 'digital' ? 'Digital' : product.type === 'course' ? 'Curso' : product.type}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Criado em {format(new Date(product.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg">{formatCurrency(product.price)}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 mt-3 pt-3 border-t">
+                      <div className="flex items-center gap-1 text-sm">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Vendas:</span>
+                        <span className="font-medium">{product.sales_count}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-sm">
+                        <DollarSign className="h-4 w-4 text-emerald-500" />
+                        <span className="text-muted-foreground">Receita:</span>
+                        <span className="font-medium text-emerald-500">{formatCurrency(product.total_revenue)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProductsDialogOpen(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
