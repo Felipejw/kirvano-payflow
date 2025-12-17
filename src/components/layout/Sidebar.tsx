@@ -13,11 +13,10 @@ import {
   TrendingUp,
   Lightbulb,
   UserCheck,
-  RefreshCw,
-  X
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,8 +24,10 @@ import { useSidebar } from "@/contexts/SidebarContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import gateflowLogo from "@/assets/gateflow-logo.png";
 import { getPageUrl, useAppNavigate, useCurrentPage } from "@/lib/routes";
+import { usePaymentMode } from "@/hooks/usePaymentMode";
 
-const sellerMenuItems = [
+// Menu items for sellers using their own gateway
+const ownGatewayMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", page: "dashboard" },
   { icon: Package, label: "Produtos", page: "dashboard/products" },
   { icon: ShoppingCart, label: "Vendas", page: "dashboard/sales" },
@@ -38,11 +39,25 @@ const sellerMenuItems = [
   { icon: CreditCard, label: "Financeiro", page: "dashboard/finance" },
 ];
 
+// Menu items for sellers using platform gateway (no payment methods or finance - they use withdrawals)
+const platformGatewayMenuItems = [
+  { icon: LayoutDashboard, label: "Dashboard", page: "dashboard" },
+  { icon: Package, label: "Produtos", page: "dashboard/products" },
+  { icon: ShoppingCart, label: "Vendas", page: "dashboard/sales" },
+  { icon: CreditCard, label: "Transações", page: "dashboard/transactions" },
+  { icon: Users, label: "Clientes", page: "dashboard/clients" },
+  { icon: UserCheck, label: "Área de Membros", page: "dashboard/members" },
+  { icon: RefreshCw, label: "Recuperação", page: "dashboard/recovery" },
+  { icon: Wallet, label: "Saques", page: "dashboard/withdrawals" },
+];
+
 const adminMenuItems = [
   { icon: LayoutDashboard, label: "Visão Geral", page: "admin" },
   { icon: Users, label: "Usuários", page: "admin/users" },
+  { icon: Package, label: "Produtos", page: "admin/products" },
   { icon: ShoppingCart, label: "Transações", page: "admin/transactions" },
-  { icon: Wallet, label: "Faturas", page: "admin/invoices" },
+  { icon: Wallet, label: "Saques", page: "admin/withdrawals" },
+  { icon: CreditCard, label: "Faturas", page: "admin/invoices" },
   { icon: CreditCard, label: "Gateways", page: "admin/gateways" },
   { icon: RefreshCw, label: "Recuperação", page: "admin/recovery" },
   { icon: TrendingUp, label: "Analytics", page: "admin/analytics" },
@@ -61,9 +76,18 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
   const { signOut } = useAuth();
+  const { paymentMode, loading: modeLoading } = usePaymentMode();
 
   const isOnAdminRoute = currentPage.startsWith("admin");
-  const menuItems = isOnAdminRoute ? adminMenuItems : sellerMenuItems;
+  
+  // Select menu items based on context
+  let menuItems;
+  if (isOnAdminRoute) {
+    menuItems = adminMenuItems;
+  } else {
+    // For sellers, show menu based on their payment mode
+    menuItems = paymentMode === "platform_gateway" ? platformGatewayMenuItems : ownGatewayMenuItems;
+  }
 
   const handleLogout = async () => {
     await signOut();

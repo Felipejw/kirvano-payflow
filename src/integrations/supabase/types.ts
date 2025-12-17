@@ -765,8 +765,13 @@ export type Database = {
           invoice_due_days: number | null
           maintenance_mode: boolean
           min_withdrawal: number
+          own_gateway_fee_fixed: number | null
+          own_gateway_fee_percentage: number | null
           pix_enabled: boolean
           platform_fee: number
+          platform_gateway_fee_fixed: number | null
+          platform_gateway_fee_percentage: number | null
+          platform_gateway_withdrawal_fee: number | null
           privacy_url: string | null
           support_email: string | null
           support_phone: string | null
@@ -782,8 +787,13 @@ export type Database = {
           invoice_due_days?: number | null
           maintenance_mode?: boolean
           min_withdrawal?: number
+          own_gateway_fee_fixed?: number | null
+          own_gateway_fee_percentage?: number | null
           pix_enabled?: boolean
           platform_fee?: number
+          platform_gateway_fee_fixed?: number | null
+          platform_gateway_fee_percentage?: number | null
+          platform_gateway_withdrawal_fee?: number | null
           privacy_url?: string | null
           support_email?: string | null
           support_phone?: string | null
@@ -799,8 +809,13 @@ export type Database = {
           invoice_due_days?: number | null
           maintenance_mode?: boolean
           min_withdrawal?: number
+          own_gateway_fee_fixed?: number | null
+          own_gateway_fee_percentage?: number | null
           pix_enabled?: boolean
           platform_fee?: number
+          platform_gateway_fee_fixed?: number | null
+          platform_gateway_fee_percentage?: number | null
+          platform_gateway_withdrawal_fee?: number | null
           privacy_url?: string | null
           support_email?: string | null
           support_phone?: string | null
@@ -958,9 +973,11 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          payment_mode: string | null
           phone: string | null
           pix_key: string | null
           sales_niche: string | null
+          terms_accepted_at: string | null
           updated_at: string
           user_id: string
         }
@@ -974,9 +991,11 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          payment_mode?: string | null
           phone?: string | null
           pix_key?: string | null
           sales_niche?: string | null
+          terms_accepted_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -990,9 +1009,11 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          payment_mode?: string | null
           phone?: string | null
           pix_key?: string | null
           sales_niche?: string | null
+          terms_accepted_at?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -6,19 +6,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
-  Settings as SettingsIcon,
   Palette,
   User,
   Bell,
-  Shield,
   Save,
   Moon,
   Sun,
-  Monitor
+  Monitor,
+  CreditCard,
+  AlertTriangle,
+  Building2,
+  Check
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePaymentMode, updatePaymentMode, PaymentMode } from "@/hooks/usePaymentMode";
+import { cn } from "@/lib/utils";
 
 const Settings = () => {
   const [profile, setProfile] = useState({
@@ -33,10 +39,12 @@ const Settings = () => {
     email_affiliates: true,
   });
   const [loading, setLoading] = useState(false);
+  const [changingMode, setChangingMode] = useState(false);
+  
+  const { paymentMode, hasPendingBalance, pendingAmount, fees, loading: modeLoading, refetch } = usePaymentMode();
 
   useEffect(() => {
     fetchProfile();
-    // Load theme from localStorage
     const savedTheme = localStorage.getItem("theme") || "system";
     setTheme(savedTheme);
   }, []);
@@ -98,6 +106,31 @@ const Settings = () => {
     toast.success(`Tema alterado para ${newTheme === "dark" ? "escuro" : newTheme === "light" ? "claro" : "sistema"}`);
   };
 
+  const handlePaymentModeChange = async (newMode: PaymentMode) => {
+    if (hasPendingBalance) {
+      toast.error("Você possui valores pendentes. Pague suas faturas antes de trocar o modo de pagamento.");
+      return;
+    }
+
+    setChangingMode(true);
+    const result = await updatePaymentMode(newMode);
+    
+    if (result.success) {
+      toast.success("Modo de pagamento atualizado!");
+      refetch();
+    } else {
+      toast.error(result.error || "Erro ao atualizar modo de pagamento");
+    }
+    setChangingMode(false);
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL"
+    }).format(value);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -112,6 +145,10 @@ const Settings = () => {
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
               Perfil
+            </TabsTrigger>
+            <TabsTrigger value="payment-mode" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              Modo de Venda
             </TabsTrigger>
             <TabsTrigger value="theme" className="gap-2">
               <Palette className="h-4 w-4" />
@@ -171,6 +208,131 @@ const Settings = () => {
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Payment Mode Settings */}
+          <TabsContent value="payment-mode">
+            <div className="space-y-4">
+              {hasPendingBalance && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Você possui <strong>{formatCurrency(pendingAmount)}</strong> em valores pendentes.
+                    Pague suas faturas/saques antes de alterar o modo de pagamento.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <Card variant="glass">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    Modo de Pagamento
+                  </CardTitle>
+                  <CardDescription>
+                    Escolha como deseja receber seus pagamentos. 
+                    {hasPendingBalance && " (Bloqueado até pagar valores pendentes)"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {modeLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {/* Platform Gateway Option */}
+                      <div
+                        onClick={() => !hasPendingBalance && !changingMode && handlePaymentModeChange("platform_gateway")}
+                        className={cn(
+                          "relative cursor-pointer rounded-xl border-2 p-6 transition-all",
+                          paymentMode === "platform_gateway"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50",
+                          (hasPendingBalance || changingMode) && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {paymentMode === "platform_gateway" && (
+                          <div className="absolute top-3 right-3">
+                            <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="h-4 w-4 text-primary-foreground" />
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-start gap-3">
+                          <div className={cn(
+                            "p-2 rounded-lg",
+                            paymentMode === "platform_gateway" ? "bg-primary text-primary-foreground" : "bg-secondary"
+                          )}>
+                            <Building2 className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">Gateway Gateflow (BSPAY)</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Use nosso sistema de pagamento integrado
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Taxa por venda:</span>
+                            <Badge>{fees.platformGatewayFeePercentage}% + R$ {fees.platformGatewayFeeFixed.toFixed(2)}</Badge>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Taxa de saque:</span>
+                            <Badge variant="outline">R$ {fees.platformGatewayWithdrawalFee.toFixed(2)}</Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Own Gateway Option */}
+                      <div
+                        onClick={() => !hasPendingBalance && !changingMode && handlePaymentModeChange("own_gateway")}
+                        className={cn(
+                          "relative cursor-pointer rounded-xl border-2 p-6 transition-all",
+                          paymentMode === "own_gateway"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50",
+                          (hasPendingBalance || changingMode) && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {paymentMode === "own_gateway" && (
+                          <div className="absolute top-3 right-3">
+                            <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="h-4 w-4 text-primary-foreground" />
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-start gap-3">
+                          <div className={cn(
+                            "p-2 rounded-lg",
+                            paymentMode === "own_gateway" ? "bg-primary text-primary-foreground" : "bg-secondary"
+                          )}>
+                            <CreditCard className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">Seu Gateway/Banco</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Configure seu próprio processador de pagamentos
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Taxa por venda:</span>
+                            <Badge>{fees.ownGatewayFeePercentage}% + R$ {fees.ownGatewayFeeFixed.toFixed(2)}</Badge>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Pagamento:</span>
+                            <Badge variant="outline">Semanal (Segunda)</Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Theme Settings */}
