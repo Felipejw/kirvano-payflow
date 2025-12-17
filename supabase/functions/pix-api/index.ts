@@ -1033,6 +1033,12 @@ serve(async (req) => {
 
       console.log('Creating charge with product_id:', body.product_id, 'seller_id:', sellerId);
 
+      // Determine initial status for card payments
+      let initialStatus = 'pending';
+      if (paymentMethod === 'card' && cardPaymentStatus === 'approved') {
+        initialStatus = 'paid';
+      }
+
       const { data: charge, error } = await supabase
         .from('pix_charges')
         .insert({
@@ -1044,7 +1050,7 @@ serve(async (req) => {
           buyer_cpf: body.buyer_document || null,
           buyer_phone: body.buyer_phone || null,
           amount: body.amount,
-          status: 'pending',
+          status: initialStatus,
           qr_code: pixCode,
           qr_code_base64: qrCodeBase64,
           copy_paste: pixCode,
@@ -1056,6 +1062,7 @@ serve(async (req) => {
           utm_campaign: body.utm_campaign || null,
           utm_content: body.utm_content || null,
           utm_term: body.utm_term || null,
+          paid_at: initialStatus === 'paid' ? new Date().toISOString() : null,
         })
         .select()
         .single();
@@ -1081,41 +1088,58 @@ serve(async (req) => {
         }
       }
 
-      // Send email and WhatsApp notification in background
-      try {
-        const notificationPayload = {
-          buyer_name: body.buyer_name || 'Cliente',
-          buyer_email: body.buyer_email,
-          buyer_phone: body.buyer_phone,
-          product_name: productName,
-          amount: body.amount,
-          pix_code: pixCode,
-          expires_at: expiresAt.toISOString(),
-          send_email: true,
-          send_whatsapp: !!body.buyer_phone,
-        };
+      // For card payments approved immediately, process the payment confirmation
+      if (paymentMethod === 'card' && cardPaymentStatus === 'approved') {
+        console.log('Card payment approved immediately, processing confirmation...');
         
-        console.log('Sending PIX notification to buyer');
+        // Fetch complete charge data for confirmation
+        const { data: fullCharge } = await supabase
+          .from('pix_charges')
+          .select('*, products(name, seller_id, auto_send_access_email), affiliates(*)')
+          .eq('id', charge.id)
+          .single();
         
-        // Fire and forget - don't wait for response
-        fetch(`${supabaseUrl}/functions/v1/send-pix-notification`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(notificationPayload),
-        }).catch(err => console.error('Notification error (non-blocking):', err));
-        
-      } catch (notifError) {
-        console.error('Error triggering notification:', notifError);
-        // Don't fail the charge creation if notification fails
+        if (fullCharge) {
+          await processPaymentConfirmation(supabase, fullCharge, supabaseUrl);
+        }
+      } else if (paymentMethod === 'pix') {
+        // Send email and WhatsApp notification in background for PIX only
+        try {
+          const notificationPayload = {
+            buyer_name: body.buyer_name || 'Cliente',
+            buyer_email: body.buyer_email,
+            buyer_phone: body.buyer_phone,
+            product_name: productName,
+            amount: body.amount,
+            pix_code: pixCode,
+            expires_at: expiresAt.toISOString(),
+            send_email: true,
+            send_whatsapp: !!body.buyer_phone,
+          };
+          
+          console.log('Sending PIX notification to buyer');
+          
+          // Fire and forget - don't wait for response
+          fetch(`${supabaseUrl}/functions/v1/send-pix-notification`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(notificationPayload),
+          }).catch(err => console.error('Notification error (non-blocking):', err));
+          
+        } catch (notifError) {
+          console.error('Error triggering notification:', notifError);
+          // Don't fail the charge creation if notification fails
+        }
       }
 
       const response: ChargeResponse = {
         id: charge.id,
         external_id: charge.external_id,
         amount: charge.amount,
-        status: charge.status,
+        status: initialStatus,
+        status_detail: cardStatusDetail || undefined,
         qr_code: charge.qr_code,
         qr_code_base64: charge.qr_code_base64,
         copy_paste: charge.copy_paste,
@@ -1123,7 +1147,7 @@ serve(async (req) => {
         created_at: charge.created_at,
       };
 
-      console.log('Charge created:', response.external_id);
+      console.log('Charge created:', response.external_id, 'status:', initialStatus);
 
       return new Response(JSON.stringify(response), {
         status: 201,
