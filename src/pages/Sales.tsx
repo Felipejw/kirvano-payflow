@@ -403,6 +403,7 @@ const Sales = () => {
                           <th className="text-left p-4 font-medium text-muted-foreground">Valor</th>
                           <th className="text-left p-4 font-medium text-muted-foreground hidden lg:table-cell">Taxa</th>
                           <th className="text-left p-4 font-medium text-muted-foreground hidden lg:table-cell">Líquido</th>
+                          <th className="text-left p-4 font-medium text-muted-foreground hidden xl:table-cell">UTM</th>
                           <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
                           <th className="text-left p-4 font-medium text-muted-foreground hidden sm:table-cell">Data</th>
                           <th className="text-left p-4 font-medium text-muted-foreground w-16">Ações</th>
@@ -460,6 +461,29 @@ const Sales = () => {
                                   </p>
                                 ) : (
                                   <p className="text-sm text-muted-foreground">-</p>
+                                )}
+                              </td>
+                              <td className="p-4 hidden xl:table-cell">
+                                {sale.utm_source || sale.utm_campaign ? (
+                                  <div className="flex flex-wrap gap-1 max-w-[180px]">
+                                    {sale.utm_source && (
+                                      <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/30">
+                                        {sale.utm_source}
+                                      </Badge>
+                                    )}
+                                    {sale.utm_campaign && (
+                                      <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-500 border-purple-500/30 truncate max-w-[120px]" title={sale.utm_campaign}>
+                                        {sale.utm_campaign}
+                                      </Badge>
+                                    )}
+                                    {sale.utm_medium && !sale.utm_source && !sale.utm_campaign && (
+                                      <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
+                                        {sale.utm_medium}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">-</span>
                                 )}
                               </td>
                               <td className="p-4">
