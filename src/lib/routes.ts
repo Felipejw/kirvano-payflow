@@ -17,6 +17,7 @@ export const PAGES = {
   members: "dashboard/members",
   membersConfig: "dashboard/members/config",
   recovery: "dashboard/recovery",
+  withdrawals: "dashboard/withdrawals",
   paymentMethods: "dashboard/payment-methods",
   finance: "dashboard/finance",
   settings: "dashboard/settings",
