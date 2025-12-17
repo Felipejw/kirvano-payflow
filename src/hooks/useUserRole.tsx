@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
@@ -14,15 +14,28 @@ interface UserRoleState {
 }
 
 export const useUserRole = (): UserRoleState => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [role, setRole] = useState<AppRole | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(true);
+  const cachedUserId = useRef<string | null>(null);
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
+    }
+
     const fetchRole = async () => {
       if (!user) {
         setRole(null);
-        setLoading(false);
+        cachedUserId.current = null;
+        setRoleLoading(false);
+        return;
+      }
+
+      // Skip fetch if we already have the role for this user
+      if (cachedUserId.current === user.id && role !== null) {
+        setRoleLoading(false);
         return;
       }
 
@@ -35,20 +48,24 @@ export const useUserRole = (): UserRoleState => {
 
         if (error) {
           console.error("Error fetching user role:", error);
-          setRole("seller"); // Default to seller
+          setRole("seller");
         } else {
           setRole(data?.role as AppRole || "seller");
         }
+        cachedUserId.current = user.id;
       } catch (error) {
         console.error("Error fetching user role:", error);
         setRole("seller");
       } finally {
-        setLoading(false);
+        setRoleLoading(false);
       }
     };
 
     fetchRole();
-  }, [user]);
+  }, [user, authLoading]);
+
+  // Loading is true if auth is loading OR role is loading
+  const isLoading = authLoading || roleLoading;
 
   return {
     role,
@@ -56,6 +73,6 @@ export const useUserRole = (): UserRoleState => {
     isSeller: role === "seller",
     isAffiliate: role === "affiliate",
     isMember: role === "member",
-    loading,
+    loading: isLoading,
   };
 };
