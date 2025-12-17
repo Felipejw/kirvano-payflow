@@ -48,7 +48,7 @@ interface FinanceData {
   availableBalance: number;
   pendingBalance: number;
   withdrawnTotal: number;
-  platformFee: number;
+  withdrawalFee: number;
   minWithdrawal: number;
 }
 
@@ -64,7 +64,7 @@ export function WithdrawalManagement() {
     availableBalance: 0,
     pendingBalance: 0,
     withdrawnTotal: 0,
-    platformFee: 5,
+    withdrawalFee: 5,
     minWithdrawal: 50,
   });
   const { toast } = useToast();
@@ -81,7 +81,7 @@ export function WithdrawalManagement() {
     // Fetch platform settings
     const { data: platformSettings } = await supabase
       .from('platform_settings')
-      .select('platform_fee, min_withdrawal')
+      .select('platform_gateway_withdrawal_fee, min_withdrawal')
       .maybeSingle();
 
     // Fetch paid transactions (seller_amount)
@@ -137,7 +137,7 @@ export function WithdrawalManagement() {
       availableBalance: totalSellerAmount - withdrawnTotal - pendingWithdrawalAmount,
       pendingBalance: pendingAmount,
       withdrawnTotal,
-      platformFee: platformSettings?.platform_fee ?? 5,
+      withdrawalFee: platformSettings?.platform_gateway_withdrawal_fee ?? 5,
       minWithdrawal: platformSettings?.min_withdrawal ?? 50,
     });
     setLoading(false);
@@ -188,8 +188,8 @@ export function WithdrawalManagement() {
       return;
     }
 
-    // Calculate fee (2% of amount)
-    const fee = amount * 0.02;
+    // Calculate fee (fixed fee from platform settings)
+    const fee = financeData.withdrawalFee;
     const netAmount = amount - fee;
 
     const { error } = await supabase
@@ -400,7 +400,7 @@ export function WithdrawalManagement() {
             <div className="flex items-start gap-2 p-3 bg-yellow-500/10 rounded-lg">
               <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
               <p className="text-xs text-yellow-500">
-                Saques são processados em até 2 dias úteis. Taxa de 2% será aplicada sobre o valor. Mínimo: R$ {financeData.minWithdrawal.toFixed(2)}.
+                Saques são processados em até 2 dias úteis. Taxa fixa de R$ {financeData.withdrawalFee.toFixed(2)} por saque. Mínimo: R$ {financeData.minWithdrawal.toFixed(2)}.
               </p>
             </div>
 

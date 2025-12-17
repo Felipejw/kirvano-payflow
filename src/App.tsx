@@ -36,6 +36,7 @@ import Clients from "./pages/Clients";
 import Suggestions from "./pages/Suggestions";
 import Members from "./pages/Members";
 import MembersConfig from "./pages/members/MembersConfig";
+import Withdrawals from "./pages/Withdrawals";
 import { getUrlParam } from "./lib/routes";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
@@ -106,6 +107,8 @@ function PageRouter() {
       return <Suggestions />;
     case "dashboard/recovery":
       return <Recovery />;
+    case "dashboard/withdrawals":
+      return <Withdrawals />;
     case "admin":
       return <AdminDashboard />;
     case "admin/recovery":
