@@ -36,6 +36,11 @@ interface PlatformSettings {
   fee_percentage: number;
   fee_fixed_per_sale: number;
   invoice_due_days: number;
+  platform_gateway_fee_percentage: number;
+  platform_gateway_fee_fixed: number;
+  platform_gateway_withdrawal_fee: number;
+  own_gateway_fee_percentage: number;
+  own_gateway_fee_fixed: number;
 }
 
 export default function AdminSettings() {
@@ -102,6 +107,11 @@ export default function AdminSettings() {
         fee_percentage: data.fee_percentage || 4,
         fee_fixed_per_sale: data.fee_fixed_per_sale || 1,
         invoice_due_days: data.invoice_due_days || 3,
+        platform_gateway_fee_percentage: data.platform_gateway_fee_percentage || 5.99,
+        platform_gateway_fee_fixed: data.platform_gateway_fee_fixed || 1,
+        platform_gateway_withdrawal_fee: data.platform_gateway_withdrawal_fee || 5,
+        own_gateway_fee_percentage: data.own_gateway_fee_percentage || 3.99,
+        own_gateway_fee_fixed: data.own_gateway_fee_fixed || 1,
       });
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -133,6 +143,11 @@ export default function AdminSettings() {
           fee_percentage: settings.fee_percentage,
           fee_fixed_per_sale: settings.fee_fixed_per_sale,
           invoice_due_days: settings.invoice_due_days,
+          platform_gateway_fee_percentage: settings.platform_gateway_fee_percentage,
+          platform_gateway_fee_fixed: settings.platform_gateway_fee_fixed,
+          platform_gateway_withdrawal_fee: settings.platform_gateway_withdrawal_fee,
+          own_gateway_fee_percentage: settings.own_gateway_fee_percentage,
+          own_gateway_fee_fixed: settings.own_gateway_fee_fixed,
         })
         .eq("id", settings.id);
 
@@ -190,78 +205,108 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        {/* Taxas da Plataforma - NEW SECTION */}
+        {/* Taxas Gateway Plataforma (Opção A) */}
         <Card className="glass-card border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Percent className="h-5 w-5 text-primary" />
-              Taxas da Plataforma (Cobrança Semanal)
+              Taxas Opção A - Gateway Plataforma (BSPAY)
             </CardTitle>
             <CardDescription>
-              Configure as taxas cobradas por venda. A cobrança é feita semanalmente toda segunda-feira via PIX.
+              Taxas para vendedores que usam nosso gateway integrado
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="fee_percentage">Taxa Percentual (%)</Label>
+                <Label>Taxa Percentual (%)</Label>
                 <Input
-                  id="fee_percentage"
                   type="number"
                   min="0"
                   max="100"
-                  step="0.1"
-                  value={settings.fee_percentage}
-                  onChange={(e) => setSettings({ ...settings, fee_percentage: Number(e.target.value) })}
+                  step="0.01"
+                  value={settings.platform_gateway_fee_percentage}
+                  onChange={(e) => setSettings({ ...settings, platform_gateway_fee_percentage: Number(e.target.value) })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Porcentagem sobre cada venda
-                </p>
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="fee_fixed_per_sale">Valor Fixo por Venda (R$)</Label>
+                <Label>Valor Fixo por Venda (R$)</Label>
                 <Input
-                  id="fee_fixed_per_sale"
                   type="number"
                   min="0"
                   step="0.01"
-                  value={settings.fee_fixed_per_sale}
-                  onChange={(e) => setSettings({ ...settings, fee_fixed_per_sale: Number(e.target.value) })}
+                  value={settings.platform_gateway_fee_fixed}
+                  onChange={(e) => setSettings({ ...settings, platform_gateway_fee_fixed: Number(e.target.value) })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Adicional fixo por venda
-                </p>
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="invoice_due_days">Dias para Pagamento</Label>
+                <Label>Taxa de Saque (R$)</Label>
                 <Input
-                  id="invoice_due_days"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={settings.platform_gateway_withdrawal_fee}
+                  onChange={(e) => setSettings({ ...settings, platform_gateway_withdrawal_fee: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+              <p className="text-sm">
+                <strong>Taxa atual:</strong> {settings.platform_gateway_fee_percentage}% + R$ {settings.platform_gateway_fee_fixed.toFixed(2)} por venda + R$ {settings.platform_gateway_withdrawal_fee.toFixed(2)} por saque
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Taxas Gateway Próprio (Opção B) */}
+        <Card className="glass-card border-blue-500/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5 text-blue-500" />
+              Taxas Opção B - Gateway Próprio (Cobrança Semanal)
+            </CardTitle>
+            <CardDescription>
+              Taxas para vendedores que usam seu próprio gateway/banco
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Taxa Percentual (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={settings.own_gateway_fee_percentage}
+                  onChange={(e) => setSettings({ ...settings, own_gateway_fee_percentage: Number(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor Fixo por Venda (R$)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={settings.own_gateway_fee_fixed}
+                  onChange={(e) => setSettings({ ...settings, own_gateway_fee_fixed: Number(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Dias para Pagamento</Label>
+                <Input
                   type="number"
                   min="1"
                   max="30"
                   value={settings.invoice_due_days}
                   onChange={(e) => setSettings({ ...settings, invoice_due_days: Number(e.target.value) })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Dias após segunda-feira
-                </p>
               </div>
             </div>
-
-            <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-              <div className="flex items-center gap-3">
-                <DollarSign className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium text-primary">
-                    Taxa atual: {settings.fee_percentage}% + R$ {settings.fee_fixed_per_sale.toFixed(2)} por venda
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Exemplo: Venda de R$ 100,00 = Taxa de R$ {calculateExampleFee(100).toFixed(2)}
-                  </p>
-                </div>
-              </div>
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <p className="text-sm">
+                <strong>Taxa atual:</strong> {settings.own_gateway_fee_percentage}% + R$ {settings.own_gateway_fee_fixed.toFixed(2)} por venda (cobrança semanal)
+              </p>
             </div>
           </CardContent>
         </Card>

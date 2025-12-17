@@ -27,6 +27,7 @@ import AdminGatewaysPage from "./pages/admin/AdminGatewaysPage";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSuggestions from "./pages/admin/AdminSuggestions";
 import AdminRecovery from "./pages/admin/AdminRecovery";
+import AdminProducts from "./pages/admin/AdminProducts";
 import MembersArea from "./pages/members/MembersArea";
 import Recovery from "./pages/Recovery";
 import MembersLogin from "./pages/members/MembersLogin";
@@ -111,6 +112,8 @@ function PageRouter() {
       return <AdminRecovery />;
     case "admin/users":
       return <AdminUsers />;
+    case "admin/products":
+      return <AdminProducts />;
     case "admin/transactions":
       return <AdminTransactionsPage />;
     case "admin/withdrawals":
