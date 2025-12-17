@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.allow-domain]
 verify_jwt = false
+
+[functions.send-withdrawal-notification]
+verify_jwt = false

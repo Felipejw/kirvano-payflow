@@ -121,6 +121,31 @@ export function AdminWithdrawals() {
     return types[type] || type;
   };
 
+  const sendNotificationEmail = async (withdrawal: Withdrawal, status: "approved" | "rejected", notesText: string | null) => {
+    try {
+      const response = await supabase.functions.invoke("send-withdrawal-notification", {
+        body: {
+          to_email: withdrawal.seller_email,
+          seller_name: withdrawal.seller_name || "Vendedor",
+          amount: withdrawal.amount,
+          net_amount: withdrawal.net_amount,
+          fee: withdrawal.fee,
+          pix_key: withdrawal.pix_key,
+          status: status,
+          notes: notesText
+        }
+      });
+
+      if (response.error) {
+        console.error("Error sending notification email:", response.error);
+      } else {
+        console.log("Notification email sent successfully");
+      }
+    } catch (error) {
+      console.error("Failed to send notification email:", error);
+    }
+  };
+
   const handleAction = async () => {
     if (!selectedWithdrawal || !actionType) return;
 
@@ -139,11 +164,20 @@ export function AdminWithdrawals() {
 
       if (error) throw error;
 
+      // Send email notification
+      if (selectedWithdrawal.seller_email) {
+        await sendNotificationEmail(
+          selectedWithdrawal, 
+          actionType === "approve" ? "approved" : "rejected",
+          notes || null
+        );
+      }
+
       toast({
         title: actionType === "approve" ? "Saque aprovado" : "Saque rejeitado",
         description: actionType === "approve" 
-          ? `Saque de ${formatCurrency(selectedWithdrawal.net_amount)} foi aprovado`
-          : "O vendedor será notificado sobre a rejeição"
+          ? `Saque de ${formatCurrency(selectedWithdrawal.net_amount)} foi aprovado. Email enviado.`
+          : "O vendedor foi notificado por email sobre a rejeição"
       });
 
       // Refresh data
