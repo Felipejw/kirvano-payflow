@@ -228,6 +228,124 @@ async function getBspayTransaction(token: string, pixId: string): Promise<any> {
   return data;
 }
 
+// ============================================================
+// MERCADO PAGO API Integration
+// ============================================================
+const MERCADOPAGO_API_URL = "https://api.mercadopago.com";
+
+interface MercadoPagoPixResult {
+  qrCode: string;
+  qrCodeBase64: string;
+  paymentId: string;
+}
+
+async function createMercadoPagoPixPayment(
+  accessToken: string,
+  amount: number,
+  externalReference: string,
+  payer: { email: string; name?: string; document?: string },
+  description?: string
+): Promise<MercadoPagoPixResult> {
+  console.log('Creating Mercado Pago PIX payment for amount:', amount);
+  
+  if (!accessToken) {
+    throw new Error('Mercado Pago access_token not provided');
+  }
+  
+  // Build payer identification
+  const payerData: any = {
+    email: payer.email,
+  };
+  
+  if (payer.name) {
+    const nameParts = payer.name.trim().split(' ');
+    payerData.first_name = nameParts[0] || 'Cliente';
+    payerData.last_name = nameParts.slice(1).join(' ') || 'Comprador';
+  }
+  
+  if (payer.document) {
+    // Remove non-numeric characters from document
+    const cleanDoc = payer.document.replace(/\D/g, '');
+    payerData.identification = {
+      type: cleanDoc.length === 11 ? 'CPF' : 'CNPJ',
+      number: cleanDoc,
+    };
+  }
+  
+  const payload = {
+    transaction_amount: amount,
+    description: description || 'Pagamento via PIX',
+    payment_method_id: 'pix',
+    external_reference: externalReference,
+    payer: payerData,
+  };
+  
+  console.log('Mercado Pago payload:', JSON.stringify(payload, null, 2));
+  
+  const response = await fetch(`${MERCADOPAGO_API_URL}/v1/payments`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'X-Idempotency-Key': externalReference,
+    },
+    body: JSON.stringify(payload),
+  });
+  
+  const responseText = await response.text();
+  console.log('Mercado Pago response status:', response.status);
+  console.log('Mercado Pago response:', responseText);
+  
+  if (!response.ok) {
+    console.error('Mercado Pago error:', response.status, responseText);
+    throw new Error(`Failed to create Mercado Pago payment: ${response.status} - ${responseText}`);
+  }
+  
+  const data = JSON.parse(responseText);
+  
+  // Extract PIX data from response
+  const pixData = data.point_of_interaction?.transaction_data;
+  
+  if (!pixData || !pixData.qr_code) {
+    console.error('Mercado Pago response missing PIX data:', data);
+    throw new Error('Mercado Pago response missing PIX QR code data');
+  }
+  
+  console.log('Mercado Pago PIX payment created:', data.id);
+  
+  return {
+    qrCode: pixData.qr_code,
+    qrCodeBase64: pixData.qr_code_base64 || '',
+    paymentId: String(data.id),
+  };
+}
+
+async function getMercadoPagoPayment(accessToken: string, paymentId: string): Promise<any> {
+  console.log('Getting Mercado Pago payment:', paymentId);
+  
+  const response = await fetch(`${MERCADOPAGO_API_URL}/v1/payments/${paymentId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Mercado Pago get payment error:', response.status, errorText);
+    throw new Error(`Failed to get Mercado Pago payment: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('Mercado Pago payment status:', data.status);
+  return data;
+}
+
+// ============================================================
+// End of Mercado Pago Integration
+// ============================================================
+
 const generateExternalId = () => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 10);
@@ -317,6 +435,202 @@ async function createMembershipForBuyer(
   }
   
   return { userId, isNewUser, password };
+}
+
+// Process payment confirmation (shared logic for all gateways)
+async function processPaymentConfirmation(
+  supabase: any,
+  charge: any,
+  supabaseUrl: string
+): Promise<void> {
+  console.log('Processing payment confirmation for charge:', charge.id);
+  
+  // Update charge status
+  await supabase
+    .from('pix_charges')
+    .update({ status: 'paid', paid_at: new Date().toISOString() })
+    .eq('id', charge.id);
+
+  const { data: platformSettings } = await supabase
+    .from('platform_settings')
+    .select('platform_fee')
+    .single();
+  
+  const platformFeeRate = platformSettings?.platform_fee ?? 5;
+
+  const amount = Number(charge.amount);
+  const platformFee = amount * (platformFeeRate / 100);
+  let affiliateAmount = 0;
+  let sellerAmount = amount - platformFee;
+
+  if (charge.affiliate_id && charge.affiliates) {
+    const commissionRate = charge.affiliates.commission_rate || 10;
+    affiliateAmount = amount * (commissionRate / 100);
+    sellerAmount = amount - platformFee - affiliateAmount;
+
+    await supabase
+      .from('affiliates')
+      .update({
+        total_sales: charge.affiliates.total_sales + 1,
+        total_earnings: Number(charge.affiliates.total_earnings) + affiliateAmount,
+      })
+      .eq('id', charge.affiliate_id);
+  }
+
+  // Get seller_id from product or use null
+  const sellerId = charge.products?.seller_id || charge.seller_id || null;
+  
+  if (!sellerId) {
+    console.warn('Transaction created without seller_id - product_id was:', charge.product_id);
+  }
+
+  // Create transaction
+  const { data: transaction } = await supabase
+    .from('transactions')
+    .insert({
+      charge_id: charge.id,
+      product_id: charge.product_id,
+      seller_id: sellerId,
+      affiliate_id: charge.affiliate_id,
+      amount,
+      seller_amount: sellerAmount,
+      affiliate_amount: affiliateAmount,
+      platform_fee: platformFee,
+      status: 'paid',
+    })
+    .select()
+    .single();
+
+  // Create membership for buyer and send access email
+  if (charge.product_id && charge.buyer_email) {
+    try {
+      const membershipResult = await createMembershipForBuyer(
+        supabase,
+        charge.buyer_email,
+        charge.buyer_name,
+        charge.product_id,
+        transaction?.id
+      );
+      console.log('Membership created:', membershipResult);
+      
+      // Get the member ID for email logging
+      const { data: memberData } = await supabase
+        .from('members')
+        .select('id')
+        .eq('user_id', membershipResult.userId)
+        .eq('product_id', charge.product_id)
+        .maybeSingle();
+      
+      // Check if auto email sending is enabled for this product (default: true)
+      const autoSendEnabled = charge.products?.auto_send_access_email ?? true;
+      
+      if (autoSendEnabled) {
+        // Send automatic access email
+        try {
+          const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-member-access-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({
+              memberEmail: charge.buyer_email,
+              memberName: charge.buyer_name,
+              productName: charge.products?.name || 'Produto',
+              productId: charge.product_id,
+              memberId: memberData?.id,
+              autoSend: true,
+            }),
+          });
+          
+          if (emailResponse.ok) {
+            console.log('Access email sent automatically to:', charge.buyer_email);
+          } else {
+            console.error('Failed to send access email:', await emailResponse.text());
+          }
+        } catch (emailError) {
+          console.error('Error sending access email:', emailError);
+        }
+      } else {
+        console.log('Auto email disabled for product:', charge.product_id);
+      }
+    } catch (memberError) {
+      console.error('Error creating membership:', memberError);
+    }
+  }
+
+  // Send user webhooks
+  const { data: webhooks } = await supabase
+    .from('webhooks')
+    .select('*')
+    .eq('status', 'active')
+    .contains('events', ['payment.confirmed']);
+
+  if (webhooks) {
+    for (const webhook of webhooks) {
+      try {
+        const payload = {
+          event: 'payment.confirmed',
+          charge_id: charge.id,
+          external_id: charge.external_id,
+          amount: charge.amount,
+          paid_at: new Date().toISOString(),
+        };
+
+        const response = await fetch(webhook.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Webhook-Secret': webhook.secret || '',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        await supabase
+          .from('webhook_logs')
+          .insert({
+            webhook_id: webhook.id,
+            charge_id: charge.id,
+            event_type: 'payment.confirmed',
+            payload,
+            response_status: response.status,
+            response_body: await response.text(),
+          });
+      } catch (e) {
+        console.error('Webhook error:', e);
+      }
+    }
+  }
+
+  // Send payment confirmed notification via WhatsApp and Email
+  try {
+    const confirmationPayload = {
+      buyer_name: charge.buyer_name || 'Cliente',
+      buyer_email: charge.buyer_email,
+      buyer_phone: charge.buyer_phone,
+      product_name: charge.products?.name || 'Produto',
+      amount: charge.amount,
+      paid_at: new Date().toISOString(),
+      send_email: true,
+      send_whatsapp: !!charge.buyer_phone,
+    };
+    
+    console.log('Sending payment confirmed notification to buyer');
+    
+    // Fire and forget - don't wait for response
+    fetch(`${supabaseUrl}/functions/v1/send-payment-confirmed`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(confirmationPayload),
+    }).catch(err => console.error('Confirmation notification error (non-blocking):', err));
+    
+  } catch (notifError) {
+    console.error('Error triggering confirmation notification:', notifError);
+  }
+
+  console.log('Payment confirmed:', charge.external_id);
 }
 
 serve(async (req) => {
@@ -458,7 +772,7 @@ serve(async (req) => {
 
       let pixCode: string;
       let qrCodeBase64: string;
-      let bspayTransactionId: string | null = null;
+      let gatewayTransactionId: string | null = null;
 
       try {
         // Process payment based on gateway type
@@ -486,15 +800,54 @@ serve(async (req) => {
           
           pixCode = bspayResult.qrCode;
           qrCodeBase64 = bspayResult.qrCodeBase64;
-          bspayTransactionId = bspayResult.transactionId;
+          gatewayTransactionId = bspayResult.transactionId;
           
-          console.log('BSPAY charge created successfully:', bspayTransactionId);
+          console.log('BSPAY charge created successfully:', gatewayTransactionId);
+          
+        } else if (gateway.slug === 'mercadopago') {
+          // Mercado Pago PIX Integration
+          const accessToken = credentials.access_token;
+          
+          if (!accessToken) {
+            throw new Error('Mercado Pago access_token not configured');
+          }
+          
+          // Get product name for description
+          let description = body.description || 'Pagamento via PIX';
+          if (body.product_id) {
+            const { data: productInfo } = await supabase
+              .from('products')
+              .select('name')
+              .eq('id', body.product_id)
+              .maybeSingle();
+            if (productInfo) {
+              description = `Compra: ${productInfo.name}`;
+            }
+          }
+          
+          const mpResult = await createMercadoPagoPixPayment(
+            accessToken,
+            body.amount,
+            externalId,
+            {
+              email: body.buyer_email,
+              name: body.buyer_name,
+              document: body.buyer_document,
+            },
+            description
+          );
+          
+          pixCode = mpResult.qrCode;
+          qrCodeBase64 = mpResult.qrCodeBase64;
+          gatewayTransactionId = mpResult.paymentId;
+          
+          console.log('Mercado Pago charge created successfully:', gatewayTransactionId);
+          
         } else {
           // For other gateways, we'll need to implement their specific APIs
-          // For now, return an error asking to use a supported gateway
           console.error('Gateway not yet implemented:', gateway.slug);
           return new Response(JSON.stringify({ 
-            error: `Gateway ${gateway.name} ainda não está implementado. Por favor, configure o gateway BSPAY.` 
+            error: `Gateway ${gateway.name} ainda não está implementado. Por favor, configure um gateway suportado (BSPAY ou Mercado Pago).` 
           }), {
             status: 501,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -528,7 +881,7 @@ serve(async (req) => {
       const { data: charge, error } = await supabase
         .from('pix_charges')
         .insert({
-          external_id: bspayTransactionId || externalId,
+          external_id: gatewayTransactionId || externalId,
           product_id: body.product_id || null,
           seller_id: sellerId,
           buyer_email: body.buyer_email,
@@ -640,196 +993,95 @@ serve(async (req) => {
           .single();
 
         if (charge && charge.status === 'pending') {
-          await supabase
-            .from('pix_charges')
-            .update({ status: 'paid', paid_at: new Date().toISOString() })
-            .eq('id', charge.id);
-
-          const { data: platformSettings } = await supabase
-            .from('platform_settings')
-            .select('platform_fee')
-            .single();
-          
-          const platformFeeRate = platformSettings?.platform_fee ?? 5;
-
-          const amount = Number(charge.amount);
-          const platformFee = amount * (platformFeeRate / 100);
-          let affiliateAmount = 0;
-          let sellerAmount = amount - platformFee;
-
-          if (charge.affiliate_id && charge.affiliates) {
-            const commissionRate = charge.affiliates.commission_rate || 10;
-            affiliateAmount = amount * (commissionRate / 100);
-            sellerAmount = amount - platformFee - affiliateAmount;
-
-            await supabase
-              .from('affiliates')
-              .update({
-                total_sales: charge.affiliates.total_sales + 1,
-                total_earnings: Number(charge.affiliates.total_earnings) + affiliateAmount,
-              })
-              .eq('id', charge.affiliate_id);
-          }
-
-          // Get seller_id from product or use null (admin will need to assign)
-          const sellerId = charge.products?.seller_id || null;
-          
-          if (!sellerId) {
-            console.warn('Transaction created without seller_id - product_id was:', charge.product_id);
-          }
-
-          // Create transaction
-          const { data: transaction } = await supabase
-            .from('transactions')
-            .insert({
-              charge_id: charge.id,
-              product_id: charge.product_id,
-              seller_id: sellerId,
-              affiliate_id: charge.affiliate_id,
-              amount,
-              seller_amount: sellerAmount,
-              affiliate_amount: affiliateAmount,
-              platform_fee: platformFee,
-              status: 'paid',
-            })
-            .select()
-            .single();
-
-          // Create membership for buyer and send access email
-          if (charge.product_id && charge.buyer_email) {
-            try {
-              const membershipResult = await createMembershipForBuyer(
-                supabase,
-                charge.buyer_email,
-                charge.buyer_name,
-                charge.product_id,
-                transaction?.id
-              );
-              console.log('Membership created:', membershipResult);
-              
-              // Get the member ID for email logging
-              const { data: memberData } = await supabase
-                .from('members')
-                .select('id')
-                .eq('user_id', membershipResult.userId)
-                .eq('product_id', charge.product_id)
-                .maybeSingle();
-              
-              // Check if auto email sending is enabled for this product (default: true)
-              const autoSendEnabled = charge.products?.auto_send_access_email ?? true;
-              
-              if (autoSendEnabled) {
-                // Send automatic access email
-                const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-                try {
-                  const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-member-access-email`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-                    },
-                    body: JSON.stringify({
-                      memberEmail: charge.buyer_email,
-                      memberName: charge.buyer_name,
-                      productName: charge.products?.name || 'Produto',
-                      productId: charge.product_id,
-                      memberId: memberData?.id,
-                      autoSend: true,
-                    }),
-                  });
-                  
-                  if (emailResponse.ok) {
-                    console.log('Access email sent automatically to:', charge.buyer_email);
-                  } else {
-                    console.error('Failed to send access email:', await emailResponse.text());
-                  }
-                } catch (emailError) {
-                  console.error('Error sending access email:', emailError);
-                }
-              } else {
-                console.log('Auto email disabled for product:', charge.product_id);
-              }
-            } catch (memberError) {
-              console.error('Error creating membership:', memberError);
-            }
-          }
-
-          // Send user webhooks
-          const { data: webhooks } = await supabase
-            .from('webhooks')
-            .select('*')
-            .eq('status', 'active')
-            .contains('events', ['payment.confirmed']);
-
-          if (webhooks) {
-            for (const webhook of webhooks) {
-              try {
-                const payload = {
-                  event: 'payment.confirmed',
-                  charge_id: charge.id,
-                  external_id: charge.external_id,
-                  amount: charge.amount,
-                  paid_at: new Date().toISOString(),
-                };
-
-                const response = await fetch(webhook.url, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-Webhook-Secret': webhook.secret || '',
-                  },
-                  body: JSON.stringify(payload),
-                });
-
-                await supabase
-                  .from('webhook_logs')
-                  .insert({
-                    webhook_id: webhook.id,
-                    charge_id: charge.id,
-                    event_type: 'payment.confirmed',
-                    payload,
-                    response_status: response.status,
-                    response_body: await response.text(),
-                  });
-              } catch (e) {
-                console.error('Webhook error:', e);
-              }
-            }
-          }
-
-          // Send payment confirmed notification via WhatsApp and Email
-          try {
-            const confirmationPayload = {
-              buyer_name: charge.buyer_name || 'Cliente',
-              buyer_email: charge.buyer_email,
-              buyer_phone: charge.buyer_phone,
-              product_name: charge.products?.name || 'Produto',
-              amount: charge.amount,
-              paid_at: new Date().toISOString(),
-              send_email: true,
-              send_whatsapp: !!charge.buyer_phone,
-            };
-            
-            console.log('Sending payment confirmed notification to buyer');
-            
-            // Fire and forget - don't wait for response
-            fetch(`${supabaseUrl}/functions/v1/send-payment-confirmed`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(confirmationPayload),
-            }).catch(err => console.error('Confirmation notification error (non-blocking):', err));
-            
-          } catch (notifError) {
-            console.error('Error triggering confirmation notification:', notifError);
-            // Don't fail the webhook if notification fails
-          }
-
-          console.log('Payment confirmed via webhook:', charge.external_id);
+          await processPaymentConfirmation(supabase, charge, supabaseUrl);
         }
       }
       
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // POST /webhook/mercadopago - Handle Mercado Pago IPN webhook
+    if (req.method === 'POST' && (path === '/webhook/mercadopago' || path === '/webhook-mercadopago')) {
+      console.log('Received Mercado Pago webhook');
+      
+      // Get query parameters (MP sends type and data.id as query params)
+      const queryType = url.searchParams.get('type');
+      const queryDataId = url.searchParams.get('data.id');
+      
+      let body: any = {};
+      try {
+        const bodyText = await req.text();
+        if (bodyText) {
+          body = JSON.parse(bodyText);
+        }
+      } catch (e) {
+        console.log('No body or invalid JSON in webhook');
+      }
+      
+      console.log('Mercado Pago webhook - query params:', { type: queryType, dataId: queryDataId });
+      console.log('Mercado Pago webhook - body:', JSON.stringify(body));
+      
+      // Determine the notification type and payment ID
+      const notificationType = queryType || body.type || body.action;
+      const paymentId = queryDataId || body.data?.id || body.id;
+      
+      // Process payment notifications
+      if ((notificationType === 'payment' || notificationType === 'payment.updated' || notificationType === 'payment.created') && paymentId) {
+        console.log('Processing Mercado Pago payment notification:', paymentId);
+        
+        // Find the charge by external_id (which stores the MP payment ID)
+        const { data: charge, error: fetchError } = await supabase
+          .from('pix_charges')
+          .select('*, products(name, seller_id, auto_send_access_email), affiliates(*)')
+          .eq('external_id', String(paymentId))
+          .maybeSingle();
+        
+        if (fetchError) {
+          console.error('Error fetching charge:', fetchError);
+        }
+        
+        if (charge && charge.status === 'pending') {
+          // Get seller's credentials to verify payment status
+          const gatewayData = await getSellerGatewayCredentials(supabase, charge.seller_id, 'pix');
+          
+          if (gatewayData && gatewayData.gateway.slug === 'mercadopago') {
+            const { credentials } = gatewayData;
+            
+            try {
+              // Verify payment status with Mercado Pago API
+              const mpPayment = await getMercadoPagoPayment(credentials.access_token!, String(paymentId));
+              
+              console.log('Mercado Pago payment status:', mpPayment.status);
+              
+              // Check if payment is approved
+              if (mpPayment.status === 'approved') {
+                console.log('Payment approved, processing confirmation...');
+                await processPaymentConfirmation(supabase, charge, supabaseUrl);
+              } else if (mpPayment.status === 'rejected' || mpPayment.status === 'cancelled') {
+                // Update charge status to cancelled
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: 'cancelled' })
+                  .eq('id', charge.id);
+                console.log('Payment rejected/cancelled:', paymentId);
+              }
+            } catch (mpError) {
+              console.error('Error verifying Mercado Pago payment:', mpError);
+            }
+          } else {
+            console.log('Charge found but gateway is not Mercado Pago or credentials not found');
+          }
+        } else if (!charge) {
+          console.log('No pending charge found for payment ID:', paymentId);
+        } else {
+          console.log('Charge already processed:', charge.status);
+        }
+      }
+      
+      // Always return 200 to acknowledge receipt (MP requirement)
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -857,19 +1109,43 @@ serve(async (req) => {
         try {
           // Get seller's credentials to check transaction status
           const gatewayData = await getSellerGatewayCredentials(supabase, charge.seller_id, 'pix');
-          if (gatewayData && gatewayData.gateway.slug === 'bspay') {
-            const { credentials } = gatewayData;
-            const token = await getBspayToken(credentials.client_id!, credentials.client_secret!);
-            const bspayTransaction = await getBspayTransaction(token, charge.external_id);
-            
-            if (bspayTransaction.status === 'PAID') {
-              await supabase
-                .from('pix_charges')
-                .update({ status: 'paid', paid_at: new Date().toISOString() })
-                .eq('id', charge.id);
+          
+          if (gatewayData) {
+            if (gatewayData.gateway.slug === 'bspay') {
+              const { credentials } = gatewayData;
+              const token = await getBspayToken(credentials.client_id!, credentials.client_secret!);
+              const bspayTransaction = await getBspayTransaction(token, charge.external_id);
               
-              charge.status = 'paid';
-              charge.paid_at = new Date().toISOString();
+              if (bspayTransaction.status === 'PAID') {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: 'paid', paid_at: new Date().toISOString() })
+                  .eq('id', charge.id);
+                
+                charge.status = 'paid';
+                charge.paid_at = new Date().toISOString();
+              }
+            } else if (gatewayData.gateway.slug === 'mercadopago') {
+              // Check Mercado Pago payment status
+              const { credentials } = gatewayData;
+              const mpPayment = await getMercadoPagoPayment(credentials.access_token!, charge.external_id);
+              
+              if (mpPayment.status === 'approved') {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: 'paid', paid_at: new Date().toISOString() })
+                  .eq('id', charge.id);
+                
+                charge.status = 'paid';
+                charge.paid_at = new Date().toISOString();
+              } else if (mpPayment.status === 'rejected' || mpPayment.status === 'cancelled') {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: 'cancelled' })
+                  .eq('id', charge.id);
+                
+                charge.status = 'cancelled';
+              }
             }
           }
         } catch (e) {
@@ -934,7 +1210,7 @@ serve(async (req) => {
     }
 
     // SECURITY: Manual /confirm endpoint has been removed
-    // Payment confirmations should only happen via verified BSPAY webhooks
+    // Payment confirmations should only happen via verified gateway webhooks
     if (req.method === 'POST' && path.includes('/confirm')) {
       return new Response(JSON.stringify({ 
         error: 'Manual payment confirmation is not allowed. Payments are confirmed automatically via webhook.' 
