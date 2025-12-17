@@ -137,8 +137,8 @@ export function InvoicesList({ invoices, loading }: InvoicesListProps) {
                 <tbody>
                   {invoices.map((invoice) => (
                     <tr key={invoice.id} className="border-b border-border/50 hover:bg-secondary/50">
-                      <td className="p-4">
-                        {formatDate(invoice.period_start)} - {formatDate(invoice.period_end)}
+                      <td className="p-4 font-medium">
+                        {formatDate(invoice.period_start)} a {formatDate(invoice.period_end)}
                       </td>
                       <td className="p-4">{invoice.total_sales}</td>
                       <td className="p-4">{formatCurrency(invoice.total_amount)}</td>

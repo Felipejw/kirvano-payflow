@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Copy, QrCode, CheckCircle, Loader2 } from "lucide-react";
+import { Copy, QrCode, CheckCircle, Loader2, Calculator } from "lucide-react";
 
 interface Product {
   id: string;
@@ -30,6 +30,13 @@ interface PixResponse {
   expires_at: string;
 }
 
+interface PlatformFees {
+  platform_gateway_fee_percentage: number;
+  platform_gateway_fee_fixed: number;
+  own_gateway_fee_percentage: number;
+  own_gateway_fee_fixed: number;
+}
+
 export function GeneratePixDialog({ open, onOpenChange }: GeneratePixDialogProps) {
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -39,10 +46,19 @@ export function GeneratePixDialog({ open, onOpenChange }: GeneratePixDialogProps
   const [buyerName, setBuyerName] = useState("");
   const [pixData, setPixData] = useState<PixResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<string>("platform_gateway");
+  const [fees, setFees] = useState<PlatformFees>({
+    platform_gateway_fee_percentage: 5.99,
+    platform_gateway_fee_fixed: 1,
+    own_gateway_fee_percentage: 3.99,
+    own_gateway_fee_fixed: 1,
+  });
 
   useEffect(() => {
     if (open) {
       fetchProducts();
+      fetchUserProfile();
+      fetchPlatformFees();
       setPixData(null);
       setSelectedProduct("");
       setCustomAmount("");
@@ -61,10 +77,63 @@ export function GeneratePixDialog({ open, onOpenChange }: GeneratePixDialogProps
     if (data) setProducts(data);
   };
 
+  const fetchUserProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('payment_mode')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profile?.payment_mode) {
+      setPaymentMode(profile.payment_mode);
+    }
+  };
+
+  const fetchPlatformFees = async () => {
+    const { data } = await supabase
+      .from('platform_settings')
+      .select('platform_gateway_fee_percentage, platform_gateway_fee_fixed, own_gateway_fee_percentage, own_gateway_fee_fixed')
+      .single();
+
+    if (data) {
+      setFees({
+        platform_gateway_fee_percentage: data.platform_gateway_fee_percentage || 5.99,
+        platform_gateway_fee_fixed: data.platform_gateway_fee_fixed || 1,
+        own_gateway_fee_percentage: data.own_gateway_fee_percentage || 3.99,
+        own_gateway_fee_fixed: data.own_gateway_fee_fixed || 1,
+      });
+    }
+  };
+
   const getAmount = () => {
     if (customAmount) return parseFloat(customAmount);
     const product = products.find(p => p.id === selectedProduct);
     return product?.price || 0;
+  };
+
+  const calculateNetAmount = (grossAmount: number) => {
+    const feePercentage = paymentMode === 'platform_gateway' 
+      ? fees.platform_gateway_fee_percentage 
+      : fees.own_gateway_fee_percentage;
+    const feeFixed = paymentMode === 'platform_gateway'
+      ? fees.platform_gateway_fee_fixed
+      : fees.own_gateway_fee_fixed;
+
+    const percentageFee = grossAmount * (feePercentage / 100);
+    const totalFee = percentageFee + feeFixed;
+    const netAmount = grossAmount - totalFee;
+
+    return {
+      grossAmount,
+      percentageFee,
+      feeFixed,
+      totalFee,
+      netAmount: Math.max(0, netAmount),
+      feePercentage,
+    };
   };
 
   const handleGeneratePix = async () => {
@@ -115,6 +184,9 @@ export function GeneratePixDialog({ open, onOpenChange }: GeneratePixDialogProps
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const grossAmount = getAmount();
+  const netCalc = calculateNetAmount(grossAmount);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,11 +253,35 @@ export function GeneratePixDialog({ open, onOpenChange }: GeneratePixDialogProps
               />
             </div>
 
-            <div className="p-4 rounded-lg bg-secondary/50 border border-border">
-              <p className="text-sm text-muted-foreground">Valor a cobrar</p>
-              <p className="text-2xl font-bold text-primary">
-                R$ {getAmount().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
+            {/* Valor a cobrar e valor líquido */}
+            <div className="p-4 rounded-lg bg-secondary/50 border border-border space-y-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Valor a cobrar</p>
+                <p className="text-2xl font-bold text-primary">
+                  R$ {grossAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              
+              {grossAmount > 0 && (
+                <div className="pt-3 border-t border-border/50 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Calculator className="h-3 w-3" />
+                    <span>Cálculo de taxas ({netCalc.feePercentage}% + R$ {netCalc.feeFixed.toFixed(2)})</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Taxa percentual:</span>
+                    <span className="text-destructive">- R$ {netCalc.percentageFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Taxa fixa:</span>
+                    <span className="text-destructive">- R$ {netCalc.feeFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-semibold pt-2 border-t border-border/50">
+                    <span className="text-foreground">Você receberá:</span>
+                    <span className="text-green-500">R$ {netCalc.netAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Button 

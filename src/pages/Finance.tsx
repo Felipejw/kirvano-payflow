@@ -5,7 +5,7 @@ import { InvoicesList } from "@/components/finance/InvoicesList";
 import { PlatformFeeInfo } from "@/components/finance/PlatformFeeInfo";
 import { CurrentPeriodFeeCard } from "@/components/finance/CurrentPeriodFeeCard";
 import { BlockedBanner } from "@/components/shared/BlockedBanner";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface Invoice {
@@ -22,6 +22,7 @@ interface Invoice {
   pix_code: string | null;
   pix_qr_code: string | null;
   paid_at: string | null;
+  created_at: string;
 }
 
 interface PlatformSettings {
@@ -77,7 +78,7 @@ const Finance = () => {
     
     setSellerBlock(blockData);
 
-    // Fetch invoices - deduplicate by period_start and period_end
+    // Fetch invoices
     setInvoicesLoading(true);
     const { data: invoicesData } = await supabase
       .from('platform_invoices')
@@ -86,24 +87,49 @@ const Finance = () => {
       .order('period_end', { ascending: false });
     
     if (invoicesData) {
-      // Remove duplicates by keeping only the most recent invoice for each period
+      // Remove duplicates by keeping only one invoice per week (period_start to period_end)
+      // Priority: paid > pending > overdue > others
+      // If same status, keep the most recent (by created_at)
+      const statusPriority: Record<string, number> = {
+        'paid': 1,
+        'pending': 2,
+        'overdue': 3,
+        'blocked': 4,
+      };
+
       const uniqueInvoices = invoicesData.reduce((acc: Invoice[], invoice) => {
-        const key = `${invoice.period_start}-${invoice.period_end}`;
+        // Create a unique key for the week period
+        const weekKey = `${invoice.period_start}-${invoice.period_end}`;
+        
         const existingIndex = acc.findIndex(
-          (i) => `${i.period_start}-${i.period_end}` === key
+          (i) => `${i.period_start}-${i.period_end}` === weekKey
         );
+
         if (existingIndex === -1) {
+          // No existing invoice for this period, add it
           acc.push(invoice as Invoice);
         } else {
-          // Keep the one with the most recent created_at or the paid one
+          // Compare and keep the better one
           const existing = acc[existingIndex];
-          if (invoice.status === 'paid' || 
-              (existing.status !== 'paid' && new Date(invoice.created_at || 0) > new Date(existing.id))) {
+          const existingPriority = statusPriority[existing.status] || 5;
+          const newPriority = statusPriority[invoice.status] || 5;
+
+          // Keep the one with higher priority (lower number)
+          // If same priority, keep the more recent one
+          if (newPriority < existingPriority || 
+              (newPriority === existingPriority && 
+               new Date(invoice.created_at || 0) > new Date(existing.created_at || 0))) {
             acc[existingIndex] = invoice as Invoice;
           }
         }
         return acc;
       }, []);
+
+      // Sort by period_end descending
+      uniqueInvoices.sort((a, b) => 
+        new Date(b.period_end).getTime() - new Date(a.period_end).getTime()
+      );
+
       setInvoices(uniqueInvoices);
     }
     setInvoicesLoading(false);
@@ -118,7 +144,7 @@ const Finance = () => {
     if (!invoice) return {};
     return {
       invoiceAmount: invoice.fee_total,
-      invoicePeriod: `${format(new Date(invoice.period_start), "dd/MM", { locale: ptBR })} - ${format(new Date(invoice.period_end), "dd/MM", { locale: ptBR })}`,
+      invoicePeriod: `${format(new Date(invoice.period_start), "dd/MM", { locale: ptBR })} a ${format(new Date(invoice.period_end), "dd/MM", { locale: ptBR })}`,
       dueDate: format(new Date(invoice.due_date), "dd/MM/yyyy", { locale: ptBR }),
     };
   };

@@ -46,8 +46,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Extract the project ref from supabase URL
     const projectRef = supabaseUrl.replace("https://", "").replace(".supabase.co", "");
     
-    // Use a generic app URL format - the user should configure this
-    const appUrl = `https://${projectRef}.lovable.app`;
+    // Use the correct Lovable project URL format
+    const appUrl = `https://${projectRef}.lovableproject.com`;
     const membersLoginUrl = `${appUrl}/members/login`;
     const productAccessUrl = `${appUrl}/members/product/${productId}`;
 

@@ -33,7 +33,8 @@ import {
   Calendar,
   CreditCard,
   Trash2,
-  Link2
+  Link2,
+  RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
@@ -60,6 +61,7 @@ interface Sale {
   order_bump_products?: { id: string; name: string }[];
   platform_fee?: number;
   seller_amount?: number;
+  is_recovered?: boolean;
   utm_source?: string | null;
   utm_medium?: string | null;
   utm_campaign?: string | null;
@@ -147,19 +149,23 @@ const Sales = () => {
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      // Fetch transactions to get platform_fee for each charge
+      // Fetch transactions to get platform_fee and is_recovered for each charge
       const chargeIds = data.map(item => item.id);
-      let transactionMap: Record<string, { platform_fee: number; seller_amount: number }> = {};
+      let transactionMap: Record<string, { platform_fee: number; seller_amount: number; is_recovered: boolean }> = {};
       
       if (chargeIds.length > 0) {
         const { data: transactions } = await supabase
           .from('transactions')
-          .select('charge_id, platform_fee, seller_amount')
+          .select('charge_id, platform_fee, seller_amount, is_recovered')
           .in('charge_id', chargeIds);
         
         if (transactions) {
           transactionMap = Object.fromEntries(
-            transactions.map(t => [t.charge_id, { platform_fee: t.platform_fee, seller_amount: t.seller_amount }])
+            transactions.map(t => [t.charge_id, { 
+              platform_fee: t.platform_fee, 
+              seller_amount: t.seller_amount,
+              is_recovered: t.is_recovered || false
+            }])
           );
         }
       }
@@ -191,6 +197,7 @@ const Sales = () => {
           })),
           platform_fee: txData?.platform_fee,
           seller_amount: txData?.seller_amount,
+          is_recovered: txData?.is_recovered || false,
         };
       }));
     }
@@ -271,6 +278,7 @@ const Sales = () => {
       const effectiveStatus = getEffectiveStatus(s);
       return effectiveStatus === 'expired' || effectiveStatus === 'cancelled';
     }).length,
+    recovered: sales.filter(s => s.is_recovered).length,
     totalValue: sales.filter(s => s.status === 'paid').reduce((acc, s) => acc + Number(s.amount), 0),
   };
 
@@ -487,10 +495,18 @@ const Sales = () => {
                                 )}
                               </td>
                               <td className="p-4">
-                                <Badge variant={status.variant} className="gap-1">
-                                  <StatusIcon className="h-3 w-3" />
-                                  {status.label}
-                                </Badge>
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant={status.variant} className="gap-1 w-fit">
+                                    <StatusIcon className="h-3 w-3" />
+                                    {status.label}
+                                  </Badge>
+                                  {(sale as any).is_recovered && (
+                                    <Badge variant="outline" className="gap-1 w-fit text-xs bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
+                                      <RefreshCw className="h-3 w-3" />
+                                      Recuperada
+                                    </Badge>
+                                  )}
+                                </div>
                               </td>
                               <td className="p-4 hidden sm:table-cell">
                                 <p className="text-sm text-muted-foreground">

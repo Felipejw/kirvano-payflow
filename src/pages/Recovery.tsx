@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { RefreshCw, Plus, Trash2, MessageSquare, Mail, TrendingUp, DollarSign, Target, Clock } from "lucide-react";
+import { RefreshCw, Plus, Trash2, MessageSquare, Mail, TrendingUp, DollarSign, Target, Clock, User, Package, Info } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Json } from "@/integrations/supabase/types";
@@ -21,6 +23,7 @@ interface MessageInterval {
   type: "minutes" | "hours" | "days";
   value: number;
   channel: "whatsapp" | "email" | "both";
+  template?: string;
 }
 
 interface RecoveryCampaign {
@@ -28,6 +31,8 @@ interface RecoveryCampaign {
   seller_id: string;
   is_active: boolean;
   message_intervals: Json;
+  custom_whatsapp_template: string | null;
+  custom_email_subject: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +45,15 @@ interface RecoveryMessage {
   message_number: number;
   sent_at: string;
   error_message: string | null;
+  charge?: {
+    buyer_name: string | null;
+    buyer_email: string;
+    buyer_phone: string | null;
+    amount: number;
+    product?: {
+      name: string;
+    } | null;
+  };
 }
 
 interface RecoveryStats {
@@ -68,6 +82,8 @@ export default function Recovery() {
     { type: "days", value: 1, channel: "both" },
   ]);
   const [isActive, setIsActive] = useState(false);
+  const [customWhatsappTemplate, setCustomWhatsappTemplate] = useState("");
+  const [customEmailSubject, setCustomEmailSubject] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -100,9 +116,11 @@ export default function Recovery() {
           : [];
         setIntervals(parsedIntervals);
         setIsActive(campaignData.is_active);
+        setCustomWhatsappTemplate(campaignData.custom_whatsapp_template || "");
+        setCustomEmailSubject(campaignData.custom_email_subject || "");
       }
 
-      // Fetch recovery messages
+      // Fetch recovery messages with charge info
       const { data: messagesData } = await supabase
         .from("recovery_messages")
         .select("*")
@@ -110,7 +128,38 @@ export default function Recovery() {
         .order("sent_at", { ascending: false })
         .limit(50);
 
-      setMessages(messagesData || []);
+      // Fetch charge details for each message
+      if (messagesData && messagesData.length > 0) {
+        const chargeIds = [...new Set(messagesData.map(m => m.original_charge_id))];
+        const { data: charges } = await supabase
+          .from("pix_charges")
+          .select(`
+            id,
+            buyer_name,
+            buyer_email,
+            buyer_phone,
+            amount,
+            products:product_id (
+              name
+            )
+          `)
+          .in("id", chargeIds);
+
+        const chargeMap = new Map(charges?.map(c => [c.id, {
+          buyer_name: c.buyer_name,
+          buyer_email: c.buyer_email,
+          buyer_phone: c.buyer_phone,
+          amount: c.amount,
+          product: c.products as { name: string } | null
+        }]));
+
+        setMessages(messagesData.map(m => ({
+          ...m,
+          charge: chargeMap.get(m.original_charge_id)
+        })));
+      } else {
+        setMessages([]);
+      }
 
       // Calculate stats
       const totalMessages = messagesData?.length || 0;
@@ -152,6 +201,8 @@ export default function Recovery() {
           .update({
             is_active: isActive,
             message_intervals: intervals as unknown as Json,
+            custom_whatsapp_template: customWhatsappTemplate || null,
+            custom_email_subject: customEmailSubject || null,
           })
           .eq("id", campaign.id);
 
@@ -164,6 +215,8 @@ export default function Recovery() {
             seller_id: user.id,
             is_active: isActive,
             message_intervals: intervals as unknown as Json,
+            custom_whatsapp_template: customWhatsappTemplate || null,
+            custom_email_subject: customEmailSubject || null,
           });
 
         if (error) throw error;
@@ -257,17 +310,6 @@ export default function Recovery() {
           </Button>
         </div>
 
-        {/* Global Status Warning */}
-        {globalSettings && !globalSettings.is_enabled && (
-          <Card className="border-yellow-500/50 bg-yellow-500/10">
-            <CardContent className="py-4">
-              <p className="text-yellow-400 text-sm">
-                ⚠️ O serviço de recuperação está desativado globalmente pelo administrador.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="bg-card border-border">
@@ -337,170 +379,251 @@ export default function Recovery() {
           </Card>
         </div>
 
-        {/* Campaign Configuration */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Configuração da Campanha</CardTitle>
-                <CardDescription>
-                  Configure quando e como as mensagens de recuperação serão enviadas
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="campaign-active" className="text-sm">
-                  Campanha ativa
-                </Label>
-                <Switch
-                  id="campaign-active"
-                  checked={isActive}
-                  onCheckedChange={setIsActive}
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Fee Info */}
-            {globalSettings && (
-              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                <p className="text-sm text-muted-foreground">
-                  <strong className="text-primary">Taxa de recuperação:</strong>{" "}
-                  {globalSettings.recovery_fee_percentage}% sobre vendas recuperadas
-                </p>
-              </div>
-            )}
+        <Tabs defaultValue="config" className="space-y-6">
+          <TabsList className="bg-secondary/50">
+            <TabsTrigger value="config">Configuração</TabsTrigger>
+            <TabsTrigger value="messages">Mensagens ({stats.totalMessages})</TabsTrigger>
+          </TabsList>
 
-            {/* Message Intervals */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-medium">Sequência de Mensagens</Label>
-                <Button variant="outline" size="sm" onClick={addInterval}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar
-                </Button>
-              </div>
-
-              <div className="space-y-3">
-                {intervals.map((interval, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-3 p-4 rounded-lg bg-muted/30 border border-border"
-                  >
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[100px]">
-                      <Clock className="h-4 w-4" />
-                      {index + 1}ª mensagem:
-                    </div>
-
-                    <Input
-                      type="number"
-                      min="1"
-                      value={interval.value}
-                      onChange={(e) => updateInterval(index, "value", parseInt(e.target.value) || 1)}
-                      className="w-20"
-                    />
-
-                    <Select
-                      value={interval.type}
-                      onValueChange={(value) => updateInterval(index, "type", value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="minutes">minutos</SelectItem>
-                        <SelectItem value="hours">horas</SelectItem>
-                        <SelectItem value="days">dias</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <span className="text-muted-foreground">via</span>
-
-                    <Select
-                      value={interval.channel}
-                      onValueChange={(value) => updateInterval(index, "channel", value)}
-                    >
-                      <SelectTrigger className="w-36">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                        <SelectItem value="email">Email</SelectItem>
-                        <SelectItem value="both">Ambos</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    {intervals.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeInterval(index)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+          <TabsContent value="config" className="space-y-6">
+            {/* Campaign Configuration */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Configuração da Campanha</CardTitle>
+                    <CardDescription>
+                      Configure quando e como as mensagens de recuperação serão enviadas
+                    </CardDescription>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="campaign-active" className="text-sm">
+                      Campanha ativa
+                    </Label>
+                    <Switch
+                      id="campaign-active"
+                      checked={isActive}
+                      onCheckedChange={setIsActive}
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Fee Info */}
+                {globalSettings && (
+                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                    <p className="text-sm text-muted-foreground">
+                      <strong className="text-primary">Taxa de recuperação:</strong>{" "}
+                      {globalSettings.recovery_fee_percentage}% sobre vendas recuperadas
+                    </p>
+                  </div>
+                )}
 
-            <Button onClick={saveCampaign} disabled={saving} className="w-full">
-              {saving ? "Salvando..." : "Salvar Campanha"}
-            </Button>
-          </CardContent>
-        </Card>
+                {/* Message Intervals */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-medium">Sequência de Mensagens</Label>
+                    <Button variant="outline" size="sm" onClick={addInterval}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar
+                    </Button>
+                  </div>
 
-        {/* Recent Messages */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>Mensagens Recentes</CardTitle>
-            <CardDescription>
-              Histórico das últimas mensagens de recuperação enviadas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {messages.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma mensagem de recuperação enviada ainda</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Canal</TableHead>
-                    <TableHead>Mensagem #</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Erro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {messages.map((message) => (
-                    <TableRow key={message.id}>
-                      <TableCell>
-                        {message.sent_at
-                          ? format(new Date(message.sent_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getChannelIcon(message.channel)}
-                          <span className="capitalize">{message.channel}</span>
+                  <div className="space-y-3">
+                    {intervals.map((interval, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-4 rounded-lg bg-muted/30 border border-border"
+                      >
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[100px]">
+                          <Clock className="h-4 w-4" />
+                          {index + 1}ª mensagem:
                         </div>
-                      </TableCell>
-                      <TableCell>{message.message_number}ª</TableCell>
-                      <TableCell>{getStatusBadge(message.status)}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-destructive">
-                        {message.error_message || "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+
+                        <Input
+                          type="number"
+                          min="1"
+                          value={interval.value}
+                          onChange={(e) => updateInterval(index, "value", parseInt(e.target.value) || 1)}
+                          className="w-20"
+                        />
+
+                        <Select
+                          value={interval.type}
+                          onValueChange={(value) => updateInterval(index, "type", value)}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="minutes">minutos</SelectItem>
+                            <SelectItem value="hours">horas</SelectItem>
+                            <SelectItem value="days">dias</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <span className="text-muted-foreground">via</span>
+
+                        <Select
+                          value={interval.channel}
+                          onValueChange={(value) => updateInterval(index, "channel", value)}
+                        >
+                          <SelectTrigger className="w-36">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                            <SelectItem value="email">Email</SelectItem>
+                            <SelectItem value="both">Ambos</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        {intervals.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeInterval(index)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Templates */}
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-base font-medium">Personalização de Mensagens</Label>
+                    <Badge variant="outline" className="text-xs">Opcional</Badge>
+                  </div>
+                  
+                  <div className="p-4 rounded-lg bg-muted/30 border border-border space-y-2">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <p className="text-xs text-muted-foreground">
+                        Use as variáveis: <code className="px-1 py-0.5 bg-secondary rounded">{`{nome}`}</code>, <code className="px-1 py-0.5 bg-secondary rounded">{`{produto}`}</code>, <code className="px-1 py-0.5 bg-secondary rounded">{`{valor}`}</code>, <code className="px-1 py-0.5 bg-secondary rounded">{`{link}`}</code>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp-template">Template WhatsApp</Label>
+                    <Textarea
+                      id="whatsapp-template"
+                      value={customWhatsappTemplate}
+                      onChange={(e) => setCustomWhatsappTemplate(e.target.value)}
+                      placeholder="Olá {nome}! Vi que você não finalizou a compra do {produto}. O link ainda está disponível: {link}"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email-subject">Assunto do Email</Label>
+                    <Input
+                      id="email-subject"
+                      value={customEmailSubject}
+                      onChange={(e) => setCustomEmailSubject(e.target.value)}
+                      placeholder="{nome}, seu pedido está te esperando!"
+                    />
+                  </div>
+                </div>
+
+                <Button onClick={saveCampaign} disabled={saving} className="w-full">
+                  {saving ? "Salvando..." : "Salvar Campanha"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="messages" className="space-y-6">
+            {/* Recent Messages */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle>Mensagens Enviadas</CardTitle>
+                <CardDescription>
+                  Histórico das mensagens de recuperação com detalhes do cliente
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {messages.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhuma mensagem de recuperação enviada ainda</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Produto</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Canal</TableHead>
+                        <TableHead>Msg #</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {messages.map((message) => (
+                        <TableRow key={message.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {message.charge?.buyer_name || "Cliente"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {message.charge?.buyer_email}
+                                </p>
+                                {message.charge?.buyer_phone && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {message.charge.buyer_phone}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm truncate max-w-[150px]">
+                                {message.charge?.product?.name || "Produto"}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium text-primary">
+                              R$ {Number(message.charge?.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getChannelIcon(message.channel)}
+                              <span className="capitalize text-sm">{message.channel}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{message.message_number}ª</TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">
+                              {message.sent_at
+                                ? format(new Date(message.sent_at), "dd/MM HH:mm", { locale: ptBR })
+                                : "-"}
+                            </span>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(message.status)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
