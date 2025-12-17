@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -68,7 +68,8 @@ const getContentTypeIcon = (type: string) => {
 };
 
 export default function MembersConfig() {
-  const { productId } = useParams<{ productId: string }>();
+  const [searchParams] = useSearchParams();
+  const productId = searchParams.get('productId');
   const navigate = useNavigate();
   const { user } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
@@ -272,7 +273,7 @@ export default function MembersConfig() {
       <DashboardLayout>
         <div className="text-center py-12">
           <p className="text-muted-foreground">Produto não encontrado</p>
-          <Button variant="outline" onClick={() => navigate("/dashboard/members")} className="mt-4">
+          <Button variant="outline" onClick={() => navigate("/?page=dashboard/members")} className="mt-4">
             Voltar
           </Button>
         </div>
@@ -285,7 +286,7 @@ export default function MembersConfig() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/members")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/?page=dashboard/members")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>

@@ -197,14 +197,18 @@ const Checkout = () => {
     });
   }, [customDomain, slug, routeSlug, productId, effectiveProductId, searchParams]);
   
-  // Extract UTM parameters
-  const utmParams = useMemo(() => ({
-    utm_source: searchParams.get("utm_source") || undefined,
-    utm_medium: searchParams.get("utm_medium") || undefined,
-    utm_campaign: searchParams.get("utm_campaign") || undefined,
-    utm_content: searchParams.get("utm_content") || undefined,
-    utm_term: searchParams.get("utm_term") || undefined,
-  }), [searchParams]);
+  // Extract UTM parameters - use null instead of undefined so they serialize to JSON
+  const utmParams = useMemo(() => {
+    const params = {
+      utm_source: searchParams.get("utm_source") || null,
+      utm_medium: searchParams.get("utm_medium") || null,
+      utm_campaign: searchParams.get("utm_campaign") || null,
+      utm_content: searchParams.get("utm_content") || null,
+      utm_term: searchParams.get("utm_term") || null,
+    };
+    console.log('📊 UTM Parameters captured:', params);
+    return params;
+  }, [searchParams]);
   
   const [product, setProduct] = useState<Product | null>(null);
   const [template, setTemplate] = useState<CheckoutTemplate | null>(null);
