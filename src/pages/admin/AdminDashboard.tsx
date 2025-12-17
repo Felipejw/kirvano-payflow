@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   Users, 
   DollarSign, 
@@ -16,15 +17,25 @@ import {
   Settings,
   UserCog,
   Radio,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle,
+  ArrowUpRight,
+  ArrowDownRight,
+  Receipt,
+  Wallet,
+  CreditCard,
+  Building2,
+  PieChart,
+  BarChart3
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAppNavigate } from "@/lib/routes";
 import { useUserRole } from "@/hooks/useUserRole";
-import { format } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AdminTransactions } from "@/components/admin/AdminTransactions";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPie, Pie, Cell, Legend } from "recharts";
 
 interface SellerData {
   user_id: string;
@@ -34,6 +45,7 @@ interface SellerData {
   total_sales: number;
   total_revenue: number;
   products_count: number;
+  payment_mode: string;
 }
 
 interface AdminStats {
@@ -43,7 +55,30 @@ interface AdminStats {
   platformFees: number;
   pendingWithdrawals: number;
   activeProducts: number;
+  // New metrics
+  platformGatewaySellers: number;
+  ownGatewaySellers: number;
+  platformGatewayRevenue: number;
+  ownGatewayRevenue: number;
+  averageTicket: number;
+  conversionRate: number;
+  recoveredSales: number;
+  recoveredAmount: number;
+  pendingInvoices: number;
+  pendingInvoicesAmount: number;
+  overdueInvoices: number;
+  overdueInvoicesAmount: number;
+  custodyBalance: number;
+  monthlyGrowth: number;
 }
+
+interface ChartData {
+  date: string;
+  revenue: number;
+  transactions: number;
+}
+
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#ff6b6b', '#4ecdc4', '#ffd93d'];
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats>({
@@ -52,9 +87,25 @@ export default function AdminDashboard() {
     totalTransactions: 0,
     platformFees: 0,
     pendingWithdrawals: 0,
-    activeProducts: 0
+    activeProducts: 0,
+    platformGatewaySellers: 0,
+    ownGatewaySellers: 0,
+    platformGatewayRevenue: 0,
+    ownGatewayRevenue: 0,
+    averageTicket: 0,
+    conversionRate: 0,
+    recoveredSales: 0,
+    recoveredAmount: 0,
+    pendingInvoices: 0,
+    pendingInvoicesAmount: 0,
+    overdueInvoices: 0,
+    overdueInvoicesAmount: 0,
+    custodyBalance: 0,
+    monthlyGrowth: 0
   });
   const [sellers, setSellers] = useState<SellerData[]>([]);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [paymentModeData, setPaymentModeData] = useState<{name: string, value: number}[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -114,10 +165,100 @@ export default function AdminDashboard() {
 
       if (withdrawalsError) throw withdrawalsError;
 
+      // Fetch PIX charges for conversion rate
+      const { data: pixCharges } = await supabase
+        .from("pix_charges")
+        .select("status, created_at");
+
+      // Fetch invoices
+      const { data: invoices } = await supabase
+        .from("platform_invoices")
+        .select("*");
+
+      // Calculate metrics
       const paidTransactions = transactions?.filter(t => t.status === 'paid') || [];
       const totalRevenue = paidTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
       const platformFees = paidTransactions.reduce((sum, t) => sum + Number(t.platform_fee || 0), 0);
       const pendingWithdrawalsAmount = withdrawals?.reduce((sum, w) => sum + Number(w.amount || 0), 0) || 0;
+
+      // Payment mode metrics
+      const platformGatewaySellers = profiles?.filter(p => p.payment_mode === 'platform_gateway').length || 0;
+      const ownGatewaySellers = profiles?.filter(p => p.payment_mode !== 'platform_gateway').length || 0;
+
+      // Revenue by payment mode
+      const platformGatewayUserIds = profiles?.filter(p => p.payment_mode === 'platform_gateway').map(p => p.user_id) || [];
+      const platformGatewayRevenue = paidTransactions
+        .filter(t => platformGatewayUserIds.includes(t.seller_id))
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      const ownGatewayRevenue = totalRevenue - platformGatewayRevenue;
+
+      // Average ticket
+      const averageTicket = paidTransactions.length > 0 ? totalRevenue / paidTransactions.length : 0;
+
+      // Conversion rate
+      const totalCharges = pixCharges?.length || 0;
+      const paidCharges = pixCharges?.filter(c => c.status === 'paid').length || 0;
+      const conversionRate = totalCharges > 0 ? (paidCharges / totalCharges) * 100 : 0;
+
+      // Recovered sales
+      const recoveredTransactions = paidTransactions.filter(t => t.is_recovered);
+      const recoveredSales = recoveredTransactions.length;
+      const recoveredAmount = recoveredTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+      // Invoices
+      const pendingInvoices = invoices?.filter(i => i.status === 'pending') || [];
+      const pendingInvoicesAmount = pendingInvoices.reduce((sum, i) => sum + Number(i.fee_total || 0), 0);
+      
+      const today = new Date();
+      const overdueInvoices = invoices?.filter(i => 
+        i.status === 'pending' && new Date(i.due_date) < today
+      ) || [];
+      const overdueInvoicesAmount = overdueInvoices.reduce((sum, i) => sum + Number(i.fee_total || 0), 0);
+
+      // Custody balance (platform gateway sellers' balance)
+      const custodyBalance = paidTransactions
+        .filter(t => platformGatewayUserIds.includes(t.seller_id))
+        .reduce((sum, t) => sum + Number(t.seller_amount || 0), 0) - pendingWithdrawalsAmount;
+
+      // Monthly growth (compare this month vs last month)
+      const thisMonthStart = startOfMonth(today);
+      const lastMonthStart = startOfMonth(subDays(thisMonthStart, 1));
+      const lastMonthEnd = endOfMonth(subDays(thisMonthStart, 1));
+      
+      const thisMonthRevenue = paidTransactions
+        .filter(t => new Date(t.created_at) >= thisMonthStart)
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      
+      const lastMonthRevenue = paidTransactions
+        .filter(t => {
+          const date = new Date(t.created_at);
+          return date >= lastMonthStart && date <= lastMonthEnd;
+        })
+        .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+      const monthlyGrowth = lastMonthRevenue > 0 
+        ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 
+        : 0;
+
+      // Chart data (last 7 days)
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = subDays(today, 6 - i);
+        const dayTransactions = paidTransactions.filter(t => {
+          const tDate = new Date(t.created_at);
+          return tDate.toDateString() === date.toDateString();
+        });
+        return {
+          date: format(date, "dd/MM", { locale: ptBR }),
+          revenue: dayTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0),
+          transactions: dayTransactions.length
+        };
+      });
+
+      // Payment mode pie chart data
+      const paymentModeChartData = [
+        { name: 'Gateway Plataforma', value: platformGatewayRevenue },
+        { name: 'Gateway Próprio', value: ownGatewayRevenue }
+      ].filter(d => d.value > 0);
 
       setStats({
         totalSellers: profiles?.length || 0,
@@ -125,8 +266,25 @@ export default function AdminDashboard() {
         totalTransactions: paidTransactions.length,
         platformFees,
         pendingWithdrawals: pendingWithdrawalsAmount,
-        activeProducts: products?.filter(p => p.status === "active").length || 0
+        activeProducts: products?.filter(p => p.status === "active").length || 0,
+        platformGatewaySellers,
+        ownGatewaySellers,
+        platformGatewayRevenue,
+        ownGatewayRevenue,
+        averageTicket,
+        conversionRate,
+        recoveredSales,
+        recoveredAmount,
+        pendingInvoices: pendingInvoices.length,
+        pendingInvoicesAmount,
+        overdueInvoices: overdueInvoices.length,
+        overdueInvoicesAmount,
+        custodyBalance,
+        monthlyGrowth
       });
+
+      setChartData(last7Days);
+      setPaymentModeData(paymentModeChartData);
 
       const sellerMap = new Map<string, SellerData>();
       
@@ -138,7 +296,8 @@ export default function AdminDashboard() {
           created_at: profile.created_at,
           total_sales: 0,
           total_revenue: 0,
-          products_count: 0
+          products_count: 0,
+          payment_mode: profile.payment_mode || 'own_gateway'
         });
       });
 
@@ -257,7 +416,7 @@ export default function AdminDashboard() {
           <div>
             <h1 className="text-3xl font-bold">Painel Administrativo</h1>
             <p className="text-muted-foreground">
-              Visão geral da plataforma
+              Visão geral completa da plataforma
             </p>
           </div>
           <div className="flex gap-2 items-center">
@@ -293,12 +452,48 @@ export default function AdminDashboard() {
           Última atualização: {format(lastUpdate, "HH:mm:ss", { locale: ptBR })}
         </div>
 
+        {/* Alerts Section */}
+        {(stats.overdueInvoices > 0 || stats.pendingWithdrawals > 0) && (
+          <div className="space-y-3">
+            {stats.overdueInvoices > 0 && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Faturas Vencidas!</AlertTitle>
+                <AlertDescription>
+                  {stats.overdueInvoices} fatura(s) vencida(s) totalizando {formatCurrency(stats.overdueInvoicesAmount)}. 
+                  <Button variant="link" className="p-0 h-auto ml-2" onClick={() => navigate("admin/invoices")}>
+                    Ver faturas →
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            {stats.pendingWithdrawals > 0 && (
+              <Alert className="border-yellow-500/50 bg-yellow-500/10">
+                <Wallet className="h-4 w-4 text-yellow-500" />
+                <AlertTitle className="text-yellow-500">Saques Pendentes</AlertTitle>
+                <AlertDescription>
+                  {formatCurrency(stats.pendingWithdrawals)} em saques aguardando aprovação.
+                  <Button variant="link" className="p-0 h-auto ml-2" onClick={() => navigate("admin/withdrawals")}>
+                    Gerenciar saques →
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
+
         {/* Featured Card - Platform Earnings */}
         <Card className="glass-card border-primary/50 bg-gradient-to-r from-primary/10 to-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
               Seu Lucro com Taxas
+              {stats.monthlyGrowth !== 0 && (
+                <Badge variant={stats.monthlyGrowth > 0 ? "default" : "destructive"} className="ml-2">
+                  {stats.monthlyGrowth > 0 ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+                  {Math.abs(stats.monthlyGrowth).toFixed(1)}% este mês
+                </Badge>
+              )}
             </CardTitle>
             <CardDescription>
               Total acumulado de taxas da plataforma
@@ -314,18 +509,8 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Vendedores</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalSellers}</div>
-            </CardContent>
-          </Card>
-
+        {/* Main Stats Grid */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
@@ -333,6 +518,9 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Ticket médio: {formatCurrency(stats.averageTicket)}
+              </p>
             </CardContent>
           </Card>
 
@@ -343,22 +531,25 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalTransactions}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Taxa de conversão: {stats.conversionRate.toFixed(1)}%
+              </p>
               {newTransactionAlert && (
                 <Badge className="mt-2 bg-primary animate-bounce">Nova!</Badge>
               )}
             </CardContent>
           </Card>
 
-          <Card className={`glass-card transition-all duration-300 ${newWithdrawalAlert ? "ring-2 ring-yellow-500 animate-pulse" : ""}`}>
+          <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Saques Pendentes</CardTitle>
-              <DollarSign className="h-4 w-4 text-yellow-500" />
+              <CardTitle className="text-sm font-medium">Vendas Recuperadas</CardTitle>
+              <RefreshCw className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-500">{formatCurrency(stats.pendingWithdrawals)}</div>
-              {newWithdrawalAlert && (
-                <Badge className="mt-2 bg-yellow-500 animate-bounce">Novo!</Badge>
-              )}
+              <div className="text-2xl font-bold text-green-500">{stats.recoveredSales}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {formatCurrency(stats.recoveredAmount)} recuperados
+              </p>
             </CardContent>
           </Card>
 
@@ -373,10 +564,153 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
+        {/* Sellers by Payment Mode */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="glass-card border-primary/30">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Gateway Plataforma</CardTitle>
+              <Building2 className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.platformGatewaySellers}</div>
+              <p className="text-xs text-muted-foreground mt-1">vendedores</p>
+              <p className="text-sm font-medium text-primary mt-2">
+                {formatCurrency(stats.platformGatewayRevenue)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card border-accent/30">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Gateway Próprio</CardTitle>
+              <CreditCard className="h-4 w-4 text-accent" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.ownGatewaySellers}</div>
+              <p className="text-xs text-muted-foreground mt-1">vendedores</p>
+              <p className="text-sm font-medium text-accent mt-2">
+                {formatCurrency(stats.ownGatewayRevenue)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Custódia (BSPAY)</CardTitle>
+              <Wallet className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-500">{formatCurrency(stats.custodyBalance)}</div>
+              <p className="text-xs text-muted-foreground mt-1">disponível para saques</p>
+            </CardContent>
+          </Card>
+
+          <Card className={`glass-card ${stats.overdueInvoices > 0 ? "border-destructive/50" : ""}`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Faturas Pendentes</CardTitle>
+              <Receipt className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.pendingInvoices}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {formatCurrency(stats.pendingInvoicesAmount)}
+              </p>
+              {stats.overdueInvoices > 0 && (
+                <Badge variant="destructive" className="mt-2">
+                  {stats.overdueInvoices} vencida(s)
+                </Badge>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Row */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          {/* Revenue Chart */}
+          <Card className="glass-card lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Vendas (Últimos 7 dias)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="date" className="text-xs" />
+                    <YAxis 
+                      tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                      className="text-xs"
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [formatCurrency(value), "Receita"]}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Payment Mode Distribution */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5" />
+                Receita por Modo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px]">
+                {paymentModeData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPie>
+                      <Pie
+                        data={paymentModeData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                      >
+                        {paymentModeData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => formatCurrency(value)}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Legend />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Sem dados suficientes
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Tabs */}
         <Tabs defaultValue="sellers" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="sellers">Vendedores</TabsTrigger>
+            <TabsTrigger value="sellers">Vendedores ({stats.totalSellers})</TabsTrigger>
             <TabsTrigger value="transactions">Transações</TabsTrigger>
           </TabsList>
 
@@ -407,6 +741,7 @@ export default function AdminDashboard() {
                     <thead>
                       <tr className="border-b bg-muted/50">
                         <th className="p-3 text-left font-medium">Vendedor</th>
+                        <th className="p-3 text-left font-medium">Modo</th>
                         <th className="p-3 text-left font-medium">Produtos</th>
                         <th className="p-3 text-left font-medium">Vendas</th>
                         <th className="p-3 text-left font-medium">Receita</th>
@@ -417,7 +752,7 @@ export default function AdminDashboard() {
                     <tbody>
                       {filteredSellers.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                          <td colSpan={7} className="p-8 text-center text-muted-foreground">
                             Nenhum vendedor encontrado
                           </td>
                         </tr>
@@ -429,6 +764,11 @@ export default function AdminDashboard() {
                                 <p className="font-medium">{seller.full_name}</p>
                                 <p className="text-sm text-muted-foreground">{seller.email}</p>
                               </div>
+                            </td>
+                            <td className="p-3">
+                              <Badge variant={seller.payment_mode === 'platform_gateway' ? 'default' : 'outline'}>
+                                {seller.payment_mode === 'platform_gateway' ? 'Plataforma' : 'Próprio'}
+                              </Badge>
                             </td>
                             <td className="p-3">
                               <Badge variant="outline">{seller.products_count}</Badge>
@@ -456,7 +796,6 @@ export default function AdminDashboard() {
           <TabsContent value="transactions">
             <AdminTransactions />
           </TabsContent>
-
         </Tabs>
       </div>
     </DashboardLayout>
