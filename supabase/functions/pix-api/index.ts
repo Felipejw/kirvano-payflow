@@ -27,6 +27,8 @@ interface CreateChargeRequest {
   description?: string;
   order_bumps?: string[];
   payment_method?: 'pix' | 'card' | 'boleto';
+  card_token?: string;
+  installments?: number;
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
@@ -39,9 +41,10 @@ interface ChargeResponse {
   external_id: string;
   amount: number;
   status: string;
-  qr_code: string;
-  qr_code_base64: string;
-  copy_paste: string;
+  status_detail?: string;
+  qr_code?: string;
+  qr_code_base64?: string;
+  copy_paste?: string;
   expires_at: string;
   created_at: string;
 }
@@ -51,6 +54,7 @@ interface GatewayCredentials {
   client_secret?: string;
   api_key?: string;
   access_token?: string;
+  public_key?: string;
   [key: string]: string | undefined;
 }
 
@@ -340,6 +344,96 @@ async function getMercadoPagoPayment(accessToken: string, paymentId: string): Pr
   const data = await response.json();
   console.log('Mercado Pago payment status:', data.status);
   return data;
+}
+
+// ============================================================
+// Mercado Pago Card Payment Integration
+// ============================================================
+
+interface MercadoPagoCardResult {
+  paymentId: string;
+  status: string;
+  statusDetail: string;
+}
+
+async function createMercadoPagoCardPayment(
+  accessToken: string,
+  amount: number,
+  externalReference: string,
+  payer: { email: string; name?: string; document?: string },
+  cardToken: string,
+  installments: number,
+  description?: string
+): Promise<MercadoPagoCardResult> {
+  console.log('Creating Mercado Pago card payment for amount:', amount, 'installments:', installments);
+  
+  if (!accessToken) {
+    throw new Error('Mercado Pago access_token not provided');
+  }
+  
+  if (!cardToken) {
+    throw new Error('Card token not provided');
+  }
+  
+  // Build payer data
+  const payerData: any = {
+    email: payer.email,
+  };
+  
+  if (payer.name) {
+    const nameParts = payer.name.trim().split(' ');
+    payerData.first_name = nameParts[0] || 'Cliente';
+    payerData.last_name = nameParts.slice(1).join(' ') || 'Comprador';
+  }
+  
+  if (payer.document) {
+    const cleanDoc = payer.document.replace(/\D/g, '');
+    payerData.identification = {
+      type: cleanDoc.length === 11 ? 'CPF' : 'CNPJ',
+      number: cleanDoc,
+    };
+  }
+  
+  const payload = {
+    transaction_amount: amount,
+    description: description || 'Pagamento via Cartão',
+    payment_method_id: 'credit_card',
+    token: cardToken,
+    installments: installments,
+    external_reference: externalReference,
+    payer: payerData,
+  };
+  
+  console.log('Mercado Pago card payload:', JSON.stringify({ ...payload, token: '***' }, null, 2));
+  
+  const response = await fetch(`${MERCADOPAGO_API_URL}/v1/payments`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'X-Idempotency-Key': externalReference,
+    },
+    body: JSON.stringify(payload),
+  });
+  
+  const responseText = await response.text();
+  console.log('Mercado Pago card response status:', response.status);
+  console.log('Mercado Pago card response:', responseText);
+  
+  if (!response.ok) {
+    console.error('Mercado Pago card error:', response.status, responseText);
+    throw new Error(`Failed to create Mercado Pago card payment: ${response.status} - ${responseText}`);
+  }
+  
+  const data = JSON.parse(responseText);
+  
+  console.log('Mercado Pago card payment created:', data.id, 'status:', data.status);
+  
+  return {
+    paymentId: String(data.id),
+    status: data.status,
+    statusDetail: data.status_detail || '',
+  };
 }
 
 // ============================================================
@@ -770,11 +864,71 @@ serve(async (req) => {
       
       const webhookUrl = body.webhook_url || `${supabaseUrl}/functions/v1/pix-api/webhook`;
 
-      let pixCode: string;
-      let qrCodeBase64: string;
+      let pixCode: string | null = null;
+      let qrCodeBase64: string | null = null;
       let gatewayTransactionId: string | null = null;
+      let cardPaymentStatus: string | null = null;
+      let cardStatusDetail: string | null = null;
 
       try {
+        // CARD PAYMENT HANDLING
+        if (paymentMethod === 'card') {
+          if (gateway.slug !== 'mercadopago') {
+            return new Response(JSON.stringify({ 
+              error: 'Pagamento com cartão só está disponível via Mercado Pago no momento.' 
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          if (!body.card_token) {
+            return new Response(JSON.stringify({ error: 'Card token is required for card payments' }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          const accessToken = credentials.access_token;
+          if (!accessToken) {
+            throw new Error('Mercado Pago access_token not configured');
+          }
+          
+          // Get product name for description
+          let description = body.description || 'Pagamento via Cartão';
+          if (body.product_id) {
+            const { data: productInfo } = await supabase
+              .from('products')
+              .select('name')
+              .eq('id', body.product_id)
+              .maybeSingle();
+            if (productInfo) {
+              description = `Compra: ${productInfo.name}`;
+            }
+          }
+          
+          const cardResult = await createMercadoPagoCardPayment(
+            accessToken,
+            body.amount,
+            externalId,
+            {
+              email: body.buyer_email,
+              name: body.buyer_name,
+              document: body.buyer_document,
+            },
+            body.card_token,
+            body.installments || 1,
+            description
+          );
+          
+          gatewayTransactionId = cardResult.paymentId;
+          cardPaymentStatus = cardResult.status;
+          cardStatusDetail = cardResult.statusDetail;
+          
+          console.log('Mercado Pago card payment created:', gatewayTransactionId, 'status:', cardPaymentStatus);
+          
+        } else {
+        // PIX PAYMENT HANDLING
         // Process payment based on gateway type
         if (gateway.slug === 'bspay') {
           const clientId = credentials.client_id;
@@ -853,6 +1007,7 @@ serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
+        } // End of else block for PIX payments
       } catch (gatewayError) {
         console.error('Gateway error:', gatewayError);
         const errorMessage = gatewayError instanceof Error ? gatewayError.message : 'Gateway error';
@@ -1159,7 +1314,7 @@ serve(async (req) => {
       });
     }
 
-    // GET /payment-methods/:sellerId - Get seller's available payment methods
+    // GET /payment-methods/:sellerId - Get seller's available payment methods and public key
     if (req.method === 'GET' && path.startsWith('/payment-methods/')) {
       const sellerId = path.replace('/payment-methods/', '');
       
@@ -1172,8 +1327,10 @@ serve(async (req) => {
           use_for_card,
           use_for_boleto,
           is_active,
+          credentials,
           payment_gateways (
-            is_active
+            is_active,
+            slug
           )
         `)
         .eq('user_id', sellerId)
@@ -1188,9 +1345,9 @@ serve(async (req) => {
       }
       
       const methods: string[] = [];
+      let publicKey: string | null = null;
       
       if (data && data.length > 0) {
-        // Filter credentials where the gateway is active
         const activeCredentials = data.filter((c: any) => {
           const gateway = c.payment_gateways;
           return gateway && (Array.isArray(gateway) ? gateway[0]?.is_active : gateway.is_active);
@@ -1199,11 +1356,22 @@ serve(async (req) => {
         if (activeCredentials.some((c: any) => c.use_for_pix)) methods.push('pix');
         if (activeCredentials.some((c: any) => c.use_for_card)) methods.push('card');
         if (activeCredentials.some((c: any) => c.use_for_boleto)) methods.push('boleto');
+        
+        // Get public key for Mercado Pago card payments
+        const mpCredentials = activeCredentials.find((c: any) => {
+          const gateway = c.payment_gateways;
+          const slug = Array.isArray(gateway) ? gateway[0]?.slug : gateway?.slug;
+          return slug === 'mercadopago' && c.use_for_card;
+        });
+        
+        if (mpCredentials?.credentials?.public_key) {
+          publicKey = mpCredentials.credentials.public_key;
+        }
       }
       
-      console.log('Available payment methods:', methods);
+      console.log('Available payment methods:', methods, 'hasPublicKey:', !!publicKey);
       
-      return new Response(JSON.stringify({ methods }), {
+      return new Response(JSON.stringify({ methods, publicKey }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
