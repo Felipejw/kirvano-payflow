@@ -57,6 +57,12 @@ interface CreditCardFormProps {
     cardBorder: string;
     accentColor: string;
   };
+  // Asaas-specific fields
+  showAsaasFields?: boolean;
+  cardPostalCode?: string;
+  setCardPostalCode?: (value: string) => void;
+  cardAddressNumber?: string;
+  setCardAddressNumber?: (value: string) => void;
 }
 
 export const CreditCardForm = ({
@@ -73,6 +79,11 @@ export const CreditCardForm = ({
   installmentOptions,
   cardBrand,
   styles,
+  showAsaasFields = false,
+  cardPostalCode = '',
+  setCardPostalCode,
+  cardAddressNumber = '',
+  setCardAddressNumber,
 }: CreditCardFormProps) => {
   const [showCvv, setShowCvv] = useState(false);
 
@@ -221,6 +232,61 @@ export const CreditCardForm = ({
           </div>
         </div>
       </div>
+
+      {/* Asaas-specific fields: CEP and Address Number */}
+      {showAsaasFields && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label 
+              htmlFor="cardPostalCode" 
+              className="text-sm font-medium"
+              style={{ color: styles.textColor }}
+            >
+              CEP do Titular
+            </Label>
+            <Input
+              id="cardPostalCode"
+              type="text"
+              inputMode="numeric"
+              placeholder="00000-000"
+              value={cardPostalCode}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                const formatted = digits.length > 5 
+                  ? digits.slice(0, 5) + '-' + digits.slice(5) 
+                  : digits;
+                setCardPostalCode?.(formatted);
+              }}
+              style={{
+                backgroundColor: styles.cardBg,
+                borderColor: styles.cardBorder,
+                color: styles.textColor,
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label 
+              htmlFor="cardAddressNumber" 
+              className="text-sm font-medium"
+              style={{ color: styles.textColor }}
+            >
+              Número (Endereço)
+            </Label>
+            <Input
+              id="cardAddressNumber"
+              type="text"
+              placeholder="123"
+              value={cardAddressNumber}
+              onChange={(e) => setCardAddressNumber?.(e.target.value)}
+              style={{
+                backgroundColor: styles.cardBg,
+                borderColor: styles.cardBorder,
+                color: styles.textColor,
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Installments */}
       {installmentOptions.length > 0 && (
