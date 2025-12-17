@@ -8,7 +8,6 @@ import { AverageTicketChart } from "@/components/dashboard/AverageTicketChart";
 import { TopProducts } from "@/components/dashboard/TopProducts";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ConversionFunnel, ConversionChart } from "@/components/dashboard/ConversionMetrics";
-import { WithdrawalManagement } from "@/components/dashboard/WithdrawalManagement";
 import { GeneratePixDialog } from "@/components/dashboard/GeneratePixDialog";
 import { DateRangeFilter, DateRange, DateRangeOption } from "@/components/dashboard/DateRangeFilter";
 import { startOfDay, endOfDay } from "date-fns";
@@ -335,7 +334,6 @@ const Dashboard = () => {
           <TabsList className="bg-secondary/50 w-full sm:w-auto">
             <TabsTrigger value="overview" className="flex-1 sm:flex-none">Visão Geral</TabsTrigger>
             <TabsTrigger value="conversions" className="flex-1 sm:flex-none">Conversões</TabsTrigger>
-            <TabsTrigger value="finance" className="flex-1 sm:flex-none">Financeiro</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -398,10 +396,6 @@ const Dashboard = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="finance" className="space-y-6">
-            <WithdrawalManagement />
           </TabsContent>
         </Tabs>
       </div>
