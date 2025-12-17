@@ -34,6 +34,23 @@ interface CreateChargeRequest {
   utm_campaign?: string;
   utm_content?: string;
   utm_term?: string;
+  // Asaas card-specific fields (no tokenization)
+  card_data?: {
+    holderName: string;
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    ccv: string;
+  };
+  card_holder_info?: {
+    name: string;
+    email: string;
+    cpfCnpj: string;
+    postalCode: string;
+    addressNumber: string;
+    phone?: string;
+  };
+  remote_ip?: string;
 }
 
 interface ChargeResponse {
@@ -438,6 +455,298 @@ async function createMercadoPagoCardPayment(
 
 // ============================================================
 // End of Mercado Pago Integration
+// ============================================================
+
+// ============================================================
+// ASAAS API Integration
+// ============================================================
+const ASAAS_API_URL = "https://api.asaas.com/v3";
+const ASAAS_SANDBOX_URL = "https://sandbox.asaas.com/api/v3";
+
+// Get or create Asaas customer
+async function getOrCreateAsaasCustomer(
+  apiKey: string,
+  cpfCnpj: string,
+  name: string,
+  email: string,
+  phone?: string
+): Promise<string> {
+  const baseUrl = apiKey.includes('$aact_') ? ASAAS_API_URL : ASAAS_SANDBOX_URL;
+  
+  // Clean document
+  const cleanDoc = cpfCnpj.replace(/\D/g, '');
+  
+  // Try to find existing customer
+  console.log('Searching for existing Asaas customer with document:', cleanDoc);
+  const searchResponse = await fetch(`${baseUrl}/customers?cpfCnpj=${cleanDoc}`, {
+    method: 'GET',
+    headers: {
+      'access_token': apiKey,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (searchResponse.ok) {
+    const searchData = await searchResponse.json();
+    if (searchData.data && searchData.data.length > 0) {
+      console.log('Found existing Asaas customer:', searchData.data[0].id);
+      return searchData.data[0].id;
+    }
+  }
+  
+  // Create new customer
+  console.log('Creating new Asaas customer');
+  const createPayload: any = {
+    name: name || 'Cliente',
+    email: email,
+    cpfCnpj: cleanDoc,
+  };
+  
+  if (phone) {
+    const cleanPhone = phone.replace(/\D/g, '');
+    createPayload.mobilePhone = cleanPhone;
+  }
+  
+  const createResponse = await fetch(`${baseUrl}/customers`, {
+    method: 'POST',
+    headers: {
+      'access_token': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(createPayload),
+  });
+  
+  if (!createResponse.ok) {
+    const errorText = await createResponse.text();
+    console.error('Asaas customer creation error:', createResponse.status, errorText);
+    throw new Error(`Failed to create Asaas customer: ${createResponse.status} - ${errorText}`);
+  }
+  
+  const createData = await createResponse.json();
+  console.log('Asaas customer created:', createData.id);
+  return createData.id;
+}
+
+// Create Asaas PIX payment
+interface AsaasPixResult {
+  paymentId: string;
+  qrCode: string;
+  qrCodeBase64: string;
+  payload: string;
+}
+
+async function createAsaasPixPayment(
+  apiKey: string,
+  customerId: string,
+  amount: number,
+  externalReference: string,
+  description?: string
+): Promise<AsaasPixResult> {
+  const baseUrl = apiKey.includes('$aact_') ? ASAAS_API_URL : ASAAS_SANDBOX_URL;
+  
+  console.log('Creating Asaas PIX payment for amount:', amount);
+  
+  // Create payment
+  const paymentPayload = {
+    customer: customerId,
+    billingType: 'PIX',
+    value: amount,
+    externalReference: externalReference,
+    description: description || 'Pagamento via PIX',
+    dueDate: new Date(Date.now() + 30 * 60 * 1000).toISOString().split('T')[0], // 30 min expiry
+  };
+  
+  const paymentResponse = await fetch(`${baseUrl}/payments`, {
+    method: 'POST',
+    headers: {
+      'access_token': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(paymentPayload),
+  });
+  
+  if (!paymentResponse.ok) {
+    const errorText = await paymentResponse.text();
+    console.error('Asaas payment creation error:', paymentResponse.status, errorText);
+    throw new Error(`Failed to create Asaas payment: ${paymentResponse.status} - ${errorText}`);
+  }
+  
+  const paymentData = await paymentResponse.json();
+  const paymentId = paymentData.id;
+  console.log('Asaas payment created:', paymentId);
+  
+  // Get QR Code
+  const qrResponse = await fetch(`${baseUrl}/payments/${paymentId}/pixQrCode`, {
+    method: 'GET',
+    headers: {
+      'access_token': apiKey,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!qrResponse.ok) {
+    const errorText = await qrResponse.text();
+    console.error('Asaas QR code error:', qrResponse.status, errorText);
+    throw new Error(`Failed to get Asaas QR code: ${qrResponse.status} - ${errorText}`);
+  }
+  
+  const qrData = await qrResponse.json();
+  
+  return {
+    paymentId: paymentId,
+    qrCode: qrData.encodedImage || '',
+    qrCodeBase64: qrData.encodedImage || '',
+    payload: qrData.payload || '',
+  };
+}
+
+// Create Asaas Card payment
+interface AsaasCardResult {
+  paymentId: string;
+  status: string;
+  statusDetail: string;
+}
+
+async function createAsaasCardPayment(
+  apiKey: string,
+  customerId: string,
+  amount: number,
+  externalReference: string,
+  creditCard: {
+    holderName: string;
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    ccv: string;
+  },
+  creditCardHolderInfo: {
+    name: string;
+    email: string;
+    cpfCnpj: string;
+    postalCode: string;
+    addressNumber: string;
+    phone?: string;
+  },
+  installments: number,
+  remoteIp: string,
+  description?: string
+): Promise<AsaasCardResult> {
+  const baseUrl = apiKey.includes('$aact_') ? ASAAS_API_URL : ASAAS_SANDBOX_URL;
+  
+  console.log('Creating Asaas card payment for amount:', amount, 'installments:', installments);
+  
+  // Clean card number
+  const cleanCardNumber = creditCard.number.replace(/\D/g, '');
+  const cleanDoc = creditCardHolderInfo.cpfCnpj.replace(/\D/g, '');
+  const cleanPostalCode = creditCardHolderInfo.postalCode.replace(/\D/g, '');
+  
+  const paymentPayload: any = {
+    customer: customerId,
+    billingType: 'CREDIT_CARD',
+    value: amount,
+    externalReference: externalReference,
+    description: description || 'Pagamento via Cartão',
+    dueDate: new Date().toISOString().split('T')[0],
+    creditCard: {
+      holderName: creditCard.holderName,
+      number: cleanCardNumber,
+      expiryMonth: creditCard.expiryMonth,
+      expiryYear: creditCard.expiryYear.length === 2 ? `20${creditCard.expiryYear}` : creditCard.expiryYear,
+      ccv: creditCard.ccv,
+    },
+    creditCardHolderInfo: {
+      name: creditCardHolderInfo.name,
+      email: creditCardHolderInfo.email,
+      cpfCnpj: cleanDoc,
+      postalCode: cleanPostalCode,
+      addressNumber: creditCardHolderInfo.addressNumber,
+      phone: creditCardHolderInfo.phone?.replace(/\D/g, '') || undefined,
+    },
+    remoteIp: remoteIp || '0.0.0.0',
+  };
+  
+  if (installments > 1) {
+    paymentPayload.installmentCount = installments;
+    paymentPayload.installmentValue = amount / installments;
+  }
+  
+  // Log without sensitive data
+  console.log('Asaas card payload (sanitized):', JSON.stringify({
+    ...paymentPayload,
+    creditCard: { ...paymentPayload.creditCard, number: '****', ccv: '***' }
+  }, null, 2));
+  
+  const paymentResponse = await fetch(`${baseUrl}/payments`, {
+    method: 'POST',
+    headers: {
+      'access_token': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(paymentPayload),
+  });
+  
+  const responseText = await paymentResponse.text();
+  console.log('Asaas card response status:', paymentResponse.status);
+  
+  if (!paymentResponse.ok) {
+    console.error('Asaas card payment error:', paymentResponse.status, responseText);
+    throw new Error(`Failed to create Asaas card payment: ${paymentResponse.status} - ${responseText}`);
+  }
+  
+  const paymentData = JSON.parse(responseText);
+  console.log('Asaas card payment created:', paymentData.id, 'status:', paymentData.status);
+  
+  // Map Asaas status to our status
+  let status = 'pending';
+  let statusDetail = paymentData.status || '';
+  
+  if (paymentData.status === 'CONFIRMED' || paymentData.status === 'RECEIVED') {
+    status = 'approved';
+  } else if (paymentData.status === 'PENDING') {
+    status = 'pending';
+  } else if (paymentData.status === 'REFUNDED' || paymentData.status === 'REFUND_REQUESTED') {
+    status = 'refunded';
+  } else if (['OVERDUE', 'AWAITING_RISK_ANALYSIS'].includes(paymentData.status)) {
+    status = 'in_process';
+  } else {
+    status = 'rejected';
+    statusDetail = paymentData.description || paymentData.status;
+  }
+  
+  return {
+    paymentId: paymentData.id,
+    status: status,
+    statusDetail: statusDetail,
+  };
+}
+
+// Get Asaas payment status
+async function getAsaasPayment(apiKey: string, paymentId: string): Promise<any> {
+  const baseUrl = apiKey.includes('$aact_') ? ASAAS_API_URL : ASAAS_SANDBOX_URL;
+  
+  console.log('Getting Asaas payment:', paymentId);
+  
+  const response = await fetch(`${baseUrl}/payments/${paymentId}`, {
+    method: 'GET',
+    headers: {
+      'access_token': apiKey,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Asaas get payment error:', response.status, errorText);
+    throw new Error(`Failed to get Asaas payment: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('Asaas payment status:', data.status);
+  return data;
+}
+
+// ============================================================
+// End of Asaas Integration
 // ============================================================
 
 const generateExternalId = () => {
@@ -873,27 +1182,6 @@ serve(async (req) => {
       try {
         // CARD PAYMENT HANDLING
         if (paymentMethod === 'card') {
-          if (gateway.slug !== 'mercadopago') {
-            return new Response(JSON.stringify({ 
-              error: 'Pagamento com cartão só está disponível via Mercado Pago no momento.' 
-            }), {
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-          
-          if (!body.card_token) {
-            return new Response(JSON.stringify({ error: 'Card token is required for card payments' }), {
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-          
-          const accessToken = credentials.access_token;
-          if (!accessToken) {
-            throw new Error('Mercado Pago access_token not configured');
-          }
-          
           // Get product name for description
           let description = body.description || 'Pagamento via Cartão';
           if (body.product_id) {
@@ -907,26 +1195,90 @@ serve(async (req) => {
             }
           }
           
-          const cardResult = await createMercadoPagoCardPayment(
-            accessToken,
-            body.amount,
-            externalId,
-            {
-              email: body.buyer_email,
-              name: body.buyer_name,
-              document: body.buyer_document,
-            },
-            body.card_token,
-            body.installments || 1,
-            description
-          );
-          
-          gatewayTransactionId = cardResult.paymentId;
-          cardPaymentStatus = cardResult.status;
-          cardStatusDetail = cardResult.statusDetail;
-          
-          console.log('Mercado Pago card payment created:', gatewayTransactionId, 'status:', cardPaymentStatus);
-          
+          if (gateway.slug === 'mercadopago') {
+            if (!body.card_token) {
+              return new Response(JSON.stringify({ error: 'Card token is required for Mercado Pago card payments' }), {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
+            
+            const accessToken = credentials.access_token;
+            if (!accessToken) {
+              throw new Error('Mercado Pago access_token not configured');
+            }
+            
+            const cardResult = await createMercadoPagoCardPayment(
+              accessToken,
+              body.amount,
+              externalId,
+              {
+                email: body.buyer_email,
+                name: body.buyer_name,
+                document: body.buyer_document,
+              },
+              body.card_token,
+              body.installments || 1,
+              description
+            );
+            
+            gatewayTransactionId = cardResult.paymentId;
+            cardPaymentStatus = cardResult.status;
+            cardStatusDetail = cardResult.statusDetail;
+            
+            console.log('Mercado Pago card payment created:', gatewayTransactionId, 'status:', cardPaymentStatus);
+            
+          } else if (gateway.slug === 'asaas') {
+            // Asaas card payment - requires full card data (no tokenization)
+            if (!body.card_data || !body.card_holder_info) {
+              return new Response(JSON.stringify({ 
+                error: 'Card data and holder info are required for Asaas card payments' 
+              }), {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
+            
+            const accessToken = credentials.access_token;
+            if (!accessToken) {
+              throw new Error('Asaas access_token not configured');
+            }
+            
+            // Create or get Asaas customer
+            const customerId = await getOrCreateAsaasCustomer(
+              accessToken,
+              body.buyer_document || body.card_holder_info.cpfCnpj,
+              body.buyer_name || body.card_holder_info.name,
+              body.buyer_email,
+              body.buyer_phone
+            );
+            
+            const cardResult = await createAsaasCardPayment(
+              accessToken,
+              customerId,
+              body.amount,
+              externalId,
+              body.card_data,
+              body.card_holder_info,
+              body.installments || 1,
+              body.remote_ip || '0.0.0.0',
+              description
+            );
+            
+            gatewayTransactionId = cardResult.paymentId;
+            cardPaymentStatus = cardResult.status;
+            cardStatusDetail = cardResult.statusDetail;
+            
+            console.log('Asaas card payment created:', gatewayTransactionId, 'status:', cardPaymentStatus);
+            
+          } else {
+            return new Response(JSON.stringify({ 
+              error: `Pagamento com cartão não suportado pelo gateway ${gateway.name}.` 
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
         } else {
         // PIX PAYMENT HANDLING
         // Process payment based on gateway type
@@ -997,11 +1349,55 @@ serve(async (req) => {
           
           console.log('Mercado Pago charge created successfully:', gatewayTransactionId);
           
+        } else if (gateway.slug === 'asaas') {
+          // Asaas PIX Integration
+          const accessToken = credentials.access_token;
+          
+          if (!accessToken) {
+            throw new Error('Asaas access_token not configured');
+          }
+          
+          // Get product name for description
+          let description = body.description || 'Pagamento via PIX';
+          if (body.product_id) {
+            const { data: productInfo } = await supabase
+              .from('products')
+              .select('name')
+              .eq('id', body.product_id)
+              .maybeSingle();
+            if (productInfo) {
+              description = `Compra: ${productInfo.name}`;
+            }
+          }
+          
+          // Create or get Asaas customer
+          const customerId = await getOrCreateAsaasCustomer(
+            accessToken,
+            body.buyer_document || '00000000000',
+            body.buyer_name || 'Cliente',
+            body.buyer_email,
+            body.buyer_phone
+          );
+          
+          const asaasResult = await createAsaasPixPayment(
+            accessToken,
+            customerId,
+            body.amount,
+            externalId,
+            description
+          );
+          
+          pixCode = asaasResult.payload;
+          qrCodeBase64 = asaasResult.qrCodeBase64;
+          gatewayTransactionId = asaasResult.paymentId;
+          
+          console.log('Asaas charge created successfully:', gatewayTransactionId);
+          
         } else {
           // For other gateways, we'll need to implement their specific APIs
           console.error('Gateway not yet implemented:', gateway.slug);
           return new Response(JSON.stringify({ 
-            error: `Gateway ${gateway.name} ainda não está implementado. Por favor, configure um gateway suportado (BSPAY ou Mercado Pago).` 
+            error: `Gateway ${gateway.name} ainda não está implementado. Por favor, configure um gateway suportado.` 
           }), {
             status: 501,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1267,6 +1663,67 @@ serve(async (req) => {
       });
     }
 
+    // POST /webhook/asaas - Handle Asaas payment webhook
+    if (req.method === 'POST' && (path === '/webhook/asaas' || path === '/webhook-asaas')) {
+      console.log('Received Asaas webhook');
+      
+      let body: any = {};
+      try {
+        const bodyText = await req.text();
+        if (bodyText) {
+          body = JSON.parse(bodyText);
+        }
+      } catch (e) {
+        console.log('No body or invalid JSON in Asaas webhook');
+      }
+      
+      console.log('Asaas webhook - body:', JSON.stringify(body));
+      
+      // Asaas sends event and payment info
+      const event = body.event;
+      const payment = body.payment;
+      
+      // Process payment notifications
+      if (payment && ['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'].includes(event)) {
+        const paymentId = payment.id;
+        console.log('Processing Asaas payment notification:', paymentId, 'event:', event);
+        
+        // Find the charge by external_id (which stores the Asaas payment ID)
+        const { data: charge, error: fetchError } = await supabase
+          .from('pix_charges')
+          .select('*, products(name, seller_id, auto_send_access_email), affiliates(*)')
+          .eq('external_id', paymentId)
+          .maybeSingle();
+        
+        if (fetchError) {
+          console.error('Error fetching charge for Asaas webhook:', fetchError);
+        }
+        
+        if (charge && charge.status === 'pending') {
+          console.log('Payment confirmed via Asaas webhook, processing...');
+          await processPaymentConfirmation(supabase, charge, supabaseUrl);
+        } else if (!charge) {
+          console.log('No pending charge found for Asaas payment ID:', paymentId);
+        } else {
+          console.log('Charge already processed:', charge.status);
+        }
+      } else if (payment && ['PAYMENT_OVERDUE', 'PAYMENT_DELETED', 'PAYMENT_REFUNDED'].includes(event)) {
+        const paymentId = payment.id;
+        console.log('Processing Asaas cancellation:', paymentId, 'event:', event);
+        
+        await supabase
+          .from('pix_charges')
+          .update({ status: event === 'PAYMENT_REFUNDED' ? 'cancelled' : 'expired' })
+          .eq('external_id', paymentId);
+      }
+      
+      // Always return 200 to acknowledge receipt
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // GET /charges/:id - Get charge status
     if (req.method === 'GET' && path.startsWith('/charges/')) {
       const chargeId = path.replace('/charges/', '');
@@ -1325,6 +1782,27 @@ serve(async (req) => {
                 
                 charge.status = 'cancelled';
               }
+            } else if (gatewayData.gateway.slug === 'asaas') {
+              // Check Asaas payment status
+              const { credentials } = gatewayData;
+              const asaasPayment = await getAsaasPayment(credentials.access_token!, charge.external_id);
+              
+              if (['CONFIRMED', 'RECEIVED'].includes(asaasPayment.status)) {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: 'paid', paid_at: new Date().toISOString() })
+                  .eq('id', charge.id);
+                
+                charge.status = 'paid';
+                charge.paid_at = new Date().toISOString();
+              } else if (['OVERDUE', 'DELETED', 'REFUNDED'].includes(asaasPayment.status)) {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: 'cancelled' })
+                  .eq('id', charge.id);
+                
+                charge.status = 'cancelled';
+              }
             }
           }
         } catch (e) {
@@ -1370,6 +1848,7 @@ serve(async (req) => {
       
       const methods: string[] = [];
       let publicKey: string | null = null;
+      let cardGateway: string | null = null;
       
       if (data && data.length > 0) {
         const activeCredentials = data.filter((c: any) => {
@@ -1381,21 +1860,22 @@ serve(async (req) => {
         if (activeCredentials.some((c: any) => c.use_for_card)) methods.push('card');
         if (activeCredentials.some((c: any) => c.use_for_boleto)) methods.push('boleto');
         
-        // Get public key for Mercado Pago card payments
-        const mpCredentials = activeCredentials.find((c: any) => {
-          const gateway = c.payment_gateways;
-          const slug = Array.isArray(gateway) ? gateway[0]?.slug : gateway?.slug;
-          return slug === 'mercadopago' && c.use_for_card;
-        });
-        
-        if (mpCredentials?.credentials?.public_key) {
-          publicKey = mpCredentials.credentials.public_key;
+        // Get card gateway info
+        const cardCredentials = activeCredentials.find((c: any) => c.use_for_card);
+        if (cardCredentials) {
+          const gateway = cardCredentials.payment_gateways as any;
+          cardGateway = Array.isArray(gateway) ? gateway[0]?.slug : gateway?.slug;
+          
+          // Get public key for Mercado Pago card payments
+          if (cardGateway === 'mercadopago' && cardCredentials.credentials?.public_key) {
+            publicKey = cardCredentials.credentials.public_key;
+          }
         }
       }
       
-      console.log('Available payment methods:', methods, 'hasPublicKey:', !!publicKey);
+      console.log('Available payment methods:', methods, 'hasPublicKey:', !!publicKey, 'cardGateway:', cardGateway);
       
-      return new Response(JSON.stringify({ methods, publicKey }), {
+      return new Response(JSON.stringify({ methods, publicKey, cardGateway }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

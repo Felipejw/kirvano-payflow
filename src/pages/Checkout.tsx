@@ -245,6 +245,9 @@ const Checkout = () => {
     recommended_message: string;
   }>>([]);
   const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
+  const [cardGateway, setCardGateway] = useState<string | null>(null);
+  const [cardPostalCode, setCardPostalCode] = useState('');
+  const [cardAddressNumber, setCardAddressNumber] = useState('');
   const [cardPaymentStatus, setCardPaymentStatus] = useState<'idle' | 'processing' | 'approved' | 'rejected'>('idle');
   
   // Mercado Pago hook
@@ -576,6 +579,11 @@ const Checkout = () => {
           setMpPublicKey(result.publicKey);
         }
         
+        // Store card gateway type
+        if (result.cardGateway) {
+          setCardGateway(result.cardGateway);
+        }
+        
         // Auto-select first available method
         if (methods.length > 0 && !selectedPaymentMethod) {
           setSelectedPaymentMethod(methods[0]);
@@ -817,7 +825,7 @@ const Checkout = () => {
     try {
       let cardToken: string | null = null;
       
-      // If card payment, validate and tokenize
+      // If card payment, validate and process based on gateway
       if (selectedPaymentMethod === 'card') {
         // Validate card fields
         if (!cardNumber || cardNumber.replace(/\s/g, '').length < 13) {
@@ -849,30 +857,46 @@ const Checkout = () => {
           return;
         }
         
-        // Tokenize card with Mercado Pago
-        setCardPaymentStatus('processing');
-        const [month, year] = cardExpiry.split('/');
-        
-        cardToken = await createCardToken({
-          cardNumber: cardNumber,
-          cardholderName: cardName,
-          expirationMonth: month,
-          expirationYear: year,
-          securityCode: cardCvv,
-          identificationType: 'CPF',
-          identificationNumber: cleanCpf,
-        });
-        
-        if (!cardToken) {
-          toast({ 
-            title: "Erro ao processar cartão", 
-            description: mpError || "Verifique os dados do cartão",
-            variant: "destructive" 
+        // Asaas requires additional fields
+        if (cardGateway === 'asaas') {
+          if (!cardPostalCode || cardPostalCode.replace(/\D/g, '').length < 8) {
+            toast({ title: "CEP é obrigatório para pagamentos com cartão", variant: "destructive" });
+            setLoading(false);
+            return;
+          }
+          if (!cardAddressNumber.trim()) {
+            toast({ title: "Número do endereço é obrigatório", variant: "destructive" });
+            setLoading(false);
+            return;
+          }
+        } else if (cardGateway === 'mercadopago') {
+          // Tokenize card with Mercado Pago
+          setCardPaymentStatus('processing');
+          const [month, year] = cardExpiry.split('/');
+          
+          cardToken = await createCardToken({
+            cardNumber: cardNumber,
+            cardholderName: cardName,
+            expirationMonth: month,
+            expirationYear: year,
+            securityCode: cardCvv,
+            identificationType: 'CPF',
+            identificationNumber: cleanCpf,
           });
-          setCardPaymentStatus('idle');
-          setLoading(false);
-          return;
+          
+          if (!cardToken) {
+            toast({ 
+              title: "Erro ao processar cartão", 
+              description: mpError || "Verifique os dados do cartão",
+              variant: "destructive" 
+            });
+            setCardPaymentStatus('idle');
+            setLoading(false);
+            return;
+          }
         }
+        
+        setCardPaymentStatus('processing');
       }
 
       const { data, error } = await supabase.functions.invoke('pix-api', {
@@ -887,9 +911,25 @@ const Checkout = () => {
           expires_in_minutes: 30,
           order_bumps: selectedBumps.length > 0 ? selectedBumps : undefined,
           payment_method: selectedPaymentMethod,
-          // Card specific fields
-          card_token: cardToken,
+          // Card specific fields for Mercado Pago
+          card_token: cardGateway === 'mercadopago' ? cardToken : undefined,
           installments: selectedPaymentMethod === 'card' ? cardInstallments : undefined,
+          // Card data for Asaas (no tokenization)
+          card_data: cardGateway === 'asaas' && selectedPaymentMethod === 'card' ? {
+            holderName: cardName,
+            number: cardNumber.replace(/\s/g, ''),
+            expiryMonth: cardExpiry.split('/')[0],
+            expiryYear: cardExpiry.split('/')[1],
+            ccv: cardCvv,
+          } : undefined,
+          card_holder_info: cardGateway === 'asaas' && selectedPaymentMethod === 'card' ? {
+            name: buyerName,
+            email: buyerEmail,
+            cpfCnpj: buyerCpf.replace(/\D/g, ''),
+            postalCode: cardPostalCode.replace(/\D/g, ''),
+            addressNumber: cardAddressNumber,
+            phone: buyerPhone.replace(/\D/g, ''),
+          } : undefined,
           ...utmParams,
         },
       });
@@ -1349,6 +1389,11 @@ const Checkout = () => {
                 setInstallments={setCardInstallments}
                 installmentOptions={installmentOptions}
                 cardBrand={cardBrand}
+                showAsaasFields={cardGateway === 'asaas'}
+                cardPostalCode={cardPostalCode}
+                setCardPostalCode={setCardPostalCode}
+                cardAddressNumber={cardAddressNumber}
+                setCardAddressNumber={setCardAddressNumber}
                 styles={{
                   textColor: styles.textColor,
                   cardBg: isLightTheme ? '#f9fafb' : styles.cardBg,
@@ -1360,8 +1405,8 @@ const Checkout = () => {
           </div>
         )}
         
-        {/* Show message if card selected but no public key */}
-        {selectedPaymentMethod === 'card' && !mpPublicKey && (
+        {/* Show message if card selected but no gateway configured */}
+        {selectedPaymentMethod === 'card' && !mpPublicKey && cardGateway !== 'asaas' && (
           <div 
             className="p-3 rounded-lg text-center"
             style={{ backgroundColor: '#ef444420' }}
