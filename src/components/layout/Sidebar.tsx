@@ -53,6 +53,9 @@ const platformGatewayMenuItems = [
 
 const adminMenuItems = [
   { icon: LayoutDashboard, label: "Visão Geral", page: "admin" },
+  { icon: Wallet, label: "Receita/Lucro", page: "admin/receita" },
+  { icon: TrendingUp, label: "Métricas Vendas", page: "admin/vendas" },
+  { icon: Package, label: "Rankings", page: "admin/rankings" },
   { icon: Users, label: "Usuários", page: "admin/users" },
   { icon: Package, label: "Produtos", page: "admin/products" },
   { icon: ShoppingCart, label: "Transações", page: "admin/transactions" },
@@ -60,7 +63,6 @@ const adminMenuItems = [
   { icon: CreditCard, label: "Faturas", page: "admin/invoices" },
   { icon: CreditCard, label: "Gateways", page: "admin/gateways" },
   { icon: RefreshCw, label: "Recuperação", page: "admin/recovery" },
-  { icon: TrendingUp, label: "Analytics", page: "admin/analytics" },
   { icon: Lightbulb, label: "Sugestões", page: "admin/suggestions" },
   { icon: Settings, label: "Configurações", page: "admin/settings" },
 ];

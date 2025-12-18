@@ -25,7 +25,11 @@ export const PAGES = {
   
   // Admin
   admin: "admin",
+  adminReceita: "admin/receita",
+  adminVendas: "admin/vendas",
+  adminRankings: "admin/rankings",
   adminUsers: "admin/users",
+  adminProducts: "admin/products",
   adminTransactions: "admin/transactions",
   adminWithdrawals: "admin/withdrawals",
   adminInvoices: "admin/invoices",

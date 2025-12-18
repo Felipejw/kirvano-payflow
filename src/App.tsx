@@ -18,6 +18,9 @@ import PaymentMethods from "./pages/PaymentMethods";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminReceita from "./pages/admin/AdminReceita";
+import AdminVendas from "./pages/admin/AdminVendas";
+import AdminRankings from "./pages/admin/AdminRankings";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTransactionsPage from "./pages/admin/AdminTransactionsPage";
@@ -111,6 +114,12 @@ function PageRouter() {
       return <Withdrawals />;
     case "admin":
       return <AdminDashboard />;
+    case "admin/receita":
+      return <AdminReceita />;
+    case "admin/vendas":
+      return <AdminVendas />;
+    case "admin/rankings":
+      return <AdminRankings />;
     case "admin/recovery":
       return <AdminRecovery />;
     case "admin/users":
