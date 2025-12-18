@@ -1192,21 +1192,72 @@ serve(async (req) => {
         });
       }
 
-      // Get seller's gateway credentials for the payment method
-      const gatewayData = await getSellerGatewayCredentials(supabase, sellerId, paymentMethod);
+      // Check seller's payment_mode to determine which gateway to use
+      const { data: sellerProfile } = await supabase
+        .from('profiles')
+        .select('payment_mode')
+        .eq('user_id', sellerId)
+        .single();
       
-      if (!gatewayData) {
-        console.error('Seller has no configured gateway for payment method:', paymentMethod);
-        return new Response(JSON.stringify({ 
-          error: `Vendedor não configurou método de pagamento: ${paymentMethod}. Por favor, configure na página de Formas de Pagamento.` 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      const paymentMode = sellerProfile?.payment_mode || 'own_gateway';
+      console.log('Seller payment mode:', paymentMode);
+      
+      let credentials: GatewayCredentials;
+      let gateway: { slug: string; name: string };
+      let usePlatformGateway = false;
+      
+      if (paymentMode === 'platform_gateway') {
+        // Use platform's global BSPAY credentials
+        const globalClientId = Deno.env.get('BSPAY_CLIENT_ID');
+        const globalClientSecret = Deno.env.get('BSPAY_CLIENT_SECRET');
+        
+        if (!globalClientId || !globalClientSecret) {
+          console.error('Platform gateway credentials not configured');
+          return new Response(JSON.stringify({ 
+            error: 'Gateway da plataforma não está configurado. Entre em contato com o suporte.' 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        credentials = {
+          client_id: globalClientId,
+          client_secret: globalClientSecret,
+        };
+        gateway = { slug: 'bspay', name: 'BSPAY (Plataforma)' };
+        usePlatformGateway = true;
+        
+        console.log('Using platform BSPAY gateway for seller:', sellerId);
+        
+        // Platform gateway only supports PIX for now
+        if (paymentMethod === 'card') {
+          return new Response(JSON.stringify({ 
+            error: 'O Gateway da Plataforma suporta apenas pagamentos via PIX. Para aceitar cartão, configure seu próprio gateway.' 
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } else {
+        // Use seller's own gateway credentials
+        const gatewayData = await getSellerGatewayCredentials(supabase, sellerId, paymentMethod);
+        
+        if (!gatewayData) {
+          console.error('Seller has no configured gateway for payment method:', paymentMethod);
+          return new Response(JSON.stringify({ 
+            error: `Vendedor não configurou método de pagamento: ${paymentMethod}. Por favor, configure na página de Formas de Pagamento.` 
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        credentials = gatewayData.credentials;
+        gateway = gatewayData.gateway;
       }
-
-      const { credentials, gateway } = gatewayData;
-      console.log(`Using seller's ${gateway.name} gateway for ${paymentMethod} payment`);
+      
+      console.log(`Using ${gateway.name} gateway for ${paymentMethod} payment (platform: ${usePlatformGateway})`);
 
       const externalId = generateExternalId();
       const expiresInMinutes = body.expires_in_minutes || 30;
