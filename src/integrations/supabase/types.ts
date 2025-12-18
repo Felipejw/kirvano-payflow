@@ -695,6 +695,82 @@ export type Database = {
           },
         ]
       }
+      platform_gateway_logs: {
+        Row: {
+          action: string
+          amount: number
+          buyer_email: string | null
+          buyer_name: string | null
+          charge_id: string | null
+          created_at: string
+          error_message: string | null
+          external_id: string | null
+          gateway_response: Json | null
+          id: string
+          ip_address: string | null
+          product_id: string | null
+          seller_id: string
+          transaction_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          amount?: number
+          buyer_email?: string | null
+          buyer_name?: string | null
+          charge_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          gateway_response?: Json | null
+          id?: string
+          ip_address?: string | null
+          product_id?: string | null
+          seller_id: string
+          transaction_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          amount?: number
+          buyer_email?: string | null
+          buyer_name?: string | null
+          charge_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          gateway_response?: Json | null
+          id?: string
+          ip_address?: string | null
+          product_id?: string | null
+          seller_id?: string
+          transaction_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_gateway_logs_charge_id_fkey"
+            columns: ["charge_id"]
+            isOneToOne: false
+            referencedRelation: "pix_charges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_gateway_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_gateway_logs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_invoices: {
         Row: {
           created_at: string | null
