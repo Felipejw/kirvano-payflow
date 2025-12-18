@@ -47,6 +47,7 @@ interface Product {
   google_analytics: string | null;
   checkout_theme: string | null;
   seller_id: string;
+  type: string; // 'digital' | 'physical' | 'service'
 }
 
 interface CheckoutTemplate {
@@ -809,6 +810,16 @@ const Checkout = () => {
       toast({
         title: "Email inválido",
         description: "Por favor, informe um email válido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Address validation for physical products
+    if ((template?.require_address || product?.type === 'physical') && !buyerAddress.trim()) {
+      toast({
+        title: "Endereço obrigatório",
+        description: "Por favor, informe seu endereço de entrega.",
         variant: "destructive",
       });
       return;
@@ -1661,13 +1672,15 @@ const Checkout = () => {
                   />
                 </div>
 
-                {/* Address Field */}
-                {template?.require_address && (
+                {/* Address Field - Required for physical products */}
+                {(template?.require_address || product?.type === 'physical') && (
                   <div className="space-y-2">
-                    <Label htmlFor="address" className="text-sm" style={{ color: styles.textColor }}>Endereço</Label>
+                    <Label htmlFor="address" className="text-sm" style={{ color: styles.textColor }}>
+                      Endereço de Entrega {product?.type === 'physical' && <span className="text-destructive">*</span>}
+                    </Label>
                     <Input
                       id="address"
-                      placeholder="Rua, número, bairro, cidade - UF"
+                      placeholder="Rua, número, bairro, cidade - UF, CEP"
                       value={buyerAddress}
                       onChange={(e) => setBuyerAddress(e.target.value)}
                       required

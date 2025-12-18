@@ -26,16 +26,22 @@ import {
   CreditCard,
   Building2,
   PieChart,
-  BarChart3
+  BarChart3,
+  Trophy,
+  Target,
+  Calendar,
+  Clock,
+  Percent,
+  ShoppingBag
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAppNavigate } from "@/lib/routes";
 import { useUserRole } from "@/hooks/useUserRole";
-import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, addDays, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AdminTransactions } from "@/components/admin/AdminTransactions";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPie, Pie, Cell, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPie, Pie, Cell, Legend, AreaChart, Area } from "recharts";
 
 interface SellerData {
   user_id: string;
@@ -48,6 +54,21 @@ interface SellerData {
   payment_mode: string;
 }
 
+interface TopProduct {
+  id: string;
+  name: string;
+  totalSales: number;
+  totalRevenue: number;
+}
+
+interface TopSeller {
+  user_id: string;
+  full_name: string;
+  email: string;
+  totalSales: number;
+  totalRevenue: number;
+}
+
 interface AdminStats {
   totalSellers: number;
   totalRevenue: number;
@@ -55,7 +76,6 @@ interface AdminStats {
   platformFees: number;
   pendingWithdrawals: number;
   activeProducts: number;
-  // New metrics
   platformGatewaySellers: number;
   ownGatewaySellers: number;
   platformGatewayRevenue: number;
@@ -70,12 +90,23 @@ interface AdminStats {
   overdueInvoicesAmount: number;
   custodyBalance: number;
   monthlyGrowth: number;
+  // New metrics
+  totalOrders: number;
+  paidOrders: number;
+  averageSalesPerDay: number;
+  orderBumpConversionRate: number;
+  nextWeekPending: number;
 }
 
 interface ChartData {
   date: string;
   revenue: number;
   transactions: number;
+}
+
+interface FeesChartData {
+  date: string;
+  fees: number;
 }
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#ff6b6b', '#4ecdc4', '#ffd93d'];
@@ -101,10 +132,18 @@ export default function AdminDashboard() {
     overdueInvoices: 0,
     overdueInvoicesAmount: 0,
     custodyBalance: 0,
-    monthlyGrowth: 0
+    monthlyGrowth: 0,
+    totalOrders: 0,
+    paidOrders: 0,
+    averageSalesPerDay: 0,
+    orderBumpConversionRate: 0,
+    nextWeekPending: 0
   });
   const [sellers, setSellers] = useState<SellerData[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [feesChartData, setFeesChartData] = useState<FeesChartData[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [topSellers, setTopSellers] = useState<TopSeller[]>([]);
   const [paymentModeData, setPaymentModeData] = useState<{name: string, value: number}[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -165,10 +204,10 @@ export default function AdminDashboard() {
 
       if (withdrawalsError) throw withdrawalsError;
 
-      // Fetch PIX charges for conversion rate
+      // Fetch PIX charges for conversion rate and order bump analysis
       const { data: pixCharges } = await supabase
         .from("pix_charges")
-        .select("status, created_at");
+        .select("status, created_at, order_bumps");
 
       // Fetch invoices
       const { data: invoices } = await supabase
@@ -195,10 +234,24 @@ export default function AdminDashboard() {
       // Average ticket
       const averageTicket = paidTransactions.length > 0 ? totalRevenue / paidTransactions.length : 0;
 
+      // Total orders vs paid orders
+      const totalOrders = pixCharges?.length || 0;
+      const paidOrders = pixCharges?.filter(c => c.status === 'paid').length || 0;
+
       // Conversion rate
-      const totalCharges = pixCharges?.length || 0;
-      const paidCharges = pixCharges?.filter(c => c.status === 'paid').length || 0;
-      const conversionRate = totalCharges > 0 ? (paidCharges / totalCharges) * 100 : 0;
+      const conversionRate = totalOrders > 0 ? (paidOrders / totalOrders) * 100 : 0;
+
+      // Order bump conversion rate
+      const paidWithBumps = pixCharges?.filter(c => c.status === 'paid' && c.order_bumps && c.order_bumps.length > 0).length || 0;
+      const orderBumpConversionRate = paidOrders > 0 ? (paidWithBumps / paidOrders) * 100 : 0;
+
+      // Average sales per day
+      const today = new Date();
+      const firstSaleDate = paidTransactions.length > 0 
+        ? new Date(Math.min(...paidTransactions.map(t => new Date(t.created_at).getTime())))
+        : today;
+      const daysActive = Math.max(1, differenceInDays(today, firstSaleDate) + 1);
+      const averageSalesPerDay = totalRevenue / daysActive;
 
       // Recovered sales
       const recoveredTransactions = paidTransactions.filter(t => t.is_recovered);
@@ -209,11 +262,18 @@ export default function AdminDashboard() {
       const pendingInvoices = invoices?.filter(i => i.status === 'pending') || [];
       const pendingInvoicesAmount = pendingInvoices.reduce((sum, i) => sum + Number(i.fee_total || 0), 0);
       
-      const today = new Date();
       const overdueInvoices = invoices?.filter(i => 
         i.status === 'pending' && new Date(i.due_date) < today
       ) || [];
       const overdueInvoicesAmount = overdueInvoices.reduce((sum, i) => sum + Number(i.fee_total || 0), 0);
+
+      // Next week pending (invoices due in the next 7 days)
+      const nextWeek = addDays(today, 7);
+      const nextWeekInvoices = invoices?.filter(i => {
+        const dueDate = new Date(i.due_date);
+        return i.status === 'pending' && dueDate >= today && dueDate <= nextWeek;
+      }) || [];
+      const nextWeekPending = nextWeekInvoices.reduce((sum, i) => sum + Number(i.fee_total || 0), 0);
 
       // Custody balance (platform gateway sellers' balance)
       const custodyBalance = paidTransactions
@@ -254,11 +314,82 @@ export default function AdminDashboard() {
         };
       });
 
+      // Fees chart data (last 30 days)
+      const last30Days = Array.from({ length: 30 }, (_, i) => {
+        const date = subDays(today, 29 - i);
+        const dayTransactions = paidTransactions.filter(t => {
+          const tDate = new Date(t.created_at);
+          return tDate.toDateString() === date.toDateString();
+        });
+        return {
+          date: format(date, "dd/MM", { locale: ptBR }),
+          fees: dayTransactions.reduce((sum, t) => sum + Number(t.platform_fee || 0), 0)
+        };
+      });
+
       // Payment mode pie chart data
       const paymentModeChartData = [
         { name: 'Gateway Plataforma', value: platformGatewayRevenue },
         { name: 'Gateway Próprio', value: ownGatewayRevenue }
       ].filter(d => d.value > 0);
+
+      // Top Products (by sales count)
+      const productSalesMap = new Map<string, { name: string; sales: number; revenue: number }>();
+      paidTransactions.forEach(t => {
+        if (t.product_id) {
+          const product = products?.find(p => p.id === t.product_id);
+          const existing = productSalesMap.get(t.product_id);
+          if (existing) {
+            existing.sales += 1;
+            existing.revenue += Number(t.amount || 0);
+          } else {
+            productSalesMap.set(t.product_id, {
+              name: product?.name || 'Produto desconhecido',
+              sales: 1,
+              revenue: Number(t.amount || 0)
+            });
+          }
+        }
+      });
+      const topProductsList: TopProduct[] = Array.from(productSalesMap.entries())
+        .map(([id, data]) => ({
+          id,
+          name: data.name,
+          totalSales: data.sales,
+          totalRevenue: data.revenue
+        }))
+        .sort((a, b) => b.totalSales - a.totalSales)
+        .slice(0, 5);
+
+      // Top Sellers (by revenue)
+      const sellerRevenueMap = new Map<string, { name: string; email: string; sales: number; revenue: number }>();
+      paidTransactions.forEach(t => {
+        if (t.seller_id) {
+          const profile = profiles?.find(p => p.user_id === t.seller_id);
+          const existing = sellerRevenueMap.get(t.seller_id);
+          if (existing) {
+            existing.sales += 1;
+            existing.revenue += Number(t.seller_amount || 0);
+          } else {
+            sellerRevenueMap.set(t.seller_id, {
+              name: profile?.full_name || 'Vendedor',
+              email: profile?.email || '',
+              sales: 1,
+              revenue: Number(t.seller_amount || 0)
+            });
+          }
+        }
+      });
+      const topSellersList: TopSeller[] = Array.from(sellerRevenueMap.entries())
+        .map(([user_id, data]) => ({
+          user_id,
+          full_name: data.name,
+          email: data.email,
+          totalSales: data.sales,
+          totalRevenue: data.revenue
+        }))
+        .sort((a, b) => b.totalRevenue - a.totalRevenue)
+        .slice(0, 5);
 
       setStats({
         totalSellers: profiles?.length || 0,
@@ -280,11 +411,19 @@ export default function AdminDashboard() {
         overdueInvoices: overdueInvoices.length,
         overdueInvoicesAmount,
         custodyBalance,
-        monthlyGrowth
+        monthlyGrowth,
+        totalOrders,
+        paidOrders,
+        averageSalesPerDay,
+        orderBumpConversionRate,
+        nextWeekPending
       });
 
       setChartData(last7Days);
+      setFeesChartData(last30Days);
       setPaymentModeData(paymentModeChartData);
+      setTopProducts(topProductsList);
+      setTopSellers(topSellersList);
 
       const sellerMap = new Map<string, SellerData>();
       
@@ -482,232 +621,533 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Featured Card - Platform Earnings */}
-        <Card className="glass-card border-primary/50 bg-gradient-to-r from-primary/10 to-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Seu Lucro com Taxas
-              {stats.monthlyGrowth !== 0 && (
-                <Badge variant={stats.monthlyGrowth > 0 ? "default" : "destructive"} className="ml-2">
-                  {stats.monthlyGrowth > 0 ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
-                  {Math.abs(stats.monthlyGrowth).toFixed(1)}% este mês
-                </Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              Total acumulado de taxas da plataforma
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-4">
-              <span className="text-4xl font-bold text-primary">{formatCurrency(stats.platformFees)}</span>
-              <span className="text-muted-foreground">
-                de {formatCurrency(stats.totalRevenue)} em vendas totais
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* SEÇÃO 1: RECEITA (SEU LUCRO) - DESTAQUE PRINCIPAL */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-6 w-6 text-primary" />
+            <h2 className="text-2xl font-bold">Receita</h2>
+          </div>
 
-        {/* Main Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Ticket médio: {formatCurrency(stats.averageTicket)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={`glass-card transition-all duration-300 ${newTransactionAlert ? "ring-2 ring-primary animate-pulse" : ""}`}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Transações</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalTransactions}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Taxa de conversão: {stats.conversionRate.toFixed(1)}%
-              </p>
-              {newTransactionAlert && (
-                <Badge className="mt-2 bg-primary animate-bounce">Nova!</Badge>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Vendas Recuperadas</CardTitle>
-              <RefreshCw className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-500">{stats.recoveredSales}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatCurrency(stats.recoveredAmount)} recuperados
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Produtos Ativos</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.activeProducts}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sellers by Payment Mode */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="glass-card border-primary/30">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Gateway Plataforma</CardTitle>
-              <Building2 className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.platformGatewaySellers}</div>
-              <p className="text-xs text-muted-foreground mt-1">vendedores</p>
-              <p className="text-sm font-medium text-primary mt-2">
-                {formatCurrency(stats.platformGatewayRevenue)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card border-accent/30">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Gateway Próprio</CardTitle>
-              <CreditCard className="h-4 w-4 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.ownGatewaySellers}</div>
-              <p className="text-xs text-muted-foreground mt-1">vendedores</p>
-              <p className="text-sm font-medium text-accent mt-2">
-                {formatCurrency(stats.ownGatewayRevenue)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Custódia (BSPAY)</CardTitle>
-              <Wallet className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-500">{formatCurrency(stats.custodyBalance)}</div>
-              <p className="text-xs text-muted-foreground mt-1">disponível para saques</p>
-            </CardContent>
-          </Card>
-
-          <Card className={`glass-card ${stats.overdueInvoices > 0 ? "border-destructive/50" : ""}`}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Faturas Pendentes</CardTitle>
-              <Receipt className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.pendingInvoices}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatCurrency(stats.pendingInvoicesAmount)}
-              </p>
-              {stats.overdueInvoices > 0 && (
-                <Badge variant="destructive" className="mt-2">
-                  {stats.overdueInvoices} vencida(s)
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts Row */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          {/* Revenue Chart */}
-          <Card className="glass-card lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Vendas (Últimos 7 dias)
+          {/* Featured Card - Platform Earnings (SEU LUCRO) */}
+          <Card className="glass-card border-2 border-primary/50 bg-gradient-to-br from-primary/20 via-primary/10 to-background relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent" />
+            <CardHeader className="pb-2 relative">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Trophy className="h-6 w-6 text-primary" />
+                💰 TAXAS RECEBIDAS (SEU LUCRO)
+                {stats.monthlyGrowth !== 0 && (
+                  <Badge variant={stats.monthlyGrowth > 0 ? "default" : "destructive"} className="ml-2">
+                    {stats.monthlyGrowth > 0 ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+                    {Math.abs(stats.monthlyGrowth).toFixed(1)}% este mês
+                  </Badge>
+                )}
               </CardTitle>
+              <CardDescription>
+                Total acumulado de taxas da plataforma - Este é o seu lucro!
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" />
-                    <YAxis 
-                      tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-                      className="text-xs"
-                    />
-                    <Tooltip 
-                      formatter={(value: number) => [formatCurrency(value), "Receita"]}
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Payment Mode Distribution */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PieChart className="h-5 w-5" />
-                Receita por Modo
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[250px]">
-                {paymentModeData.length > 0 ? (
+            <CardContent className="relative">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Valor em destaque */}
+                <div className="flex flex-col justify-center">
+                  <span className="text-5xl font-bold text-primary">{formatCurrency(stats.platformFees)}</span>
+                  <span className="text-muted-foreground mt-2">
+                    de {formatCurrency(stats.totalRevenue)} em vendas totais
+                  </span>
+                  <div className="flex gap-4 mt-4">
+                    <div className="bg-primary/10 rounded-lg p-3">
+                      <p className="text-sm text-muted-foreground">Taxa média</p>
+                      <p className="text-lg font-bold text-primary">
+                        {stats.totalRevenue > 0 ? ((stats.platformFees / stats.totalRevenue) * 100).toFixed(1) : 0}%
+                      </p>
+                    </div>
+                    <div className="bg-primary/10 rounded-lg p-3">
+                      <p className="text-sm text-muted-foreground">Por venda</p>
+                      <p className="text-lg font-bold text-primary">
+                        {formatCurrency(stats.totalTransactions > 0 ? stats.platformFees / stats.totalTransactions : 0)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Gráfico de Taxas */}
+                <div className="h-[200px]">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Taxas Recebidas (últimos 30 dias)</p>
                   <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPie>
-                      <Pie
-                        data={paymentModeData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                        label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                      >
-                        {paymentModeData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
+                    <AreaChart data={feesChartData}>
+                      <defs>
+                        <linearGradient id="feesGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 10 }} interval={4} />
+                      <YAxis 
+                        tickFormatter={(value) => `R$${(value / 100).toFixed(0)}`}
+                        className="text-xs"
+                        tick={{ fontSize: 10 }}
+                      />
                       <Tooltip 
-                        formatter={(value: number) => formatCurrency(value)}
+                        formatter={(value: number) => [formatCurrency(value), "Taxas"]}
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--card))', 
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px'
                         }}
                       />
-                      <Legend />
-                    </RechartsPie>
+                      <Area 
+                        type="monotone" 
+                        dataKey="fees" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        fillOpacity={1} 
+                        fill="url(#feesGradient)" 
+                      />
+                    </AreaChart>
                   </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    Sem dados suficientes
-                  </div>
-                )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Revenue Cards Grid */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <Card className="glass-card">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Vendas</CardTitle>
+                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalTransactions}</div>
+                <p className="text-xs text-muted-foreground mt-1">vendas realizadas</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Valor Vendido</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+                <p className="text-xs text-muted-foreground mt-1">volume total</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card border-yellow-500/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Custódia</CardTitle>
+                <Wallet className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-500">{formatCurrency(stats.custodyBalance)}</div>
+                <p className="text-xs text-muted-foreground mt-1">disponível para saques</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card border-orange-500/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Pendente Próx. Sem.</CardTitle>
+                <Clock className="h-4 w-4 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-500">{formatCurrency(stats.nextWeekPending)}</div>
+                <p className="text-xs text-muted-foreground mt-1">faturas a vencer</p>
+              </CardContent>
+            </Card>
+
+            <Card className={`glass-card ${stats.overdueInvoicesAmount > 0 ? "border-destructive/50" : ""}`}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Valores Atrasados</CardTitle>
+                <AlertTriangle className={`h-4 w-4 ${stats.overdueInvoicesAmount > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${stats.overdueInvoicesAmount > 0 ? "text-destructive" : ""}`}>
+                  {formatCurrency(stats.overdueInvoicesAmount)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats.overdueInvoices} fatura(s)
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* SEÇÃO 2: VENDAS - MÉTRICAS DETALHADAS */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-accent" />
+            <h2 className="text-2xl font-bold">Vendas</h2>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="glass-card">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Qt. de Vendas</CardTitle>
+                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalTransactions}</div>
+                <p className="text-xs text-muted-foreground mt-1">vendas pagas</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(stats.averageTicket)}</div>
+                <p className="text-xs text-muted-foreground mt-1">por venda</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Média/Dia</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(stats.averageSalesPerDay)}</div>
+                <p className="text-xs text-muted-foreground mt-1">receita diária</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Qt. Produtos</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.activeProducts}</div>
+                <p className="text-xs text-muted-foreground mt-1">ativos</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="glass-card">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Pedidos (Total)</CardTitle>
+                <Receipt className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalOrders}</div>
+                <p className="text-xs text-muted-foreground mt-1">charges gerados</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card border-green-500/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Pedidos Pagos</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-500">{stats.paidOrders}</div>
+                <p className="text-xs text-muted-foreground mt-1">conversões</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card border-primary/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle>
+                <Target className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary">{stats.conversionRate.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground mt-1">pedidos → pagos</p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card border-accent/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Conv. Order Bumps</CardTitle>
+                <Percent className="h-4 w-4 text-accent" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-accent">{stats.orderBumpConversionRate.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground mt-1">aceitaram bumps</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recovered Sales Card */}
+          <Card className="glass-card border-green-500/30">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-green-500" />
+                Vendas Recuperadas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-6">
+                <div>
+                  <div className="text-2xl font-bold text-green-500">{stats.recoveredSales}</div>
+                  <p className="text-xs text-muted-foreground">vendas recuperadas</p>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-green-500">{formatCurrency(stats.recoveredAmount)}</div>
+                  <p className="text-xs text-muted-foreground">valor recuperado</p>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* SEÇÃO 3: RANKINGS - TOP PRODUTOS E VENDEDORES */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-6 w-6 text-yellow-500" />
+            <h2 className="text-2xl font-bold">Rankings</h2>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Top Products */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  🏆 Produtos Mais Vendidos
+                </CardTitle>
+                <CardDescription>Top 5 produtos por quantidade de vendas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {topProducts.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Nenhuma venda registrada</p>
+                ) : (
+                  <div className="space-y-3">
+                    {topProducts.map((product, index) => (
+                      <div key={product.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                            index === 0 ? 'bg-yellow-500 text-yellow-950' :
+                            index === 1 ? 'bg-gray-400 text-gray-950' :
+                            index === 2 ? 'bg-orange-500 text-orange-950' :
+                            'bg-muted text-muted-foreground'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium truncate max-w-[200px]">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">{product.totalSales} vendas</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-primary">{formatCurrency(product.totalRevenue)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top Sellers */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-accent" />
+                  🏆 Top Vendedores
+                </CardTitle>
+                <CardDescription>Top 5 vendedores por receita</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {topSellers.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Nenhuma venda registrada</p>
+                ) : (
+                  <div className="space-y-3">
+                    {topSellers.map((seller, index) => (
+                      <div key={seller.user_id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                            index === 0 ? 'bg-yellow-500 text-yellow-950' :
+                            index === 1 ? 'bg-gray-400 text-gray-950' :
+                            index === 2 ? 'bg-orange-500 text-orange-950' :
+                            'bg-muted text-muted-foreground'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium truncate max-w-[200px]">{seller.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{seller.totalSales} vendas</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-accent">{formatCurrency(seller.totalRevenue)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* SEÇÃO 4: GRÁFICOS E DISTRIBUIÇÃO */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <PieChart className="h-6 w-6 text-muted-foreground" />
+            <h2 className="text-2xl font-bold">Análises</h2>
+          </div>
+
+          {/* Sellers by Payment Mode */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="glass-card border-primary/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Gateway Plataforma</CardTitle>
+                <Building2 className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.platformGatewaySellers}</div>
+                <p className="text-xs text-muted-foreground mt-1">vendedores</p>
+                <p className="text-sm font-medium text-primary mt-2">
+                  {formatCurrency(stats.platformGatewayRevenue)}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card border-accent/30">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Gateway Próprio</CardTitle>
+                <CreditCard className="h-4 w-4 text-accent" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.ownGatewaySellers}</div>
+                <p className="text-xs text-muted-foreground mt-1">vendedores</p>
+                <p className="text-sm font-medium text-accent mt-2">
+                  {formatCurrency(stats.ownGatewayRevenue)}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Vendedores</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalSellers}</div>
+                <p className="text-xs text-muted-foreground mt-1">cadastrados</p>
+              </CardContent>
+            </Card>
+
+            <Card className={`glass-card ${stats.pendingInvoices > 0 ? "border-yellow-500/30" : ""}`}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Faturas Pendentes</CardTitle>
+                <Receipt className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.pendingInvoices}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatCurrency(stats.pendingInvoicesAmount)}
+                </p>
+                {stats.overdueInvoices > 0 && (
+                  <Badge variant="destructive" className="mt-2">
+                    {stats.overdueInvoices} vencida(s)
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            {/* Revenue Chart */}
+            <Card className="glass-card lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Vendas (Últimos 7 dias)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" className="text-xs" />
+                      <YAxis 
+                        tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                        className="text-xs"
+                      />
+                      <Tooltip 
+                        formatter={(value: number) => [formatCurrency(value), "Receita"]}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Payment Mode Distribution */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChart className="h-5 w-5" />
+                  Receita por Modo
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[250px]">
+                  {paymentModeData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPie>
+                        <Pie
+                          data={paymentModeData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                          label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                        >
+                          {paymentModeData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px'
+                          }}
+                        />
+                        <Legend />
+                      </RechartsPie>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Sem dados suficientes
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
+        {/* SEÇÃO 5: TABELAS - VENDEDORES E TRANSAÇÕES */}
+        {/* ═══════════════════════════════════════════════════════════════════════ */}
         <Tabs defaultValue="sellers" className="space-y-4">
           <TabsList>
             <TabsTrigger value="sellers">Vendedores ({stats.totalSellers})</TabsTrigger>
