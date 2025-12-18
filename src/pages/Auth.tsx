@@ -74,13 +74,40 @@ const Auth = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate("dashboard");
+        // Defer role check to avoid deadlock
+        setTimeout(async () => {
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          
+          const userRole = roleData?.role || 'seller';
+          
+          if (userRole === 'member') {
+            window.location.href = '/members';
+          } else {
+            navigate("dashboard");
+          }
+        }, 0);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
-        navigate("dashboard");
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        
+        const userRole = roleData?.role || 'seller';
+        
+        if (userRole === 'member') {
+          window.location.href = '/members';
+        } else {
+          navigate("dashboard");
+        }
       }
     });
 

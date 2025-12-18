@@ -806,6 +806,32 @@ async function createMembershipForBuyer(
     userId = newUser.user.id;
     isNewUser = true;
     console.log('New user created:', userId);
+    
+    // CRITICAL: Delete the 'seller' role that was auto-created by trigger
+    // and assign 'member' role instead for buyers
+    console.log('Updating role to member for new buyer:', userId);
+    
+    const { error: deleteRoleError } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (deleteRoleError) {
+      console.warn('Error deleting auto-assigned seller role:', deleteRoleError);
+    }
+    
+    const { error: insertRoleError } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role: 'member',
+      });
+    
+    if (insertRoleError) {
+      console.error('Error assigning member role:', insertRoleError);
+    } else {
+      console.log('Member role assigned successfully to:', userId);
+    }
   }
   
   // Check if membership already exists
