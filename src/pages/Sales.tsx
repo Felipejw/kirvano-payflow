@@ -381,6 +381,118 @@ const Sales = () => {
           </Card>
         </div>
 
+        {/* UTM Summary Card */}
+        {stats.paid > 0 && (
+          <Card variant="glass">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Vendas por Fonte (UTM)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Summary Stats */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Link2 className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Rastreadas</p>
+                    <p className="text-lg font-bold">{utmStats.totalTracked}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+                  <div className="p-2 rounded-full bg-muted">
+                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Sem UTM</p>
+                    <p className="text-lg font-bold">{utmStats.totalUntracked}</p>
+                  </div>
+                </div>
+
+                {/* Top Sources */}
+                {utmStats.bySource.slice(0, 2).map(([source, data]) => {
+                  const getSourceColor = (src: string) => {
+                    const srcLower = src.toLowerCase();
+                    if (srcLower.includes('fb') || srcLower.includes('facebook')) return 'bg-blue-500/10 text-blue-500';
+                    if (srcLower.includes('google') || srcLower.includes('gads')) return 'bg-red-500/10 text-red-500';
+                    if (srcLower.includes('instagram') || srcLower.includes('ig')) return 'bg-pink-500/10 text-pink-500';
+                    if (srcLower.includes('tiktok')) return 'bg-purple-500/10 text-purple-500';
+                    if (srcLower === 'direto') return 'bg-green-500/10 text-green-500';
+                    return 'bg-primary/10 text-primary';
+                  };
+                  const colorClass = getSourceColor(source);
+                  
+                  return (
+                    <div key={source} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+                      <div className={`p-2 rounded-full ${colorClass.split(' ')[0]}`}>
+                        <TrendingUp className={`h-4 w-4 ${colorClass.split(' ')[1]}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground truncate">{source}</p>
+                        <p className="text-lg font-bold">{data.count} <span className="text-xs font-normal text-muted-foreground">vendas</span></p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-green-500">
+                          R$ {data.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* All Sources Detail */}
+              {utmStats.bySource.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-sm font-medium mb-3">Detalhamento por Fonte</p>
+                  <div className="space-y-2">
+                    {utmStats.bySource.map(([source, data]) => {
+                      const percentage = stats.paid > 0 ? ((data.count / stats.paid) * 100).toFixed(1) : '0';
+                      const getSourceColor = (src: string) => {
+                        const srcLower = src.toLowerCase();
+                        if (srcLower.includes('fb') || srcLower.includes('facebook')) return 'bg-blue-500';
+                        if (srcLower.includes('google') || srcLower.includes('gads')) return 'bg-red-500';
+                        if (srcLower.includes('instagram') || srcLower.includes('ig')) return 'bg-pink-500';
+                        if (srcLower.includes('tiktok')) return 'bg-purple-500';
+                        if (srcLower === 'direto') return 'bg-green-500';
+                        return 'bg-primary';
+                      };
+                      
+                      return (
+                        <div key={source} className="flex items-center gap-3">
+                          <div className="w-24 text-sm truncate">{source}</div>
+                          <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${getSourceColor(source)} transition-all`}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <div className="w-16 text-sm text-right">{data.count} ({percentage}%)</div>
+                          <div className="w-24 text-sm text-right font-medium text-green-500">
+                            R$ {data.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {utmStats.bySource.length === 0 && (
+                <div className="mt-4 p-4 rounded-lg bg-muted/50 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma venda com UTM rastreada ainda. Use links com parâmetros UTM para rastrear suas fontes de tráfego.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Filters */}
         <Card variant="glass">
           <CardContent className="p-4">
