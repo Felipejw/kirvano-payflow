@@ -26,26 +26,59 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+// Post content types
+const postCategories = [
+  { id: "feed", name: "Feed", description: "Posts para o feed principal" },
+  { id: "stories", name: "Stories", description: "Stories verticais de 24h" },
+  { id: "reels", name: "Reels", description: "Vídeos curtos verticais" },
+  { id: "carousel", name: "Carrossel", description: "Múltiplas imagens em sequência" },
+];
+
 const postTemplates = [
-  { id: "feature", name: "Nova Funcionalidade", emoji: "🚀", prompt: "Create a modern social media post announcing a new feature for a digital payment platform called GateFlow. Use green (#10b981) as the primary color. Clean design, professional look, fintech style." },
-  { id: "promo", name: "Promoção", emoji: "🔥", prompt: "Create an eye-catching promotional social media post for a digital payment platform called GateFlow. Highlight special offer or discount. Use green (#10b981) and orange accents. Bold typography, attention-grabbing." },
-  { id: "tip", name: "Dica do Dia", emoji: "💡", prompt: "Create an educational social media post with a tip for digital entrepreneurs. Clean design for GateFlow platform. Use green (#10b981) color palette. Informative and professional style." },
-  { id: "testimonial", name: "Depoimento", emoji: "⭐", prompt: "Create a testimonial/review style social media post for GateFlow payment platform. Use green (#10b981) as accent. Include quote marks design element. Professional and trustworthy look." },
-  { id: "stats", name: "Estatísticas", emoji: "📊", prompt: "Create an infographic-style social media post showing impressive statistics for GateFlow digital payment platform. Use green (#10b981) color. Data visualization, modern design." },
+  // Feed Templates
+  { id: "feature", name: "Nova Funcionalidade", emoji: "🚀", category: "feed", prompt: "Create a modern social media post announcing a new feature for a digital payment platform called GateFlow. Use green (#10b981) as the primary color. Clean design, professional look, fintech style." },
+  { id: "promo", name: "Promoção", emoji: "🔥", category: "feed", prompt: "Create an eye-catching promotional social media post for a digital payment platform called GateFlow. Highlight special offer or discount. Use green (#10b981) and orange accents. Bold typography, attention-grabbing." },
+  { id: "tip", name: "Dica do Dia", emoji: "💡", category: "feed", prompt: "Create an educational social media post with a tip for digital entrepreneurs. Clean design for GateFlow platform. Use green (#10b981) color palette. Informative and professional style." },
+  { id: "testimonial", name: "Depoimento", emoji: "⭐", category: "feed", prompt: "Create a testimonial/review style social media post for GateFlow payment platform. Use green (#10b981) as accent. Include quote marks design element. Professional and trustworthy look." },
+  { id: "stats", name: "Estatísticas", emoji: "📊", category: "feed", prompt: "Create an infographic-style social media post showing impressive statistics for GateFlow digital payment platform. Use green (#10b981) color. Data visualization, modern design." },
+  
+  // Stories Templates
+  { id: "story-cta", name: "Call to Action", emoji: "👆", category: "stories", prompt: "Create a vertical Instagram Story with a strong call-to-action for GateFlow payment platform. Include 'Arraste para cima' or swipe up visual. Green (#10b981) theme. Modern, eye-catching, mobile-first design. 9:16 aspect ratio." },
+  { id: "story-countdown", name: "Countdown", emoji: "⏰", category: "stories", prompt: "Create a vertical Instagram Story with countdown/urgency theme for GateFlow platform launch or promotion. Exciting design with timer visual. Green (#10b981) accents. 9:16 vertical format." },
+  { id: "story-poll", name: "Enquete", emoji: "📊", category: "stories", prompt: "Create a vertical Instagram Story template with poll/question sticker area for GateFlow. Interactive design encouraging engagement. Green (#10b981) theme. Clean space for poll options. 9:16 format." },
+  { id: "story-quiz", name: "Quiz", emoji: "🧠", category: "stories", prompt: "Create a vertical Instagram Story quiz template for GateFlow. Fun, educational design about digital payments. Green (#10b981) brand colors. Space for question and answer options. 9:16 aspect ratio." },
+  { id: "story-behind", name: "Bastidores", emoji: "🎬", category: "stories", prompt: "Create a casual 'behind the scenes' vertical Instagram Story template for GateFlow. Authentic, personal feel. Green (#10b981) subtle accents. Modern overlay design. 9:16 format." },
+  
+  // Reels Templates
+  { id: "reels-hook", name: "Hook/Gancho", emoji: "🪝", category: "reels", prompt: "Create a vertical Reels cover/thumbnail with a strong hook for GateFlow. Bold text that captures attention in first 3 seconds. Green (#10b981) theme. Cinematic, high-impact visual. 9:16 vertical format." },
+  { id: "reels-tutorial", name: "Tutorial", emoji: "📱", category: "reels", prompt: "Create a vertical Reels tutorial cover for GateFlow showing step-by-step theme. Educational, clean design. Numbered steps visual. Green (#10b981) accent. 9:16 format." },
+  { id: "reels-before-after", name: "Antes e Depois", emoji: "✨", category: "reels", prompt: "Create a vertical Reels before/after comparison cover for GateFlow transformation theme. Split screen visual concept. Green (#10b981) for 'after' side. Impactful contrast. 9:16 aspect ratio." },
+  { id: "reels-tips", name: "3 Dicas", emoji: "🎯", category: "reels", prompt: "Create a vertical Reels cover showing '3 tips' format for GateFlow. Numbered tips visual, engaging typography. Green (#10b981) theme. Modern, trendy design. 9:16 vertical format." },
+  { id: "reels-trending", name: "Trend", emoji: "📈", category: "reels", prompt: "Create a trendy vertical Reels cover for GateFlow that follows current social media aesthetics. Bold, modern, youthful energy. Green (#10b981) accents. High contrast. 9:16 format." },
+  
+  // Carousel Templates  
+  { id: "carousel-steps", name: "Passo a Passo", emoji: "1️⃣", category: "carousel", prompt: "Create slide 1 of an Instagram carousel tutorial for GateFlow. Title slide with 'Passo a Passo' theme. Clean, educational design. Green (#10b981) brand colors. Indicate this is part of a series." },
+  { id: "carousel-myths", name: "Mitos vs Verdades", emoji: "❌", category: "carousel", prompt: "Create slide 1 of an Instagram carousel 'Myths vs Facts' for GateFlow. Bold design with X and ✓ visual elements. Green (#10b981) for truth. Engaging, informative style." },
+  { id: "carousel-list", name: "Top 5", emoji: "🏆", category: "carousel", prompt: "Create slide 1 of an Instagram carousel 'Top 5' list for GateFlow. Numbered list theme, trophy/ranking visual. Green (#10b981) accents. Modern, shareable design." },
+  { id: "carousel-compare", name: "Comparativo", emoji: "⚖️", category: "carousel", prompt: "Create slide 1 of an Instagram carousel comparison for GateFlow vs competitors. Professional comparison chart design. Green (#10b981) highlighting GateFlow benefits." },
+  { id: "carousel-story", name: "Storytelling", emoji: "📖", category: "carousel", prompt: "Create slide 1 of an Instagram carousel with storytelling format for GateFlow. Narrative hook, chapter 1 feel. Green (#10b981) theme. Engaging start that makes you swipe." },
 ];
 
 const suggestedHashtags = [
   "#gateflow", "#pagamentosdigitais", "#infoprodutos", "#vendasonline", 
   "#empreendedorismo", "#marketingdigital", "#pix", "#fintech",
-  "#ecommerce", "#negociosonline", "#vendas", "#checkout"
+  "#ecommerce", "#negociosonline", "#vendas", "#checkout",
+  "#reels", "#reelsbrasil", "#instagramreels", "#dicasdevendas"
 ];
 
 const aspectRatios = [
-  { id: "square", name: "Quadrado (1:1)", icon: Square, width: 1024, height: 1024 },
-  { id: "portrait", name: "Portrait (4:5)", icon: RectangleVertical, width: 1024, height: 1280 },
+  { id: "square", name: "Quadrado (1:1)", icon: Square, width: 1024, height: 1024, categories: ["feed", "carousel"] },
+  { id: "portrait", name: "Portrait (4:5)", icon: RectangleVertical, width: 1024, height: 1280, categories: ["feed"] },
+  { id: "story", name: "Stories/Reels (9:16)", icon: RectangleVertical, width: 1080, height: 1920, categories: ["stories", "reels"] },
 ];
 
 export default function AdminInstagramPosts() {
+  const [selectedCategory, setSelectedCategory] = useState(postCategories[0]);
   const [selectedTemplate, setSelectedTemplate] = useState(postTemplates[0]);
   const [customText, setCustomText] = useState("");
   const [caption, setCaption] = useState("");
@@ -54,6 +87,23 @@ export default function AdminInstagramPosts() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Filter templates and aspect ratios based on selected category
+  const filteredTemplates = postTemplates.filter(t => t.category === selectedCategory.id);
+  const filteredAspectRatios = aspectRatios.filter(r => r.categories.includes(selectedCategory.id));
+
+  // Update aspect ratio when category changes
+  const handleCategoryChange = (category: typeof postCategories[0]) => {
+    setSelectedCategory(category);
+    const newFilteredTemplates = postTemplates.filter(t => t.category === category.id);
+    if (newFilteredTemplates.length > 0) {
+      setSelectedTemplate(newFilteredTemplates[0]);
+    }
+    const newFilteredRatios = aspectRatios.filter(r => r.categories.includes(category.id));
+    if (newFilteredRatios.length > 0) {
+      setAspectRatio(newFilteredRatios[0]);
+    }
+  };
 
   const toggleHashtag = (tag: string) => {
     setSelectedHashtags(prev => 
@@ -138,6 +188,31 @@ Make sure the text is readable and prominent. Ultra high resolution. Instagram p
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Editor Panel */}
           <div className="space-y-6">
+            {/* Category Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Instagram className="h-5 w-5 text-pink-500" />
+                  Formato do Conteúdo
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {postCategories.map((category) => (
+                    <Button
+                      key={category.id}
+                      variant={selectedCategory.id === category.id ? "default" : "outline"}
+                      className="h-auto py-3 flex flex-col gap-1"
+                      onClick={() => handleCategoryChange(category)}
+                    >
+                      <span className="font-medium">{category.name}</span>
+                      <span className="text-xs text-muted-foreground">{category.description}</span>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Template Selection */}
             <Card>
               <CardHeader>
@@ -148,7 +223,7 @@ Make sure the text is readable and prominent. Ultra high resolution. Instagram p
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {postTemplates.map((template) => (
+                  {filteredTemplates.map((template) => (
                     <Button
                       key={template.id}
                       variant={selectedTemplate.id === template.id ? "default" : "outline"}
@@ -168,12 +243,12 @@ Make sure the text is readable and prominent. Ultra high resolution. Instagram p
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <ImageIcon className="h-5 w-5" />
-                  Formato
+                  Formato da Imagem
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex gap-3">
-                  {aspectRatios.map((ratio) => {
+                  {filteredAspectRatios.map((ratio) => {
                     const Icon = ratio.icon;
                     return (
                       <Button
@@ -285,7 +360,8 @@ Make sure the text is readable and prominent. Ultra high resolution. Instagram p
                 {/* Image Preview */}
                 <div 
                   className={`relative bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center ${
-                    aspectRatio.id === 'square' ? 'aspect-square' : 'aspect-[4/5]'
+                    aspectRatio.id === 'square' ? 'aspect-square' : 
+                    aspectRatio.id === 'story' ? 'aspect-[9/16] max-h-[500px]' : 'aspect-[4/5]'
                   }`}
                 >
                   {generatedImage ? (
