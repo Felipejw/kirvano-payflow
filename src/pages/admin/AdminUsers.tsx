@@ -43,7 +43,7 @@ import { ptBR } from "date-fns/locale";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type AppRole = "admin" | "seller" | "affiliate" | "member";
-type DisplayRole = AppRole | "customer";
+// Unificado: member = Cliente/Membro (compradores)
 
 interface ProductData {
   id: string;
@@ -62,7 +62,6 @@ interface UserData {
   full_name: string;
   created_at: string;
   role: AppRole;
-  displayRole: DisplayRole;
   products_count: number;
   total_revenue: number;
 }
@@ -140,20 +139,6 @@ export default function AdminUsers() {
         const hasAffiliations = affiliates?.some((a) => a.user_id === profile.user_id) || false;
         
         const dbRole = (userRole?.role as AppRole) || "seller";
-        
-        // Determine display role based on actual activity
-        let displayRole: DisplayRole = dbRole;
-        if (dbRole === "admin") {
-          displayRole = "admin";
-        } else if (hasAffiliations) {
-          displayRole = "affiliate";
-        } else if (userProducts.length > 0) {
-          displayRole = "seller";
-        } else if (dbRole === "member") {
-          displayRole = "member";
-        } else {
-          displayRole = "customer";
-        }
 
         return {
           user_id: profile.user_id,
@@ -161,7 +146,6 @@ export default function AdminUsers() {
           full_name: profile.full_name || "Sem nome",
           created_at: profile.created_at,
           role: dbRole,
-          displayRole: displayRole,
           products_count: userProducts.length,
           total_revenue: totalRevenue
         };
@@ -187,15 +171,14 @@ export default function AdminUsers() {
     }).format(value);
   };
 
-  const getRoleBadge = (displayRole: DisplayRole) => {
-    const roleMap: Record<DisplayRole, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }> = {
+  const getRoleBadge = (role: AppRole) => {
+    const roleMap: Record<AppRole, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }> = {
       admin: { label: "Admin", variant: "destructive", icon: <Shield className="h-3 w-3 mr-1" /> },
       seller: { label: "Vendedor", variant: "default", icon: <User className="h-3 w-3 mr-1" /> },
       affiliate: { label: "Afiliado", variant: "secondary", icon: <UsersIcon className="h-3 w-3 mr-1" /> },
-      member: { label: "Membro", variant: "outline", icon: <UserCheck className="h-3 w-3 mr-1" /> },
-      customer: { label: "Cliente", variant: "outline", icon: <UserCheck className="h-3 w-3 mr-1" /> }
+      member: { label: "Cliente/Membro", variant: "outline", icon: <UserCheck className="h-3 w-3 mr-1" /> }
     };
-    const config = roleMap[displayRole];
+    const config = roleMap[role];
     return (
       <Badge variant={config.variant} className="flex items-center w-fit">
         {config.icon}
@@ -292,16 +275,16 @@ export default function AdminUsers() {
     const matchesSearch =
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.full_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === "all" || u.displayRole === roleFilter;
+    const matchesRole = roleFilter === "all" || u.role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
   const stats = {
     total: users.length,
-    admins: users.filter((u) => u.displayRole === "admin").length,
-    sellers: users.filter((u) => u.displayRole === "seller").length,
-    affiliates: users.filter((u) => u.displayRole === "affiliate").length,
-    customers: users.filter((u) => u.displayRole === "customer").length
+    admins: users.filter((u) => u.role === "admin").length,
+    sellers: users.filter((u) => u.role === "seller").length,
+    affiliates: users.filter((u) => u.role === "affiliate").length,
+    members: users.filter((u) => u.role === "member").length
   };
 
   if (roleLoading || loading) {
@@ -365,10 +348,10 @@ export default function AdminUsers() {
           </Card>
           <Card className="glass-card">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+              <CardTitle className="text-sm font-medium">Clientes/Membros</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-muted-foreground">{stats.customers}</div>
+              <div className="text-2xl font-bold text-muted-foreground">{stats.members}</div>
             </CardContent>
           </Card>
         </div>
@@ -394,7 +377,7 @@ export default function AdminUsers() {
                   />
                 </div>
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-48">
                     <SelectValue placeholder="Role" />
                   </SelectTrigger>
                   <SelectContent>
@@ -402,8 +385,7 @@ export default function AdminUsers() {
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="seller">Vendedor</SelectItem>
                     <SelectItem value="affiliate">Afiliado</SelectItem>
-                    <SelectItem value="member">Membro</SelectItem>
-                    <SelectItem value="customer">Cliente</SelectItem>
+                    <SelectItem value="member">Cliente/Membro</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -439,7 +421,7 @@ export default function AdminUsers() {
                           </div>
                         </td>
                         <td className="p-3">
-                          {getRoleBadge(user.displayRole)}
+                          {getRoleBadge(user.role)}
                         </td>
                         <td className="p-3">
                           <Badge variant="outline">{user.products_count}</Badge>
@@ -507,27 +489,39 @@ export default function AdminUsers() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">
-                    <div className="flex items-center">
-                      <Shield className="h-4 w-4 mr-2 text-destructive" />
-                      Administrador
+                    <div className="flex flex-col items-start">
+                      <div className="flex items-center">
+                        <Shield className="h-4 w-4 mr-2 text-destructive" />
+                        <span className="font-medium">Administrador</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground ml-6">Acesso total à plataforma</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="seller">
-                    <div className="flex items-center">
-                      <User className="h-4 w-4 mr-2 text-primary" />
-                      Vendedor
+                    <div className="flex flex-col items-start">
+                      <div className="flex items-center">
+                        <User className="h-4 w-4 mr-2 text-primary" />
+                        <span className="font-medium">Vendedor</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground ml-6">Pode criar e vender produtos</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="affiliate">
-                    <div className="flex items-center">
-                      <UsersIcon className="h-4 w-4 mr-2" />
-                      Afiliado
+                    <div className="flex flex-col items-start">
+                      <div className="flex items-center">
+                        <UsersIcon className="h-4 w-4 mr-2" />
+                        <span className="font-medium">Afiliado</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground ml-6">Promove produtos e ganha comissão</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="member">
-                    <div className="flex items-center">
-                      <UserCheck className="h-4 w-4 mr-2" />
-                      Membro
+                    <div className="flex flex-col items-start">
+                      <div className="flex items-center">
+                        <UserCheck className="h-4 w-4 mr-2" />
+                        <span className="font-medium">Cliente/Membro</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground ml-6">Acesso à área de membros (compradores)</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
