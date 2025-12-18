@@ -15,7 +15,8 @@ import {
   UserCheck,
   RefreshCw,
   Instagram,
-  Trophy
+  Trophy,
+  Server
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -64,6 +65,7 @@ const adminMenuItems = [
   { icon: Wallet, label: "Saques", page: "admin/withdrawals" },
   { icon: CreditCard, label: "Faturas", page: "admin/invoices" },
   { icon: CreditCard, label: "Gateways", page: "admin/gateways" },
+  { icon: Server, label: "Logs Gateway", page: "admin/gateway-logs" },
   { icon: RefreshCw, label: "Recuperação", page: "admin/recovery" },
   { icon: Instagram, label: "Posts Instagram", page: "admin/instagram-posts" },
   { icon: Lightbulb, label: "Sugestões", page: "admin/suggestions" },

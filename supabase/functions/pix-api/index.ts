@@ -930,6 +930,31 @@ async function processPaymentConfirmation(
     .select()
     .single();
 
+  // Log platform gateway payment confirmation
+  if (sellerId) {
+    const { data: sellerProfile } = await supabase
+      .from('profiles')
+      .select('payment_mode')
+      .eq('user_id', sellerId)
+      .single();
+    
+    if (sellerProfile?.payment_mode === 'platform_gateway') {
+      await supabase.from('platform_gateway_logs').insert({
+        seller_id: sellerId,
+        charge_id: charge.id,
+        transaction_id: transaction?.id || null,
+        action: 'pix_paid',
+        amount: amount,
+        product_id: charge.product_id || null,
+        buyer_email: charge.buyer_email,
+        buyer_name: charge.buyer_name || null,
+        external_id: charge.external_id,
+        gateway_response: { platform_fee: platformFee, seller_amount: sellerAmount },
+      });
+      console.log('Platform gateway payment logged for seller:', sellerId);
+    }
+  }
+
   // Create membership for buyer and send access email
   if (charge.product_id && charge.buyer_email) {
     try {
@@ -1557,9 +1582,44 @@ serve(async (req) => {
 
       if (error) {
         console.error('Error creating charge:', error);
+        
+        // Log error if using platform gateway
+        if (usePlatformGateway) {
+          await supabase.from('platform_gateway_logs').insert({
+            seller_id: sellerId,
+            action: 'error',
+            amount: body.amount,
+            product_id: body.product_id || null,
+            buyer_email: body.buyer_email,
+            buyer_name: body.buyer_name || null,
+            external_id: externalId,
+            error_message: `Erro ao criar charge: ${error.message}`,
+            ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || null,
+            user_agent: req.headers.get('user-agent') || null,
+          });
+        }
+        
         return new Response(JSON.stringify({ error: 'Failed to create charge' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Log platform gateway transaction if using platform gateway
+      if (usePlatformGateway) {
+        console.log('Logging platform gateway transaction for seller:', sellerId);
+        await supabase.from('platform_gateway_logs').insert({
+          seller_id: sellerId,
+          charge_id: charge.id,
+          action: 'pix_created',
+          amount: body.amount,
+          product_id: body.product_id || null,
+          buyer_email: body.buyer_email,
+          buyer_name: body.buyer_name || null,
+          external_id: gatewayTransactionId || externalId,
+          gateway_response: { gateway: gateway.name, payment_method: paymentMethod },
+          ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || null,
+          user_agent: req.headers.get('user-agent') || null,
         });
       }
 
