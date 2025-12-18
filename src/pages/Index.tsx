@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { FeaturesDetailed } from "@/components/landing/FeaturesDetailed";
+import { PaymentModes } from "@/components/landing/PaymentModes";
 import { FeeSimulator } from "@/components/landing/FeeSimulator";
 import { Stats } from "@/components/landing/Stats";
 import { PaymentMethods } from "@/components/landing/PaymentMethods";
@@ -34,7 +35,10 @@ const Index = () => {
         <FeaturesDetailed />
       </div>
       
-      {/* Dobra 3 - Simulador de Taxas com gráfico */}
+      {/* Dobra 3 - Duas Modalidades de Pagamento */}
+      <PaymentModes />
+      
+      {/* Dobra 4 - Simulador de Taxas com gráfico */}
       <FeeSimulator />
       
       {/* Dobra 4 - Resultados */}

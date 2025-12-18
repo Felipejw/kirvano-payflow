@@ -37,7 +37,7 @@ import {
   RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -269,6 +269,29 @@ const Sales = () => {
     }
     return matchesSearch && effectiveStatus === activeTab;
   });
+
+  // UTM Statistics
+  const utmStats = useMemo(() => {
+    const utmSales = sales.filter(s => s.status === 'paid' && (s.utm_source || s.utm_campaign));
+    const bySource: Record<string, { count: number; revenue: number }> = {};
+    
+    utmSales.forEach(sale => {
+      const source = sale.utm_source || 'Direto';
+      if (!bySource[source]) {
+        bySource[source] = { count: 0, revenue: 0 };
+      }
+      bySource[source].count++;
+      bySource[source].revenue += Number(sale.amount);
+    });
+
+    return {
+      totalTracked: utmSales.length,
+      totalUntracked: sales.filter(s => s.status === 'paid' && !s.utm_source && !s.utm_campaign).length,
+      bySource: Object.entries(bySource)
+        .sort((a, b) => b[1].revenue - a[1].revenue)
+        .slice(0, 5)
+    };
+  }, [sales]);
 
   const stats = {
     total: sales.length,

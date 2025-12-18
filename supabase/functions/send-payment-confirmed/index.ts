@@ -25,6 +25,7 @@ interface PaymentConfirmedRequest {
   paid_at: string;
   send_email?: boolean;
   send_whatsapp?: boolean;
+  has_members_area?: boolean;
 }
 
 const formatCurrency = (value: number) => {
@@ -61,6 +62,44 @@ const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
     hour: '2-digit',
     minute: '2-digit'
   });
+
+  // Seção de acesso à área de membros (só aparece se o produto tiver área de membros)
+  const membersAccessSection = data.has_members_area !== false ? `
+      <!-- Member Access Section -->
+      <div style="background: linear-gradient(135deg, #1a2744 0%, #0f172a 100%); border-radius: 16px; padding: 24px; margin: 28px 0; text-align: center;">
+        <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+          <span style="color: white; font-size: 28px;">🔐</span>
+        </div>
+        <h3 style="color: #ffffff; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Acesse sua Área de Membros</h3>
+        
+        <div style="background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="color: #9ca3af; padding: 8px 0; font-size: 14px; text-align: left;">🌐 Link de Acesso:</td>
+              <td style="color: #10b981; padding: 8px 0; font-size: 14px; font-weight: 600; text-align: right;">
+                <a href="https://gatteflow.store/?page=auth" style="color: #10b981; text-decoration: none;">gatteflow.store/?page=auth</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="color: #9ca3af; padding: 8px 0; font-size: 14px; text-align: left;">📧 Seu Email:</td>
+              <td style="color: #ffffff; padding: 8px 0; font-size: 14px; font-weight: 600; text-align: right;">${data.buyer_email}</td>
+            </tr>
+            <tr>
+              <td style="color: #9ca3af; padding: 8px 0; font-size: 14px; text-align: left;">🔑 Senha Padrão:</td>
+              <td style="color: #fbbf24; padding: 8px 0; font-size: 16px; font-weight: bold; text-align: right; font-family: monospace;">123456</td>
+            </tr>
+          </table>
+        </div>
+        
+        <a href="https://gatteflow.store/?page=auth" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 16px; margin-bottom: 12px;">
+          🚀 Acessar Agora
+        </a>
+        
+        <p style="color: #fbbf24; font-size: 12px; margin: 16px 0 0 0;">
+          ⚠️ <strong>Importante:</strong> Recomendamos alterar sua senha após o primeiro acesso por segurança.
+        </p>
+      </div>
+  ` : '';
 
   const emailHtml = `
 <!DOCTYPE html>
@@ -117,12 +156,7 @@ const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
         </table>
       </div>
       
-      <!-- Success Message -->
-      <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; margin: 28px 0; border-radius: 0 8px 8px 0;">
-        <p style="color: #166534; margin: 0; font-size: 14px;">
-          🚀 <strong>Próximos passos:</strong> Você receberá em breve mais informações sobre como acessar seu produto.
-        </p>
-      </div>
+      ${membersAccessSection}
       
       <p style="color: #10b981; font-size: 16px; text-align: center; margin-top: 32px; font-weight: 600;">
         Obrigado pela sua compra! 💚
@@ -153,7 +187,7 @@ const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
       body: JSON.stringify({
         from: `GateFlow <${RESEND_FROM_EMAIL}>`,
         to: [data.buyer_email],
-        subject: `✅ Pagamento de ${formatCurrency(data.amount)} confirmado!`,
+        subject: `✅ Pagamento de ${formatCurrency(data.amount)} confirmado! Acesse seu produto`,
         html: emailHtml,
       }),
     });
@@ -254,6 +288,17 @@ const sendConfirmationWhatsApp = async (data: PaymentConfirmedRequest) => {
     minute: '2-digit'
   });
 
+  // Seção de acesso à área de membros no WhatsApp
+  const membersAccessSection = data.has_members_area !== false ? `
+
+🔐 *ACESSE SUA ÁREA DE MEMBROS*
+
+🌐 Link: https://gatteflow.store/?page=auth
+📧 Email: ${data.buyer_email}
+🔑 Senha: 123456
+
+⚠️ Recomendamos alterar sua senha após o primeiro acesso.` : '';
+
   const message = `✅ *Pagamento Confirmado!*
 
 Olá, ${data.buyer_name || 'Cliente'}! 🎉
@@ -263,10 +308,9 @@ Seu pagamento foi confirmado com sucesso!
 📦 *Produto:* ${data.product_name}
 💰 *Valor:* ${formatCurrency(data.amount)}
 📅 *Data:* ${paidFormatted}
+${membersAccessSection}
 
-Obrigado pela sua compra! 💚
-
-Em breve você receberá mais informações sobre como acessar seu produto.`;
+Obrigado pela sua compra! 💚`;
 
   try {
     console.log("Sending confirmation WhatsApp message...");
@@ -296,7 +340,8 @@ const handler = async (req: Request): Promise<Response> => {
       buyer_phone: data.buyer_phone ? '***' : undefined,
       product_name: data.product_name,
       amount: data.amount,
-      paid_at: data.paid_at
+      paid_at: data.paid_at,
+      has_members_area: data.has_members_area
     });
 
     const results: { email?: any; whatsapp?: any } = {};
