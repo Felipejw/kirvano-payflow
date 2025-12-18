@@ -12,8 +12,18 @@ import {
   DialogDescription, 
   DialogFooter, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle
 } from "@/components/ui/dialog";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
 import { 
   Search, 
   Shield, 
@@ -34,7 +44,9 @@ import {
   FileText,
   CreditCard,
   Clock,
-  Briefcase
+  Briefcase,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -122,6 +134,8 @@ export default function AdminUsers() {
   const [allProducts, setAllProducts] = useState<ProductForMember[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [loadingAllProducts, setLoadingAllProducts] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const { toast } = useToast();
   const navigate = useAppNavigate();
@@ -482,6 +496,57 @@ export default function AdminUsers() {
     }
   };
 
+  const openDeleteDialog = (user: UserData) => {
+    setSelectedUser(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    setIsDeleting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ userId: selectedUser.user_id })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Falha ao excluir usuário");
+      }
+
+      // Remove user from local state
+      setUsers(users.filter(u => u.user_id !== selectedUser.user_id));
+
+      toast({
+        title: "Usuário excluído",
+        description: `${selectedUser.full_name} foi excluído permanentemente`
+      });
+
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Falha ao excluir usuário",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -691,6 +756,18 @@ export default function AdminUsers() {
                                 <Edit className="h-4 w-4 mr-2" />
                                 Alterar Role
                               </DropdownMenuItem>
+                              {user.role !== 'admin' && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => openDeleteDialog(user)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Excluir Usuário
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -1164,6 +1241,50 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Excluir Usuário Permanentemente
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <div className="p-3 rounded-lg border bg-destructive/10 border-destructive/30">
+                <p className="text-destructive font-medium">
+                  ⚠️ Esta ação é irreversível!
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Todos os dados do usuário serão excluídos permanentemente, incluindo:
+                  perfil, produtos, transações e acessos de membro.
+                </p>
+              </div>
+              
+              <div className="rounded-lg border p-4 bg-muted/30">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-muted-foreground">Nome:</span>
+                  <span className="font-medium">{selectedUser?.full_name}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-medium">{selectedUser?.email}</span>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Excluindo..." : "Excluir Permanentemente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
