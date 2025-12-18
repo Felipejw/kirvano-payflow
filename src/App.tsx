@@ -31,6 +31,7 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSuggestions from "./pages/admin/AdminSuggestions";
 import AdminRecovery from "./pages/admin/AdminRecovery";
 import AdminProducts from "./pages/admin/AdminProducts";
+import AdminInstagramPosts from "./pages/admin/AdminInstagramPosts";
 import MembersArea from "./pages/members/MembersArea";
 import Recovery from "./pages/Recovery";
 import MembersLogin from "./pages/members/MembersLogin";
@@ -140,6 +141,8 @@ function PageRouter() {
       return <AdminSuggestions />;
     case "admin/settings":
       return <AdminSettings />;
+    case "admin/instagram-posts":
+      return <AdminInstagramPosts />;
     case "members":
       return <MembersArea />;
     case "members/login":
