@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { 
   Dialog, 
   DialogContent, 
@@ -24,7 +25,16 @@ import {
   Package,
   Eye,
   DollarSign,
-  Calendar
+  Calendar,
+  Key,
+  UserPlus,
+  Building,
+  Phone,
+  Mail,
+  FileText,
+  CreditCard,
+  Clock,
+  Briefcase
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,9 +51,9 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 type AppRole = "admin" | "seller" | "affiliate" | "member";
-// Unificado: member = Cliente/Membro (compradores)
 
 interface ProductData {
   id: string;
@@ -56,6 +66,23 @@ interface ProductData {
   total_revenue: number;
 }
 
+interface ProfileData {
+  user_id: string;
+  email: string | null;
+  full_name: string | null;
+  phone: string | null;
+  pix_key: string | null;
+  document_type: string | null;
+  document_number: string | null;
+  company_name: string | null;
+  sales_niche: string | null;
+  average_revenue: string | null;
+  payment_mode: string | null;
+  terms_accepted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface UserData {
   user_id: string;
   email: string;
@@ -64,6 +91,13 @@ interface UserData {
   role: AppRole;
   products_count: number;
   total_revenue: number;
+  profile: ProfileData;
+}
+
+interface ProductForMember {
+  id: string;
+  name: string;
+  seller_id: string;
 }
 
 export default function AdminUsers() {
@@ -78,6 +112,17 @@ export default function AdminUsers() {
   const [userProducts, setUserProducts] = useState<ProductData[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [processing, setProcessing] = useState(false);
+  
+  // New state for new dialogs
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordType, setPasswordType] = useState<"default" | "random" | "custom">("default");
+  const [allProducts, setAllProducts] = useState<ProductForMember[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [loadingAllProducts, setLoadingAllProducts] = useState(false);
+  
   const { toast } = useToast();
   const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
@@ -125,18 +170,12 @@ export default function AdminUsers() {
         .from("transactions")
         .select("seller_id, seller_amount");
 
-      // Fetch affiliates for affiliate check
-      const { data: affiliates } = await supabase
-        .from("affiliates")
-        .select("user_id");
-
       // Build user data
       const usersData: UserData[] = profiles?.map((profile) => {
         const userRole = roles?.find((r) => r.user_id === profile.user_id);
         const userProducts = products?.filter((p) => p.seller_id === profile.user_id) || [];
         const userTransactions = transactions?.filter((t) => t.seller_id === profile.user_id) || [];
         const totalRevenue = userTransactions.reduce((sum, t) => sum + Number(t.seller_amount || 0), 0);
-        const hasAffiliations = affiliates?.some((a) => a.user_id === profile.user_id) || false;
         
         const dbRole = (userRole?.role as AppRole) || "seller";
 
@@ -147,7 +186,8 @@ export default function AdminUsers() {
           created_at: profile.created_at,
           role: dbRole,
           products_count: userProducts.length,
-          total_revenue: totalRevenue
+          total_revenue: totalRevenue,
+          profile: profile as ProfileData
         };
       }) || [];
 
@@ -199,7 +239,6 @@ export default function AdminUsers() {
     setLoadingProducts(true);
     
     try {
-      // Fetch user products with sales data
       const { data: products, error: productsError } = await supabase
         .from("products")
         .select("id, name, price, status, type, created_at")
@@ -207,14 +246,12 @@ export default function AdminUsers() {
 
       if (productsError) throw productsError;
 
-      // Fetch transactions for each product
       const { data: transactions } = await supabase
         .from("transactions")
         .select("product_id, amount, status")
         .eq("seller_id", user.user_id)
         .eq("status", "paid");
 
-      // Build products with sales data
       const productsWithSales: ProductData[] = (products || []).map(product => {
         const productTransactions = transactions?.filter(t => t.product_id === product.id) || [];
         const salesCount = productTransactions.length;
@@ -237,6 +274,44 @@ export default function AdminUsers() {
       });
     } finally {
       setLoadingProducts(false);
+    }
+  };
+
+  const openDetailsDialog = (user: UserData) => {
+    setSelectedUser(user);
+    setDetailsDialogOpen(true);
+  };
+
+  const openResetPasswordDialog = (user: UserData) => {
+    setSelectedUser(user);
+    setPasswordType("default");
+    setNewPassword("123456");
+    setResetPasswordDialogOpen(true);
+  };
+
+  const openAddMemberDialog = async (user: UserData) => {
+    setSelectedUser(user);
+    setSelectedProductId("");
+    setAddMemberDialogOpen(true);
+    setLoadingAllProducts(true);
+    
+    try {
+      const { data: products, error } = await supabase
+        .from("products")
+        .select("id, name, seller_id")
+        .eq("status", "active");
+
+      if (error) throw error;
+      setAllProducts(products || []);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar produtos",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingAllProducts(false);
     }
   };
 
@@ -271,6 +346,142 @@ export default function AdminUsers() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+
+    let passwordToSet = newPassword;
+    if (passwordType === "default") {
+      passwordToSet = "123456";
+    } else if (passwordType === "random") {
+      passwordToSet = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase();
+    }
+
+    if (passwordToSet.length < 6) {
+      toast({
+        title: "Erro",
+        description: "A senha deve ter pelo menos 6 caracteres",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-user-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            userId: selectedUser.user_id,
+            newPassword: passwordToSet
+          })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to reset password");
+      }
+
+      toast({
+        title: "Senha resetada",
+        description: passwordType === "random" 
+          ? `Nova senha: ${passwordToSet}` 
+          : `Senha de ${selectedUser.full_name} foi resetada com sucesso`
+      });
+
+      setResetPasswordDialogOpen(false);
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Falha ao resetar senha",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!selectedUser || !selectedProductId) return;
+
+    setProcessing(true);
+    try {
+      // Check if user already has member role
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", selectedUser.user_id)
+        .single();
+
+      // If no role exists or role is not member, upsert member role
+      if (!existingRole || existingRole.role !== "member") {
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .upsert({
+            user_id: selectedUser.user_id,
+            role: "member" as const
+          }, { onConflict: "user_id" });
+
+        if (roleError) throw roleError;
+      }
+
+      // Check if membership already exists
+      const { data: existingMember } = await supabase
+        .from("members")
+        .select("id")
+        .eq("user_id", selectedUser.user_id)
+        .eq("product_id", selectedProductId)
+        .single();
+
+      if (existingMember) {
+        toast({
+          title: "Aviso",
+          description: "Este usuário já é membro deste produto",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Insert membership
+      const { error: memberError } = await supabase
+        .from("members")
+        .insert({
+          user_id: selectedUser.user_id,
+          product_id: selectedProductId,
+          status: "active",
+          access_level: "full"
+        });
+
+      if (memberError) throw memberError;
+
+      toast({
+        title: "Membro adicionado",
+        description: `${selectedUser.full_name} agora tem acesso ao produto`
+      });
+
+      fetchUsers();
+      setAddMemberDialogOpen(false);
+    } catch (error) {
+      console.error("Error adding member:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao adicionar membro",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -285,6 +496,22 @@ export default function AdminUsers() {
     sellers: users.filter((u) => u.role === "seller").length,
     affiliates: users.filter((u) => u.role === "affiliate").length,
     members: users.filter((u) => u.role === "member").length
+  };
+
+  const formatPaymentMode = (mode: string | null) => {
+    const modes: Record<string, string> = {
+      own_gateway: "Gateway Próprio",
+      platform_gateway: "Gateway da Plataforma"
+    };
+    return mode ? modes[mode] || mode : "Não definido";
+  };
+
+  const formatDocumentType = (type: string | null) => {
+    const types: Record<string, string> = {
+      cpf: "CPF",
+      cnpj: "CNPJ"
+    };
+    return type ? types[type] || type : "Não definido";
   };
 
   if (roleLoading || loading) {
@@ -442,10 +669,24 @@ export default function AdminUsers() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Ações</DropdownMenuLabel>
                               <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => openDetailsDialog(user)}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ver Detalhes
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openProductsDialog(user)}>
                                 <Package className="h-4 w-4 mr-2" />
                                 Ver Produtos
                               </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => openAddMemberDialog(user)}>
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Adicionar como Membro
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openResetPasswordDialog(user)}>
+                                <Key className="h-4 w-4 mr-2" />
+                                Resetar Senha
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => openRoleDialog(user)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Alterar Role
@@ -462,6 +703,310 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
       </div>
+
+      {/* User Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              Detalhes do Usuário
+            </DialogTitle>
+            <DialogDescription>
+              Informações completas de cadastro
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedUser && (
+            <div className="space-y-6">
+              {/* Personal Info */}
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-3">
+                  <User className="h-4 w-4" />
+                  Informações Pessoais
+                </h3>
+                <div className="grid grid-cols-2 gap-4 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Nome Completo</p>
+                    <p className="font-medium">{selectedUser.profile.full_name || "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Mail className="h-3 w-3" /> E-mail
+                    </p>
+                    <p className="font-medium">{selectedUser.profile.email || "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Phone className="h-3 w-3" /> Telefone
+                    </p>
+                    <p className="font-medium">{selectedUser.profile.phone || "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Role Atual</p>
+                    {getRoleBadge(selectedUser.role)}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Documentation */}
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-3">
+                  <FileText className="h-4 w-4" />
+                  Documentação
+                </h3>
+                <div className="grid grid-cols-2 gap-4 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Tipo de Documento</p>
+                    <p className="font-medium">{formatDocumentType(selectedUser.profile.document_type)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Número do Documento</p>
+                    <p className="font-medium">{selectedUser.profile.document_number || "Não informado"}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Building className="h-3 w-3" /> Razão Social / Nome da Empresa
+                    </p>
+                    <p className="font-medium">{selectedUser.profile.company_name || "Não informado"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Business Info */}
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-3">
+                  <Briefcase className="h-4 w-4" />
+                  Informações do Negócio
+                </h3>
+                <div className="grid grid-cols-2 gap-4 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Nicho de Vendas</p>
+                    <p className="font-medium">{selectedUser.profile.sales_niche || "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Faturamento Médio</p>
+                    <p className="font-medium">{selectedUser.profile.average_revenue || "Não informado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Produtos Cadastrados</p>
+                    <p className="font-medium">{selectedUser.products_count}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Receita Total</p>
+                    <p className="font-medium text-emerald-500">{formatCurrency(selectedUser.total_revenue)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Payment Settings */}
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-3">
+                  <CreditCard className="h-4 w-4" />
+                  Configurações de Pagamento
+                </h3>
+                <div className="grid grid-cols-2 gap-4 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Modo de Pagamento</p>
+                    <p className="font-medium">{formatPaymentMode(selectedUser.profile.payment_mode)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Chave PIX</p>
+                    <p className="font-medium">{selectedUser.profile.pix_key || "Não informado"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* System Info */}
+              <div>
+                <h3 className="font-semibold flex items-center gap-2 mb-3">
+                  <Clock className="h-4 w-4" />
+                  Informações do Sistema
+                </h3>
+                <div className="grid grid-cols-2 gap-4 p-4 rounded-lg border bg-muted/30">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Data de Cadastro</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedUser.profile.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Última Atualização</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedUser.profile.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground">Termos Aceitos em</p>
+                    <p className="font-medium">
+                      {selectedUser.profile.terms_accepted_at 
+                        ? format(new Date(selectedUser.profile.terms_accepted_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                        : "Não aceito"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-primary" />
+              Resetar Senha
+            </DialogTitle>
+            <DialogDescription>
+              Resetar senha de {selectedUser?.full_name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border p-4 bg-muted/30">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Usuário:</span>
+                <span className="font-medium">{selectedUser?.email}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de Senha</Label>
+              <Select 
+                value={passwordType} 
+                onValueChange={(value) => {
+                  setPasswordType(value as "default" | "random" | "custom");
+                  if (value === "default") setNewPassword("123456");
+                  else if (value === "random") setNewPassword("");
+                  else setNewPassword("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Senha Padrão (123456)</SelectItem>
+                  <SelectItem value="random">Senha Aleatória</SelectItem>
+                  <SelectItem value="custom">Senha Personalizada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {passwordType === "custom" && (
+              <div className="space-y-2">
+                <Label>Nova Senha</Label>
+                <Input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Digite a nova senha"
+                />
+                <p className="text-xs text-muted-foreground">Mínimo de 6 caracteres</p>
+              </div>
+            )}
+
+            {passwordType === "random" && (
+              <div className="p-3 rounded-lg border bg-amber-500/10 border-amber-500/30">
+                <p className="text-sm text-amber-500">
+                  A senha aleatória será exibida após a confirmação. Copie e envie para o usuário.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordDialogOpen(false)} disabled={processing}>
+              Cancelar
+            </Button>
+            <Button onClick={handleResetPassword} disabled={processing}>
+              {processing ? "Resetando..." : "Resetar Senha"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Member Dialog */}
+      <Dialog open={addMemberDialogOpen} onOpenChange={setAddMemberDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              Adicionar como Membro
+            </DialogTitle>
+            <DialogDescription>
+              Dar acesso a {selectedUser?.full_name} a um produto
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border p-4 bg-muted/30">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Usuário:</span>
+                <span className="font-medium">{selectedUser?.email}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Selecione o Produto</Label>
+              {loadingAllProducts ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha um produto..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allProducts.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {allProducts.length === 0 && !loadingAllProducts && (
+                <p className="text-sm text-muted-foreground">Nenhum produto ativo encontrado</p>
+              )}
+            </div>
+
+            <div className="p-3 rounded-lg border bg-blue-500/10 border-blue-500/30">
+              <p className="text-sm text-blue-500">
+                O usuário receberá a role de Cliente/Membro e terá acesso à área de membros do produto selecionado.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddMemberDialogOpen(false)} disabled={processing}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleAddMember} 
+              disabled={processing || !selectedProductId}
+            >
+              {processing ? "Adicionando..." : "Adicionar Membro"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Role Change Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
