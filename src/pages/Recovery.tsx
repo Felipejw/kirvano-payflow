@@ -14,10 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { RefreshCw, Plus, Trash2, MessageSquare, Mail, TrendingUp, DollarSign, Target, Clock, User, Package, Info } from "lucide-react";
+import { RefreshCw, Plus, Trash2, MessageSquare, Mail, TrendingUp, DollarSign, Target, Clock, User, Package, Info, Users } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Json } from "@/integrations/supabase/types";
+import { RecoveryClientsTab } from "@/components/recovery/RecoveryClientsTab";
 
 interface MessageInterval {
   type: "minutes" | "hours" | "days";
@@ -63,6 +64,30 @@ interface RecoveryStats {
   recoveredAmount: number;
 }
 
+interface RecoveryClient {
+  chargeId: string;
+  buyerName: string | null;
+  buyerEmail: string;
+  buyerPhone: string | null;
+  productName: string;
+  productId: string;
+  amount: number;
+  expiredAt: string;
+  messagesSent: number;
+  maxMessages: number;
+  status: "em_andamento" | "recuperado" | "esgotado" | "aguardando";
+  lastMessageAt: string | null;
+  nextMessageAt: string | null;
+  messages: {
+    id: string;
+    channel: string;
+    status: string;
+    messageNumber: number;
+    sentAt: string;
+    errorMessage: string | null;
+  }[];
+}
+
 export default function Recovery() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -84,6 +109,8 @@ export default function Recovery() {
   const [isActive, setIsActive] = useState(false);
   const [customWhatsappTemplate, setCustomWhatsappTemplate] = useState("");
   const [customEmailSubject, setCustomEmailSubject] = useState("");
+  const [recoveryClients, setRecoveryClients] = useState<RecoveryClient[]>([]);
+  const [maxMessagesPerCharge, setMaxMessagesPerCharge] = useState(3);
 
   useEffect(() => {
     if (user) {
@@ -101,6 +128,9 @@ export default function Recovery() {
         .single();
 
       setGlobalSettings(settings);
+      if (settings) {
+        setMaxMessagesPerCharge(settings.max_messages_per_charge || 3);
+      }
 
       // Fetch user's campaign
       const { data: campaignData } = await supabase
@@ -181,6 +211,134 @@ export default function Recovery() {
         recoveredSales,
         recoveredAmount,
       });
+
+      // Fetch clients in recovery (expired charges)
+      const { data: expiredCharges } = await supabase
+        .from("pix_charges")
+        .select(`
+          id,
+          product_id,
+          buyer_email,
+          buyer_name,
+          buyer_phone,
+          amount,
+          expires_at,
+          status,
+          paid_at,
+          products:product_id (
+            name
+          )
+        `)
+        .eq("seller_id", user?.id)
+        .in("status", ["expired", "paid"])
+        .eq("is_recovery", false)
+        .is("original_charge_id", null)
+        .order("expires_at", { ascending: false })
+        .limit(100);
+
+      if (expiredCharges && expiredCharges.length > 0) {
+        // Get all recovery messages for these charges
+        const chargeIds = expiredCharges.map(c => c.id);
+        const { data: allRecoveryMessages } = await supabase
+          .from("recovery_messages")
+          .select("*")
+          .in("original_charge_id", chargeIds)
+          .order("message_number", { ascending: true });
+
+        // Group messages by charge
+        const messagesByCharge = new Map<string, typeof allRecoveryMessages>();
+        allRecoveryMessages?.forEach(msg => {
+          const existing = messagesByCharge.get(msg.original_charge_id) || [];
+          existing.push(msg);
+          messagesByCharge.set(msg.original_charge_id, existing);
+        });
+
+        // Build recovery clients list
+        const configuredIntervals = campaignData 
+          ? (Array.isArray(campaignData.message_intervals) ? campaignData.message_intervals.length : 0)
+          : intervals.length;
+        const maxMsgs = Math.min(settings?.max_messages_per_charge || 3, configuredIntervals || 3);
+
+        const clients: RecoveryClient[] = expiredCharges.map(charge => {
+          const msgs = messagesByCharge.get(charge.id) || [];
+          const messagesSent = msgs.length;
+          const lastMsg = msgs[msgs.length - 1];
+          
+          // Determine status
+          let status: RecoveryClient["status"];
+          if (charge.status === "paid" && charge.paid_at) {
+            // Check if paid after recovery messages were sent
+            const firstMsgTime = msgs[0]?.sent_at;
+            if (firstMsgTime && new Date(charge.paid_at) > new Date(firstMsgTime)) {
+              status = "recuperado";
+            } else {
+              status = "recuperado"; // Consider as recovered if paid
+            }
+          } else if (messagesSent >= maxMsgs) {
+            status = "esgotado";
+          } else if (messagesSent === 0) {
+            status = "aguardando";
+          } else {
+            status = "em_andamento";
+          }
+
+          // Calculate next message time
+          let nextMessageAt: string | null = null;
+          if (status === "em_andamento" || status === "aguardando") {
+            const parsedIntervals = campaignData 
+              ? (Array.isArray(campaignData.message_intervals) 
+                  ? campaignData.message_intervals as unknown as MessageInterval[]
+                  : [])
+              : intervals;
+            
+            if (parsedIntervals.length > messagesSent) {
+              const nextInterval = parsedIntervals[messagesSent];
+              const referenceTime = lastMsg 
+                ? new Date(lastMsg.sent_at) 
+                : new Date(charge.expires_at);
+              
+              let minutes = nextInterval.value;
+              if (nextInterval.type === "hours") minutes *= 60;
+              if (nextInterval.type === "days") minutes *= 60 * 24;
+              
+              nextMessageAt = new Date(referenceTime.getTime() + minutes * 60 * 1000).toISOString();
+            }
+          }
+
+          return {
+            chargeId: charge.id,
+            buyerName: charge.buyer_name,
+            buyerEmail: charge.buyer_email,
+            buyerPhone: charge.buyer_phone,
+            productName: (charge.products as any)?.name || "Produto",
+            productId: charge.product_id || "",
+            amount: charge.amount,
+            expiredAt: charge.expires_at,
+            messagesSent,
+            maxMessages: maxMsgs,
+            status,
+            lastMessageAt: lastMsg?.sent_at || null,
+            nextMessageAt,
+            messages: msgs.map(m => ({
+              id: m.id,
+              channel: m.channel,
+              status: m.status,
+              messageNumber: m.message_number,
+              sentAt: m.sent_at || m.created_at,
+              errorMessage: m.error_message
+            }))
+          };
+        });
+
+        // Filter to show only charges that have recovery messages or are waiting for first message
+        const relevantClients = clients.filter(c => 
+          c.messagesSent > 0 || c.status === "aguardando"
+        );
+
+        setRecoveryClients(relevantClients);
+      } else {
+        setRecoveryClients([]);
+      }
     } catch (error) {
       console.error("Error fetching recovery data:", error);
       toast.error("Erro ao carregar dados de recuperação");
@@ -379,11 +537,24 @@ export default function Recovery() {
           </Card>
         </div>
 
-        <Tabs defaultValue="config" className="space-y-6">
+        <Tabs defaultValue="clients" className="space-y-6">
           <TabsList className="bg-secondary/50">
+            <TabsTrigger value="clients" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Clientes ({recoveryClients.length})
+            </TabsTrigger>
             <TabsTrigger value="config">Configuração</TabsTrigger>
             <TabsTrigger value="messages">Mensagens ({stats.totalMessages})</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="clients" className="space-y-6">
+            <RecoveryClientsTab 
+              clients={recoveryClients}
+              campaignId={campaign?.id || null}
+              onRefresh={fetchData}
+              loading={loading}
+            />
+          </TabsContent>
 
           <TabsContent value="config" className="space-y-6">
             {/* Campaign Configuration */}
