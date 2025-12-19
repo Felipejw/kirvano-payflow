@@ -237,6 +237,98 @@ serve(async (req) => {
   try {
     const supabase = createServiceClient();
 
+    // Check for manual send request
+    let body: { manual?: boolean; charge_id?: string; channel?: string; campaign_id?: string } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // No body or invalid JSON - proceed with automatic processing
+    }
+
+    // Handle manual send
+    if (body.manual && body.charge_id && body.channel && body.campaign_id) {
+      console.log(`Manual send requested for charge ${body.charge_id} via ${body.channel}`);
+
+      // Get the charge details
+      const { data: charge, error: chargeError } = await supabase
+        .from("pix_charges")
+        .select(`
+          id,
+          product_id,
+          seller_id,
+          buyer_email,
+          buyer_name,
+          buyer_phone,
+          amount,
+          expires_at,
+          status,
+          products!inner(name)
+        `)
+        .eq("id", body.charge_id)
+        .single();
+
+      if (chargeError || !charge) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Charge not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get message count for this charge
+      const { data: existingMessages } = await supabase
+        .from("recovery_messages")
+        .select("*")
+        .eq("original_charge_id", charge.id);
+
+      const sentCount = existingMessages?.length || 0;
+      const productName = (charge as any).products?.name || "Produto";
+      const baseUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", ".lovable.app") || "";
+      const checkoutUrl = `${baseUrl}/checkout/${charge.product_id}?recovery=${charge.id}`;
+
+      let result = { success: false, error: "" };
+
+      if (body.channel === "whatsapp" && charge.buyer_phone) {
+        result = await sendRecoveryWhatsApp(
+          charge.buyer_phone,
+          charge.buyer_name || "",
+          productName,
+          charge.amount,
+          checkoutUrl
+        );
+      } else if (body.channel === "email" && charge.buyer_email) {
+        result = await sendRecoveryEmail(
+          charge.buyer_email,
+          charge.buyer_name || "",
+          productName,
+          charge.amount,
+          checkoutUrl
+        );
+      } else {
+        return new Response(
+          JSON.stringify({ success: false, error: "Invalid channel or missing contact info" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Log the manual message
+      await supabase.from("recovery_messages").insert({
+        original_charge_id: charge.id,
+        campaign_id: body.campaign_id,
+        seller_id: charge.seller_id,
+        channel: body.channel,
+        status: result.success ? "sent" : "failed",
+        message_number: sentCount + 1,
+        sent_at: new Date().toISOString(),
+        error_message: result.error || null,
+      });
+
+      return new Response(
+        JSON.stringify({ success: result.success, error: result.error }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Automatic processing (original logic)
     // Check if recovery is enabled globally
     const { data: settings } = await supabase
       .from("recovery_settings")
