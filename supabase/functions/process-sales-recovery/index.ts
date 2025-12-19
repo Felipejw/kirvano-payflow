@@ -369,6 +369,18 @@ serve(async (req) => {
     let totalSent = 0;
 
     for (const campaign of campaigns as RecoveryCampaign[]) {
+      // First, update any pending charges that have expired to 'expired' status
+      const { error: updateError } = await supabase
+        .from("pix_charges")
+        .update({ status: "expired" })
+        .eq("seller_id", campaign.seller_id)
+        .eq("status", "pending")
+        .lt("expires_at", new Date().toISOString());
+
+      if (updateError) {
+        console.error(`Error updating expired charges for seller ${campaign.seller_id}:`, updateError);
+      }
+
       // Get expired charges for this seller that haven't been recovered yet
       const { data: expiredCharges, error: chargesError } = await supabase
         .from("pix_charges")
