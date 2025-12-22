@@ -41,15 +41,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending member access email to:", memberEmail);
 
-    // Build the access URL
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    // Extract the project ref from supabase URL
-    const projectRef = supabaseUrl.replace("https://", "").replace(".supabase.co", "");
-    
-    // Use the correct Lovable project URL format
-    const appUrl = `https://${projectRef}.lovableproject.com`;
-    const membersLoginUrl = `${appUrl}/members/login`;
-    const productAccessUrl = `${appUrl}/members/product/${productId}`;
+    // Build the access URL - using the custom domain
+    const appUrl = "https://gatteflow.store";
+    const membersLoginUrl = `${appUrl}/?page=members/login`;
+    const productAccessUrl = `${appUrl}/?page=members/product&id=${productId}`;
 
     const expirationText = expiresAt 
       ? `Seu acesso é válido até: ${new Date(expiresAt).toLocaleDateString("pt-BR", {

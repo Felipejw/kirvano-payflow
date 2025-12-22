@@ -67,7 +67,7 @@ export function Pricing() {
             
             <CardContent className="space-y-8">
               <div className="text-center py-6 border-y border-border/50">
-                <span className="text-6xl font-bold group-hover:scale-110 inline-block transition-transform">6,99%</span>
+                <span className="text-6xl font-bold group-hover:scale-110 inline-block transition-transform">5,99%</span>
                 <p className="text-lg text-muted-foreground mt-2">por transação aprovada</p>
                 <p className="text-sm text-accent mt-1">Sem mensalidade • Sem taxa de adesão</p>
               </div>
