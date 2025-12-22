@@ -23,6 +23,7 @@ const platformGatewayFeatures = [
   "Suporte completo da plataforma",
   "Ideal para iniciantes",
   "PIX, Cartão e Boleto",
+  "Roda Black e White",
 ];
 
 const ownGatewayFeatures = [
@@ -90,7 +91,7 @@ export function PaymentModes() {
               {/* Pricing */}
               <div className="bg-primary/5 rounded-2xl p-6 mb-6 border border-primary/10">
                 <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-4xl font-bold text-primary">6,99%</span>
+                  <span className="text-4xl font-bold text-primary">5,99%</span>
                   <span className="text-muted-foreground">+</span>
                   <span className="text-2xl font-bold text-primary">R$1,00</span>
                 </div>
@@ -200,7 +201,7 @@ export function PaymentModes() {
                         <Percent className="h-4 w-4 text-muted-foreground" />
                         Taxa da Plataforma
                       </td>
-                      <td className="text-center py-3 px-4 font-semibold">6,99% + R$1,00</td>
+                      <td className="text-center py-3 px-4 font-semibold">5,99% + R$1,00</td>
                       <td className="text-center py-3 px-4 font-semibold text-accent">4,99% + R$1,00</td>
                     </tr>
                     <tr className="border-b border-border/50">
@@ -243,7 +244,7 @@ export function PaymentModes() {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Gateway Plataforma:</span>
-                    <span className="font-semibold">R$ 14,77 de taxa</span>
+                    <span className="font-semibold">R$ 12,80 de taxa</span>
                   </div>
                   <span className="hidden sm:inline text-muted-foreground">|</span>
                   <div className="flex items-center gap-2">

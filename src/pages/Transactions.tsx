@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -99,6 +100,7 @@ const statusConfig = {
 const PLATFORM_FEE_RATE = 0.07; // 7%
 
 const Transactions = () => {
+  const { isAdmin } = useUserRole();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -619,14 +621,16 @@ const Transactions = () => {
                             {format(new Date(tx.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                           </td>
                           <td>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={(e) => handleDeleteClick(tx, e)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {isAdmin && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={(e) => handleDeleteClick(tx, e)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </td>
                         </tr>
                       );
