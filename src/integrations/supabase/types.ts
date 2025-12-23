@@ -1321,6 +1321,8 @@ export type Database = {
           id: string
           name: string
           order_index: number
+          position_x: number | null
+          position_y: number | null
           quiz_id: string
           settings: Json | null
           step_type: string
@@ -1330,6 +1332,8 @@ export type Database = {
           id?: string
           name: string
           order_index?: number
+          position_x?: number | null
+          position_y?: number | null
           quiz_id: string
           settings?: Json | null
           step_type?: string
@@ -1339,6 +1343,8 @@ export type Database = {
           id?: string
           name?: string
           order_index?: number
+          position_x?: number | null
+          position_y?: number | null
           quiz_id?: string
           settings?: Json | null
           step_type?: string
