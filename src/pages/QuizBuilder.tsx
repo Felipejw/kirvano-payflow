@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Eye, Settings, Layers, GitBranch, Users, Palette, Play, Pause } from "lucide-react";
+import { ArrowLeft, Save, Eye, Settings, Layers, GitBranch, Users, Palette, Play, Pause, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import QuizFlowTab from "@/components/quiz-builder/QuizFlowTab";
 import QuizDesignTab from "@/components/quiz-builder/QuizDesignTab";
 import QuizLeadsTab from "@/components/quiz-builder/QuizLeadsTab";
 import QuizSettingsTab from "@/components/quiz-builder/QuizSettingsTab";
+import QuizAnalyticsTab from "@/components/quiz-builder/QuizAnalyticsTab";
 
 interface Quiz {
   id: string;
@@ -248,6 +249,10 @@ export default function QuizBuilder() {
                   <Users className="h-4 w-4" />
                   <span className="hidden sm:inline">Leads</span>
                 </TabsTrigger>
+                <TabsTrigger value="analytics" className="gap-2 data-[state=active]:bg-primary/10">
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Analytics</span>
+                </TabsTrigger>
                 <TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-primary/10">
                   <Settings className="h-4 w-4" />
                   <span className="hidden sm:inline">Configurações</span>
@@ -268,6 +273,9 @@ export default function QuizBuilder() {
             </TabsContent>
             <TabsContent value="leads" className="h-full m-0">
               <QuizLeadsTab quizId={quiz.id} />
+            </TabsContent>
+            <TabsContent value="analytics" className="h-full m-0">
+              <QuizAnalyticsTab quizId={quiz.id} />
             </TabsContent>
             <TabsContent value="settings" className="h-full m-0">
               <QuizSettingsTab quiz={quiz} onUpdate={updateQuiz} />
