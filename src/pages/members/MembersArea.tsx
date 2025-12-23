@@ -252,7 +252,7 @@ const MembersArea = () => {
                     <Button
                       className="w-full"
                       disabled={expired}
-                      onClick={() => navigate(`/members/product/${membership.product.id}`)}
+                      onClick={() => navigate("members/product", { id: membership.product.id })}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Acessar Conteúdo
