@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, MoreHorizontal, Copy, ExternalLink, Trash2, Edit, BarChart3, Search, Filter, MessageSquare } from "lucide-react";
+import { Plus, MoreHorizontal, Copy, ExternalLink, Trash2, Edit, BarChart3, Search, Filter, MessageSquare, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppNavigate } from "@/lib/routes";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import QuizTemplatesDialog from "@/components/quiz-builder/QuizTemplatesDialog";
 
 interface Quiz {
   id: string;
@@ -43,6 +44,7 @@ export default function Quizzes() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [templatesDialogOpen, setTemplatesDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "" });
@@ -256,10 +258,16 @@ export default function Quizzes() {
               Crie quizzes interativos para capturar e qualificar leads
             </p>
           </div>
-          <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Quiz
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setTemplatesDialogOpen(true)} className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Templates
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Quiz
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -529,6 +537,16 @@ export default function Quizzes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Templates Dialog */}
+      <QuizTemplatesDialog
+        open={templatesDialogOpen}
+        onClose={() => setTemplatesDialogOpen(false)}
+        userId={user?.id || ""}
+        onQuizCreated={(quizId) => {
+          navigate("dashboard/quizzes/builder", { id: quizId });
+        }}
+      />
     </DashboardLayout>
   );
 }
