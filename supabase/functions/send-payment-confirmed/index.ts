@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL");
@@ -26,6 +27,7 @@ interface PaymentConfirmedRequest {
   send_email?: boolean;
   send_whatsapp?: boolean;
   has_members_area?: boolean;
+  member_id?: string;
 }
 
 const formatCurrency = (value: number) => {
@@ -40,16 +42,51 @@ const formatPhone = (phone: string): string => {
   return `55${cleaned}`;
 };
 
+const getSupabaseClient = () => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return createClient(supabaseUrl, supabaseServiceKey);
+};
+
+const logEmail = async (memberId: string, recipientEmail: string, subject: string, status: string) => {
+  try {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.from("member_email_logs").insert({
+      member_id: memberId,
+      email_type: "payment_confirmed",
+      recipient_email: recipientEmail,
+      subject: subject,
+      status: status,
+    });
+    
+    if (error) {
+      console.error("Error logging email:", error);
+    } else {
+      console.log("Email log saved for member:", memberId);
+    }
+  } catch (err) {
+    console.error("Exception logging email:", err);
+  }
+};
+
 const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
   console.log('Sending confirmation email to:', data.buyer_email);
   
+  const emailSubject = `✅ Pagamento de ${formatCurrency(data.amount)} confirmado! Acesse seu produto`;
+  
   if (!RESEND_API_KEY) {
     console.error("RESEND_API_KEY not configured");
+    if (data.member_id) {
+      await logEmail(data.member_id, data.buyer_email, emailSubject, "failed");
+    }
     return { success: false, error: "Email service not configured" };
   }
   
   if (!RESEND_FROM_EMAIL || !isValidEmail(RESEND_FROM_EMAIL)) {
     console.error("RESEND_FROM_EMAIL invalid or not configured:", RESEND_FROM_EMAIL);
+    if (data.member_id) {
+      await logEmail(data.member_id, data.buyer_email, emailSubject, "failed");
+    }
     return { success: false, error: "Email sender not properly configured" };
   }
   
@@ -187,7 +224,7 @@ const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
       body: JSON.stringify({
         from: `GateFlow <${RESEND_FROM_EMAIL}>`,
         to: [data.buyer_email],
-        subject: `✅ Pagamento de ${formatCurrency(data.amount)} confirmado! Acesse seu produto`,
+        subject: emailSubject,
         html: emailHtml,
       }),
     });
@@ -196,13 +233,25 @@ const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
     
     if (!response.ok) {
       console.error("Resend API error:", result);
+      if (data.member_id) {
+        await logEmail(data.member_id, data.buyer_email, emailSubject, "failed");
+      }
       return { success: false, error: result.message || "Email failed" };
     }
 
     console.log("Confirmation email sent successfully:", result);
+    
+    // Log email success
+    if (data.member_id) {
+      await logEmail(data.member_id, data.buyer_email, emailSubject, "sent");
+    }
+    
     return { success: true, response: result };
   } catch (error: any) {
     console.error("Error sending confirmation email:", error);
+    if (data.member_id) {
+      await logEmail(data.member_id, data.buyer_email, emailSubject, "failed");
+    }
     return { success: false, error: error.message };
   }
 };
@@ -341,7 +390,8 @@ const handler = async (req: Request): Promise<Response> => {
       product_name: data.product_name,
       amount: data.amount,
       paid_at: data.paid_at,
-      has_members_area: data.has_members_area
+      has_members_area: data.has_members_area,
+      member_id: data.member_id
     });
 
     const results: { email?: any; whatsapp?: any } = {};
