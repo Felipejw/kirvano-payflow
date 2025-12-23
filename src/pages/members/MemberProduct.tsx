@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,8 @@ interface LessonProgress {
 }
 
 const MemberProduct = () => {
-  const { productId } = useParams();
+  const [searchParams] = useSearchParams();
+  const productId = searchParams.get("id");
   const { user, loading: authLoading } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
@@ -90,7 +91,7 @@ const MemberProduct = () => {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate("/members/login");
+      navigate("/?page=members/login");
     }
   }, [user, authLoading, navigate]);
 
@@ -347,7 +348,7 @@ const MemberProduct = () => {
                 ? "Seu acesso a este produto expirou."
                 : "Você não tem acesso a este produto."}
             </p>
-            <Button variant="outline" onClick={() => navigate("/members")}>
+            <Button variant="outline" onClick={() => navigate("/?page=members")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar aos Meus Produtos
             </Button>
@@ -367,7 +368,7 @@ const MemberProduct = () => {
           <div className="flex items-center gap-3">
             <img src={gateflowLogo} alt="Gateflow" className="h-10 w-auto" />
           </div>
-          <Button variant="ghost" onClick={() => navigate("/members")}>
+          <Button variant="ghost" onClick={() => navigate("/?page=members")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Meus Produtos
           </Button>
@@ -379,7 +380,7 @@ const MemberProduct = () => {
         <Button 
           variant="ghost" 
           className="mb-6" 
-          onClick={() => navigate("/members")}
+          onClick={() => navigate("/?page=members")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar
