@@ -44,6 +44,7 @@ import MembersConfig from "./pages/members/MembersConfig";
 import Withdrawals from "./pages/Withdrawals";
 import Quizzes from "./pages/Quizzes";
 import QuizBuilder from "./pages/QuizBuilder";
+import QuizPlayer from "./pages/QuizPlayer";
 import { getUrlParam } from "./lib/routes";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
@@ -120,6 +121,8 @@ function PageRouter() {
       return <Quizzes />;
     case "dashboard/quizzes/builder":
       return <QuizBuilder />;
+    case "quiz":
+      return <QuizPlayer />;
     case "admin":
       return <AdminDashboard />;
     case "admin/receita":
