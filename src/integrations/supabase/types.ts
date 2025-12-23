@@ -1095,6 +1095,339 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_connections: {
+        Row: {
+          condition: Json | null
+          created_at: string
+          id: string
+          is_default: boolean | null
+          quiz_id: string
+          source_step_id: string
+          target_step_id: string
+        }
+        Insert: {
+          condition?: Json | null
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          quiz_id: string
+          source_step_id: string
+          target_step_id: string
+        }
+        Update: {
+          condition?: Json | null
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          quiz_id?: string
+          source_step_id?: string
+          target_step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_connections_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_connections_source_step_id_fkey"
+            columns: ["source_step_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_connections_target_step_id_fkey"
+            columns: ["target_step_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_elements: {
+        Row: {
+          content: Json | null
+          created_at: string
+          element_type: string
+          id: string
+          order_index: number
+          step_id: string
+          styles: Json | null
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string
+          element_type: string
+          id?: string
+          order_index?: number
+          step_id: string
+          styles?: Json | null
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string
+          element_type?: string
+          id?: string
+          order_index?: number
+          step_id?: string
+          styles?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_elements_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_lead_responses: {
+        Row: {
+          element_id: string | null
+          id: string
+          lead_id: string
+          responded_at: string
+          response: Json
+          step_id: string
+        }
+        Insert: {
+          element_id?: string | null
+          id?: string
+          lead_id: string
+          responded_at?: string
+          response: Json
+          step_id: string
+        }
+        Update: {
+          element_id?: string | null
+          id?: string
+          lead_id?: string
+          responded_at?: string
+          response?: Json
+          step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_lead_responses_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_lead_responses_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_lead_responses_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_leads: {
+        Row: {
+          completed_at: string | null
+          current_step_id: string | null
+          email: string | null
+          id: string
+          interaction_count: number | null
+          ip_address: string | null
+          last_interaction_at: string | null
+          name: string | null
+          phone: string | null
+          quiz_id: string
+          session_id: string
+          started_at: string
+          status: string
+          user_agent: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          current_step_id?: string | null
+          email?: string | null
+          id?: string
+          interaction_count?: number | null
+          ip_address?: string | null
+          last_interaction_at?: string | null
+          name?: string | null
+          phone?: string | null
+          quiz_id: string
+          session_id: string
+          started_at?: string
+          status?: string
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          current_step_id?: string | null
+          email?: string | null
+          id?: string
+          interaction_count?: number | null
+          ip_address?: string | null
+          last_interaction_at?: string | null
+          name?: string | null
+          phone?: string | null
+          quiz_id?: string
+          session_id?: string
+          started_at?: string
+          status?: string
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_leads_current_step_id_fkey"
+            columns: ["current_step_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quiz_leads_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_steps: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          order_index: number
+          quiz_id: string
+          settings: Json | null
+          step_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          order_index?: number
+          quiz_id: string
+          settings?: Json | null
+          step_type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          order_index?: number
+          quiz_id?: string
+          settings?: Json | null
+          step_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_steps_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quizzes: {
+        Row: {
+          allow_back_navigation: boolean | null
+          background_color: string | null
+          button_color: string | null
+          created_at: string
+          custom_domain: string | null
+          custom_slug: string | null
+          description: string | null
+          domain_verified: boolean | null
+          facebook_pixel: string | null
+          font_family: string | null
+          google_analytics: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          primary_color: string | null
+          show_logo: boolean | null
+          show_progress_bar: boolean | null
+          status: string
+          text_color: string | null
+          tiktok_pixel: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allow_back_navigation?: boolean | null
+          background_color?: string | null
+          button_color?: string | null
+          created_at?: string
+          custom_domain?: string | null
+          custom_slug?: string | null
+          description?: string | null
+          domain_verified?: boolean | null
+          facebook_pixel?: string | null
+          font_family?: string | null
+          google_analytics?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          primary_color?: string | null
+          show_logo?: boolean | null
+          show_progress_bar?: boolean | null
+          status?: string
+          text_color?: string | null
+          tiktok_pixel?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allow_back_navigation?: boolean | null
+          background_color?: string | null
+          button_color?: string | null
+          created_at?: string
+          custom_domain?: string | null
+          custom_slug?: string | null
+          description?: string | null
+          domain_verified?: boolean | null
+          facebook_pixel?: string | null
+          font_family?: string | null
+          google_analytics?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          primary_color?: string | null
+          show_logo?: boolean | null
+          show_progress_bar?: boolean | null
+          status?: string
+          text_color?: string | null
+          tiktok_pixel?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       recovery_campaigns: {
         Row: {
           created_at: string

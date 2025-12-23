@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Instagram,
   Trophy,
-  Server
+  Server,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -37,6 +38,7 @@ const ownGatewayMenuItems = [
   { icon: CreditCard, label: "Transações", page: "dashboard/transactions" },
   { icon: Users, label: "Clientes", page: "dashboard/clients" },
   { icon: UserCheck, label: "Área de Membros", page: "dashboard/members" },
+  { icon: MessageSquare, label: "Quizzes", page: "dashboard/quizzes" },
   { icon: RefreshCw, label: "Recuperação", page: "dashboard/recovery" },
   { icon: Wallet, label: "Formas de Pagamento", page: "dashboard/payment-methods" },
   { icon: CreditCard, label: "Financeiro", page: "dashboard/finance" },
@@ -50,6 +52,7 @@ const platformGatewayMenuItems = [
   { icon: CreditCard, label: "Transações", page: "dashboard/transactions" },
   { icon: Users, label: "Clientes", page: "dashboard/clients" },
   { icon: UserCheck, label: "Área de Membros", page: "dashboard/members" },
+  { icon: MessageSquare, label: "Quizzes", page: "dashboard/quizzes" },
   { icon: RefreshCw, label: "Recuperação", page: "dashboard/recovery" },
   { icon: Wallet, label: "Saques", page: "dashboard/withdrawals" },
 ];
