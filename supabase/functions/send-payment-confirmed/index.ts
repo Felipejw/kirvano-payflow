@@ -77,7 +77,7 @@ const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
             <tr>
               <td style="color: #9ca3af; padding: 8px 0; font-size: 14px; text-align: left;">🌐 Link de Acesso:</td>
               <td style="color: #10b981; padding: 8px 0; font-size: 14px; font-weight: 600; text-align: right;">
-                <a href="https://gatteflow.store/?page=auth" style="color: #10b981; text-decoration: none;">gatteflow.store/?page=auth</a>
+                <a href="https://gatteflow.store/?page=members/login" style="color: #10b981; text-decoration: none;">gatteflow.store/?page=members/login</a>
               </td>
             </tr>
             <tr>
@@ -91,7 +91,7 @@ const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
           </table>
         </div>
         
-        <a href="https://gatteflow.store/?page=auth" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 16px; margin-bottom: 12px;">
+        <a href="https://gatteflow.store/?page=members/login" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 16px; margin-bottom: 12px;">
           🚀 Acessar Agora
         </a>
         
@@ -293,7 +293,7 @@ const sendConfirmationWhatsApp = async (data: PaymentConfirmedRequest) => {
 
 🔐 *ACESSE SUA ÁREA DE MEMBROS*
 
-🌐 Link: https://gatteflow.store/?page=auth
+🌐 Link: https://gatteflow.store/?page=members/login
 📧 Email: ${data.buyer_email}
 🔑 Senha: 123456
 
