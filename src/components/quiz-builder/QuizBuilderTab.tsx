@@ -521,6 +521,21 @@ export default function QuizBuilderTab({ quizId }: QuizBuilderTabProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Element Config Dialog */}
+      {configElement && (
+        <ElementConfigDialog
+          open={configDialogOpen}
+          onOpenChange={setConfigDialogOpen}
+          element={configElement}
+          onSave={(updates) => {
+            handleUpdateElement(configElement.id, updates);
+            setConfigDialogOpen(false);
+            setConfigElement(null);
+            toast.success("Elemento atualizado!");
+          }}
+        />
+      )}
     </div>
   );
 }
