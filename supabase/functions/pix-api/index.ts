@@ -955,6 +955,9 @@ async function processPaymentConfirmation(
     }
   }
 
+  // Variable to store member ID for payment confirmation email logging
+  let memberId: string | null = null;
+
   // Create membership for buyer and send access email
   if (charge.product_id && charge.buyer_email) {
     try {
@@ -974,6 +977,9 @@ async function processPaymentConfirmation(
         .eq('user_id', membershipResult.userId)
         .eq('product_id', charge.product_id)
         .maybeSingle();
+      
+      // Store member ID for later use
+      memberId = memberData?.id || null;
       
       // Check if auto email sending is enabled for this product (default: true)
       const autoSendEnabled = charge.products?.auto_send_access_email ?? true;
@@ -1068,9 +1074,11 @@ async function processPaymentConfirmation(
       paid_at: new Date().toISOString(),
       send_email: true,
       send_whatsapp: !!charge.buyer_phone,
+      has_members_area: !!charge.product_id,
+      member_id: memberId,
     };
     
-    console.log('Sending payment confirmed notification to buyer');
+    console.log('Sending payment confirmed notification to buyer with member_id:', memberId);
     
     // Fire and forget - don't wait for response
     fetch(`${supabaseUrl}/functions/v1/send-payment-confirmed`, {

@@ -133,10 +133,16 @@ const MemberProduct = () => {
       setHasAccess(true);
 
       // Update last_accessed_at
-      await supabase
+      const { error: updateError } = await supabase
         .from("members")
         .update({ last_accessed_at: new Date().toISOString() })
         .eq("id", membershipData.id);
+
+      if (updateError) {
+        console.error("Error updating last_accessed_at:", updateError);
+      } else {
+        console.log("Successfully updated last_accessed_at for member:", membershipData.id);
+      }
 
       // Fetch product details
       const { data: productData, error: productError } = await supabase
