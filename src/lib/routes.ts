@@ -40,6 +40,7 @@ export const PAGES = {
   adminRecovery: "admin/recovery",
   adminInstagramPosts: "admin/instagram-posts",
   adminGatewayLogs: "admin/gateway-logs",
+  adminBroadcast: "admin/broadcast",
   
   // Members Area (public)
   membersArea: "members",

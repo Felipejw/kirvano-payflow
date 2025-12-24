@@ -1858,6 +1858,98 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_broadcast_recipients: {
+        Row: {
+          broadcast_id: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          name: string | null
+          phone: string
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          broadcast_id: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          phone: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          broadcast_id?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          phone?: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_broadcast_recipients_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_broadcasts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_broadcasts: {
+        Row: {
+          admin_id: string
+          completed_at: string | null
+          created_at: string | null
+          failed_count: number | null
+          id: string
+          interval_seconds: number | null
+          media_type: string | null
+          media_url: string | null
+          message: string
+          name: string
+          sent_count: number | null
+          started_at: string | null
+          status: string | null
+          total_recipients: number | null
+        }
+        Insert: {
+          admin_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          failed_count?: number | null
+          id?: string
+          interval_seconds?: number | null
+          media_type?: string | null
+          media_url?: string | null
+          message: string
+          name: string
+          sent_count?: number | null
+          started_at?: string | null
+          status?: string | null
+          total_recipients?: number | null
+        }
+        Update: {
+          admin_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          failed_count?: number | null
+          id?: string
+          interval_seconds?: number | null
+          media_type?: string | null
+          media_url?: string | null
+          message?: string
+          name?: string
+          sent_count?: number | null
+          started_at?: string | null
+          status?: string | null
+          total_recipients?: number | null
+        }
+        Relationships: []
+      }
       withdrawals: {
         Row: {
           amount: number
