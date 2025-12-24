@@ -33,6 +33,7 @@ import AdminRecovery from "./pages/admin/AdminRecovery";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminInstagramPosts from "./pages/admin/AdminInstagramPosts";
 import AdminGatewayLogs from "./pages/admin/AdminGatewayLogs";
+import AdminBroadcast from "./pages/admin/AdminBroadcast";
 import MembersArea from "./pages/members/MembersArea";
 import Recovery from "./pages/Recovery";
 import MembersLogin from "./pages/members/MembersLogin";
@@ -155,6 +156,8 @@ function PageRouter() {
       return <AdminInstagramPosts />;
     case "admin/gateway-logs":
       return <AdminGatewayLogs />;
+    case "admin/broadcast":
+      return <AdminBroadcast />;
     case "members":
       return <MembersArea />;
     case "members/login":
