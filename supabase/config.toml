@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.whatsapp-broadcast]
 verify_jwt = true
+
+[functions.check-scheduled-broadcasts]
+verify_jwt = false
