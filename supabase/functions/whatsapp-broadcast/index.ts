@@ -20,6 +20,11 @@ function formatPhone(phone: string): string {
   return `55${cleaned}`;
 }
 
+// Get random interval between min and max
+function getRandomInterval(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 // Send text message via Z-API
 async function sendText(phone: string, message: string, instanceId: string, token: string): Promise<{ success: boolean; error?: string }> {
   try {
@@ -231,6 +236,12 @@ serve(async (req) => {
 
       console.log(`[Broadcast] Processing ${recipients?.length || 0} recipients`);
 
+      // Get interval range
+      const minInterval = broadcast.interval_min_seconds || broadcast.interval_seconds || 30;
+      const maxInterval = broadcast.interval_max_seconds || minInterval + 15;
+
+      console.log(`[Broadcast] Using random interval between ${minInterval}s and ${maxInterval}s`);
+
       // Process recipients in background
       const processRecipients = async () => {
         let sentCount = broadcast.sent_count || 0;
@@ -301,8 +312,10 @@ serve(async (req) => {
 
           console.log(`[Broadcast] Processed ${recipient.phone}: ${result.success ? 'sent' : 'failed'}`);
 
-          // Wait for interval before next message
-          await sleep(broadcast.interval_seconds * 1000);
+          // Wait for random interval before next message
+          const randomInterval = getRandomInterval(minInterval, maxInterval);
+          console.log(`[Broadcast] Waiting ${randomInterval}s before next message`);
+          await sleep(randomInterval * 1000);
         }
 
         // Check final status

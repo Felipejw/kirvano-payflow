@@ -100,6 +100,39 @@ export type Database = {
         }
         Relationships: []
       }
+      broadcast_templates: {
+        Row: {
+          created_at: string | null
+          id: string
+          media_type: string | null
+          media_url: string | null
+          message: string
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message: string
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       checkout_settings: {
         Row: {
           background_color: string | null
@@ -1906,6 +1939,8 @@ export type Database = {
           created_at: string | null
           failed_count: number | null
           id: string
+          interval_max_seconds: number | null
+          interval_min_seconds: number | null
           interval_seconds: number | null
           media_type: string | null
           media_url: string | null
@@ -1922,6 +1957,8 @@ export type Database = {
           created_at?: string | null
           failed_count?: number | null
           id?: string
+          interval_max_seconds?: number | null
+          interval_min_seconds?: number | null
           interval_seconds?: number | null
           media_type?: string | null
           media_url?: string | null
@@ -1938,6 +1975,8 @@ export type Database = {
           created_at?: string | null
           failed_count?: number | null
           id?: string
+          interval_max_seconds?: number | null
+          interval_min_seconds?: number | null
           interval_seconds?: number | null
           media_type?: string | null
           media_url?: string | null
