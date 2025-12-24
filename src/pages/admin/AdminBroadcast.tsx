@@ -10,6 +10,9 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   Table, 
   TableBody, 
@@ -40,7 +43,6 @@ import {
   Play, 
   Pause, 
   StopCircle, 
-  Download, 
   Trash2, 
   Plus,
   Image as ImageIcon,
@@ -56,14 +58,16 @@ import {
   BarChart3,
   FileStack,
   TrendingUp,
-  Target
+  Target,
+  Copy,
+  CalendarIcon
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import * as XLSX from "xlsx";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend } from "recharts";
+import { cn } from "@/lib/utils";
 
 interface Contact {
   id: string;
@@ -97,6 +101,7 @@ interface Broadcast {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  scheduled_at: string | null;
 }
 
 interface Template {
@@ -122,6 +127,14 @@ export default function AdminBroadcast() {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  
+  // Scheduling
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
+  const [scheduledTime, setScheduledTime] = useState("12:00");
+  
+  // Bulk contacts
+  const [bulkContacts, setBulkContacts] = useState("");
   
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -262,62 +275,39 @@ export default function AdminBroadcast() {
     }
   };
 
-  const importFromSystem = async () => {
-    const { data, error } = await supabase
-      .from('pix_charges')
-      .select('buyer_phone, buyer_name')
-      .not('buyer_phone', 'is', null)
-      .eq('status', 'paid');
-
-    if (error) {
-      toast.error("Erro ao importar contatos");
+  // Process bulk contacts from textarea
+  const processBulkContacts = () => {
+    if (!bulkContacts.trim()) {
+      toast.error("Cole ou digite os contatos");
       return;
     }
 
-    const uniquePhones = new Map<string, string>();
-    data?.forEach(charge => {
-      if (charge.buyer_phone && !uniquePhones.has(charge.buyer_phone)) {
-        uniquePhones.set(charge.buyer_phone, charge.buyer_name || '');
+    const lines = bulkContacts.split('\n').filter(line => line.trim());
+    const newContacts: Contact[] = [];
+
+    lines.forEach((line, idx) => {
+      const parts = line.split(',').map(p => p.trim());
+      const phone = parts[0]?.replace(/\D/g, '');
+      const name = parts[1] || '';
+
+      if (phone && phone.length >= 10) {
+        newContacts.push({
+          id: `bulk-${Date.now()}-${idx}`,
+          phone,
+          name,
+          selected: true
+        });
       }
     });
 
-    const imported: Contact[] = Array.from(uniquePhones).map(([phone, name], idx) => ({
-      id: `imported-${idx}`,
-      phone,
-      name,
-      selected: true
-    }));
+    if (newContacts.length === 0) {
+      toast.error("Nenhum contato válido encontrado");
+      return;
+    }
 
-    setContacts(prev => [...prev, ...imported]);
-    toast.success(`${imported.length} contatos importados!`);
-  };
-
-  const importFromCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const workbook = XLSX.read(event.target?.result, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json<{ telefone?: string; phone?: string; nome?: string; name?: string }>(sheet);
-
-        const imported: Contact[] = data.map((row, idx) => ({
-          id: `csv-${idx}`,
-          phone: row.telefone || row.phone || '',
-          name: row.nome || row.name || '',
-          selected: true
-        })).filter(c => c.phone);
-
-        setContacts(prev => [...prev, ...imported]);
-        toast.success(`${imported.length} contatos importados!`);
-      } catch (error) {
-        toast.error("Erro ao ler arquivo");
-      }
-    };
-    reader.readAsBinaryString(file);
+    setContacts(prev => [...prev, ...newContacts]);
+    setBulkContacts("");
+    toast.success(`${newContacts.length} contatos adicionados!`);
   };
 
   const addManualContact = () => {
@@ -328,7 +318,7 @@ export default function AdminBroadcast() {
 
     setContacts(prev => [...prev, {
       id: `manual-${Date.now()}`,
-      phone: manualPhone,
+      phone: manualPhone.replace(/\D/g, ''),
       name: manualName,
       selected: true
     }]);
@@ -404,6 +394,56 @@ export default function AdminBroadcast() {
     loadTemplates();
   };
 
+  // Duplicate campaign function
+  const duplicateCampaign = async (broadcastId: string) => {
+    const broadcast = allBroadcasts.find(b => b.id === broadcastId);
+    if (!broadcast) return;
+
+    // Load recipients from the campaign
+    const { data: recipientsData } = await supabase
+      .from('whatsapp_broadcast_recipients')
+      .select('phone, name')
+      .eq('broadcast_id', broadcastId);
+
+    // Fill form with campaign data
+    setCampaignName(`(Cópia) ${broadcast.name}`);
+    setMessage(broadcast.message);
+    setMediaType(broadcast.media_type as "none" | "image" | "video" | "document" || "none");
+    setMediaUrl(broadcast.media_url || "");
+    setIntervalMin(broadcast.interval_min_seconds || 30);
+    setIntervalMax(broadcast.interval_max_seconds || 60);
+
+    // Add recipients as contacts
+    if (recipientsData) {
+      const duplicatedContacts: Contact[] = recipientsData.map((r, idx) => ({
+        id: `dup-${Date.now()}-${idx}`,
+        phone: r.phone,
+        name: r.name || '',
+        selected: true
+      }));
+      setContacts(duplicatedContacts);
+    }
+
+    setSelectedTab("campaign");
+    toast.success(`Campanha "${broadcast.name}" duplicada!`);
+  };
+
+  // Cancel scheduled broadcast
+  const cancelScheduledBroadcast = async (broadcastId: string) => {
+    const { error } = await supabase
+      .from('whatsapp_broadcasts')
+      .update({ status: 'cancelled', completed_at: new Date().toISOString() })
+      .eq('id', broadcastId);
+
+    if (error) {
+      toast.error("Erro ao cancelar agendamento");
+      return;
+    }
+
+    toast.success("Agendamento cancelado!");
+    loadAllBroadcasts();
+  };
+
   const startBroadcast = async () => {
     const selectedContacts = contacts.filter(c => c.selected);
     
@@ -422,9 +462,35 @@ export default function AdminBroadcast() {
       return;
     }
 
+    // Validate scheduling
+    if (isScheduled) {
+      if (!scheduledDate) {
+        toast.error("Selecione a data do agendamento");
+        return;
+      }
+
+      const [hours, minutes] = scheduledTime.split(':').map(Number);
+      const scheduledDateTime = new Date(scheduledDate);
+      scheduledDateTime.setHours(hours, minutes, 0, 0);
+
+      if (scheduledDateTime <= new Date()) {
+        toast.error("A data/hora deve ser no futuro");
+        return;
+      }
+    }
+
     setIsCreating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+
+      // Build scheduled_at if scheduled
+      let scheduledAt: string | null = null;
+      if (isScheduled && scheduledDate) {
+        const [hours, minutes] = scheduledTime.split(':').map(Number);
+        const scheduledDateTime = new Date(scheduledDate);
+        scheduledDateTime.setHours(hours, minutes, 0, 0);
+        scheduledAt = scheduledDateTime.toISOString();
+      }
       
       // Create broadcast
       const { data: broadcast, error: broadcastError } = await supabase
@@ -438,7 +504,9 @@ export default function AdminBroadcast() {
           interval_seconds: intervalMin,
           interval_min_seconds: intervalMin,
           interval_max_seconds: intervalMax,
-          total_recipients: selectedContacts.length
+          total_recipients: selectedContacts.length,
+          status: isScheduled ? 'scheduled' : 'pending',
+          scheduled_at: scheduledAt
         })
         .select()
         .single();
@@ -458,16 +526,21 @@ export default function AdminBroadcast() {
 
       if (recipientsError) throw recipientsError;
 
-      // Start broadcast via edge function
-      const { error: functionError } = await supabase.functions.invoke('whatsapp-broadcast', {
-        body: { action: 'start', broadcastId: broadcast.id }
-      });
+      // If not scheduled, start immediately
+      if (!isScheduled) {
+        const { error: functionError } = await supabase.functions.invoke('whatsapp-broadcast', {
+          body: { action: 'start', broadcastId: broadcast.id }
+        });
 
-      if (functionError) throw functionError;
+        if (functionError) throw functionError;
 
-      setCurrentBroadcast(broadcast);
-      loadRecipients(broadcast.id);
-      toast.success("Disparo iniciado!");
+        setCurrentBroadcast(broadcast);
+        loadRecipients(broadcast.id);
+        toast.success("Disparo iniciado!");
+      } else {
+        toast.success(`Campanha agendada para ${format(new Date(scheduledAt!), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`);
+        loadAllBroadcasts();
+      }
 
       // Clear form
       setCampaignName("");
@@ -475,10 +548,13 @@ export default function AdminBroadcast() {
       setMediaType("none");
       setMediaUrl("");
       setContacts([]);
+      setIsScheduled(false);
+      setScheduledDate(undefined);
+      setScheduledTime("12:00");
 
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao iniciar disparo");
+      toast.error("Erro ao criar campanha");
     } finally {
       setIsCreating(false);
     }
@@ -751,6 +827,62 @@ export default function AdminBroadcast() {
                         O intervalo será um valor aleatório entre {intervalMin}s e {intervalMax}s
                       </p>
                     </div>
+
+                    {/* Scheduling */}
+                    <Separator />
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label>Agendar para depois</Label>
+                          <p className="text-xs text-muted-foreground">
+                            O disparo será iniciado automaticamente na data/hora escolhida
+                          </p>
+                        </div>
+                        <Switch
+                          checked={isScheduled}
+                          onCheckedChange={setIsScheduled}
+                        />
+                      </div>
+
+                      {isScheduled && (
+                        <div className="grid grid-cols-2 gap-4 pt-2">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Data</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !scheduledDate && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {scheduledDate ? format(scheduledDate, "dd/MM/yyyy") : "Selecione"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={scheduledDate}
+                                  onSelect={setScheduledDate}
+                                  disabled={(date) => date < new Date()}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Horário</Label>
+                            <Input
+                              type="time"
+                              value={scheduledTime}
+                              onChange={(e) => setScheduledTime(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -764,28 +896,33 @@ export default function AdminBroadcast() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" onClick={importFromSystem}>
-                        <Download className="h-4 w-4 mr-1" />
-                        Importar Clientes
+                    {/* Bulk paste area */}
+                    <div className="space-y-2">
+                      <Label>Cole ou digite os contatos</Label>
+                      <Textarea
+                        placeholder="11999990000,João Silva&#10;21888881111,Maria Santos&#10;31777772222&#10;(um contato por linha, nome é opcional)"
+                        value={bulkContacts}
+                        onChange={(e) => setBulkContacts(e.target.value)}
+                        rows={5}
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Formato: telefone,nome (um por linha, nome é opcional)
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={processBulkContacts}
+                        disabled={!bulkContacts.trim()}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Processar Lista
                       </Button>
-                      <label>
-                        <Button variant="outline" size="sm" asChild>
-                          <span>
-                            <Upload className="h-4 w-4 mr-1" />
-                            Importar CSV/Excel
-                          </span>
-                        </Button>
-                        <input
-                          type="file"
-                          accept=".csv,.xlsx,.xls"
-                          className="hidden"
-                          onChange={importFromCSV}
-                        />
-                      </label>
                     </div>
 
                     <Separator />
+
+                    <p className="text-sm text-muted-foreground text-center">ou adicione individualmente</p>
 
                     <div className="flex gap-2">
                       <Input
@@ -857,10 +994,12 @@ export default function AdminBroadcast() {
                     >
                       {isCreating ? (
                         <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : isScheduled ? (
+                        <CalendarIcon className="h-4 w-4 mr-2" />
                       ) : (
                         <Play className="h-4 w-4 mr-2" />
                       )}
-                      Iniciar Disparo ({selectedCount} contatos)
+                      {isScheduled ? `Agendar Disparo (${selectedCount} contatos)` : `Iniciar Disparo (${selectedCount} contatos)`}
                     </Button>
                   </CardContent>
                 </Card>
@@ -894,98 +1033,78 @@ export default function AdminBroadcast() {
                               Retomar
                             </Button>
                           ) : null}
-                          {(currentBroadcast.status === 'running' || currentBroadcast.status === 'paused') && (
-                            <Button variant="destructive" onClick={cancelBroadcast}>
-                              <StopCircle className="h-4 w-4 mr-2" />
-                              Cancelar
-                            </Button>
-                          )}
+                          <Button variant="destructive" onClick={cancelBroadcast}>
+                            <StopCircle className="h-4 w-4 mr-2" />
+                            Cancelar
+                          </Button>
                         </div>
 
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span>Progresso</span>
-                            <span>{currentBroadcast.sent_count + currentBroadcast.failed_count}/{currentBroadcast.total_recipients}</span>
+                            <span>{currentBroadcast.sent_count + currentBroadcast.failed_count} / {currentBroadcast.total_recipients}</span>
                           </div>
                           <Progress value={progressPercent} />
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-center">
-                            <CheckCircle2 className="h-6 w-6 mx-auto text-green-500 mb-1" />
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                          <div className="p-3 bg-muted rounded-lg">
+                            <p className="text-2xl font-bold">{currentBroadcast.total_recipients}</p>
+                            <p className="text-xs text-muted-foreground">Total</p>
+                          </div>
+                          <div className="p-3 bg-green-500/10 rounded-lg">
                             <p className="text-2xl font-bold text-green-500">{currentBroadcast.sent_count}</p>
                             <p className="text-xs text-muted-foreground">Enviados</p>
                           </div>
-                          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-center">
-                            <XCircle className="h-6 w-6 mx-auto text-red-500 mb-1" />
+                          <div className="p-3 bg-red-500/10 rounded-lg">
                             <p className="text-2xl font-bold text-red-500">{currentBroadcast.failed_count}</p>
                             <p className="text-xs text-muted-foreground">Falhas</p>
                           </div>
-                          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 text-center">
-                            <Clock className="h-6 w-6 mx-auto text-yellow-500 mb-1" />
-                            <p className="text-2xl font-bold text-yellow-500">
-                              {currentBroadcast.total_recipients - currentBroadcast.sent_count - currentBroadcast.failed_count}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Pendentes</p>
-                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-2">
+                          <Label>Log de Envios</Label>
+                          <ScrollArea className="h-64 border rounded-md">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead>Nome</TableHead>
+                                  <TableHead>Telefone</TableHead>
+                                  <TableHead>Hora</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {recipients.map((recipient) => (
+                                  <TableRow key={recipient.id}>
+                                    <TableCell>
+                                      {recipient.status === 'sent' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                                      {recipient.status === 'failed' && <XCircle className="h-4 w-4 text-red-500" />}
+                                      {recipient.status === 'pending' && <Clock className="h-4 w-4 text-muted-foreground" />}
+                                    </TableCell>
+                                    <TableCell>{recipient.name || '-'}</TableCell>
+                                    <TableCell>{recipient.phone}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">
+                                      {recipient.sent_at 
+                                        ? format(new Date(recipient.sent_at), "HH:mm:ss")
+                                        : '-'}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </ScrollArea>
                         </div>
                       </>
                     ) : (
                       <div className="text-center py-8 text-muted-foreground">
-                        <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>Crie uma campanha para iniciar o disparo</p>
+                        <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Nenhum disparo em andamento</p>
+                        <p className="text-sm">Crie uma nova campanha para começar</p>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-
-                {/* Recipients Log */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Histórico de Envios</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[400px]">
-                      <div className="space-y-2">
-                        {recipients.map((recipient) => (
-                          <div 
-                            key={recipient.id}
-                            className={`flex items-center justify-between p-3 rounded-lg border ${
-                              recipient.status === 'sent' ? 'bg-green-500/5 border-green-500/20' :
-                              recipient.status === 'failed' ? 'bg-red-500/5 border-red-500/20' :
-                              'bg-muted/30 border-border'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              {recipient.status === 'sent' ? (
-                                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                              ) : recipient.status === 'failed' ? (
-                                <XCircle className="h-5 w-5 text-red-500" />
-                              ) : (
-                                <Clock className="h-5 w-5 text-muted-foreground" />
-                              )}
-                              <div>
-                                <p className="font-medium">{recipient.name || 'Sem nome'}</p>
-                                <p className="text-sm text-muted-foreground">{recipient.phone}</p>
-                                {recipient.error_message && (
-                                  <p className="text-xs text-red-500">{recipient.error_message}</p>
-                                )}
-                              </div>
-                            </div>
-                            {recipient.sent_at && (
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(recipient.sent_at), "HH:mm:ss", { locale: ptBR })}
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                        {recipients.length === 0 && (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <p>Nenhum envio registrado</p>
-                          </div>
-                        )}
-                      </div>
-                    </ScrollArea>
                   </CardContent>
                 </Card>
               </div>
@@ -1194,6 +1313,7 @@ export default function AdminBroadcast() {
                         <TableHead>Falhas</TableHead>
                         <TableHead>Taxa Sucesso</TableHead>
                         <TableHead>Data</TableHead>
+                        <TableHead className="w-24">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1208,10 +1328,16 @@ export default function AdminBroadcast() {
                               <Badge variant={
                                 broadcast.status === 'completed' ? 'default' :
                                 broadcast.status === 'running' ? 'secondary' :
+                                broadcast.status === 'scheduled' ? 'outline' :
                                 broadcast.status === 'cancelled' ? 'destructive' :
                                 'outline'
                               }>
-                                {broadcast.status}
+                                {broadcast.status === 'scheduled' && (
+                                  <Clock className="h-3 w-3 mr-1" />
+                                )}
+                                {broadcast.status === 'scheduled' 
+                                  ? `Agendado ${broadcast.scheduled_at ? format(new Date(broadcast.scheduled_at), "dd/MM HH:mm") : ''}` 
+                                  : broadcast.status}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-green-500">{broadcast.sent_count}</TableCell>
@@ -1220,12 +1346,34 @@ export default function AdminBroadcast() {
                             <TableCell className="text-muted-foreground">
                               {format(new Date(broadcast.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                             </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => duplicateCampaign(broadcast.id)}
+                                  title="Duplicar campanha"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                {broadcast.status === 'scheduled' && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => cancelScheduledBroadcast(broadcast.id)}
+                                    title="Cancelar agendamento"
+                                  >
+                                    <StopCircle className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
                       {allBroadcasts.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center text-muted-foreground">
                             Nenhuma campanha registrada
                           </TableCell>
                         </TableRow>

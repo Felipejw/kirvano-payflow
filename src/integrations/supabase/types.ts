@@ -1946,6 +1946,7 @@ export type Database = {
           media_url: string | null
           message: string
           name: string
+          scheduled_at: string | null
           sent_count: number | null
           started_at: string | null
           status: string | null
@@ -1964,6 +1965,7 @@ export type Database = {
           media_url?: string | null
           message: string
           name: string
+          scheduled_at?: string | null
           sent_count?: number | null
           started_at?: string | null
           status?: string | null
@@ -1982,6 +1984,7 @@ export type Database = {
           media_url?: string | null
           message?: string
           name?: string
+          scheduled_at?: string | null
           sent_count?: number | null
           started_at?: string | null
           status?: string | null
