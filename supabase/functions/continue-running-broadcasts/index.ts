@@ -311,13 +311,20 @@ async function processBroadcastBatch(
 
     console.log(`[ContinueBroadcasts] Processed ${recipient.phone}: ${result.success ? 'sent' : 'failed'} (batch: ${processedInBatch}/${recipientsList.length})`);
 
-    // Wait for random interval before next message (skip if last in batch or approaching time limit)
+    // Wait for random interval before next message (skip if last recipient in current batch)
     const recipientIndex = recipientsList.indexOf(recipient);
-    const remainingTime = MAX_EXECUTION_TIME_MS - (Date.now() - startTime);
     
-    if (recipientIndex < recipientsList.length - 1 && remainingTime > (maxInterval + 10) * 1000) {
+    if (recipientIndex < recipientsList.length - 1) {
       const randomInterval = getRandomInterval(minInterval, maxInterval);
-      console.log(`[ContinueBroadcasts] Waiting ${randomInterval}s before next message`);
+      const remainingTime = MAX_EXECUTION_TIME_MS - (Date.now() - startTime);
+      
+      // Check if we have enough time for the interval + safety margin (15s)
+      if (remainingTime < (randomInterval + 15) * 1000) {
+        console.log(`[ContinueBroadcasts] Not enough time for ${randomInterval}s interval (remaining: ${Math.floor(remainingTime/1000)}s), stopping batch. Next cron will continue.`);
+        break;
+      }
+      
+      console.log(`[ContinueBroadcasts] Waiting ${randomInterval}s before next message (remaining time: ${Math.floor(remainingTime/1000)}s)`);
       await sleep(randomInterval * 1000);
     }
   }
