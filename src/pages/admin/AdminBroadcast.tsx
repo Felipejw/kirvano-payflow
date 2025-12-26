@@ -1042,7 +1042,7 @@ export default function AdminBroadcast() {
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span>Progresso</span>
-                            <span>{currentBroadcast.sent_count + currentBroadcast.failed_count} / {currentBroadcast.total_recipients}</span>
+                            <span>{currentBroadcast.sent_count + currentBroadcast.failed_count} / {currentBroadcast.total_recipients} ({progressPercent.toFixed(1)}%)</span>
                           </div>
                           <Progress value={progressPercent} />
                         </div>
