@@ -146,6 +146,11 @@ export default function AdminBroadcast() {
   const [allBroadcasts, setAllBroadcasts] = useState<Broadcast[]>([]);
   const [selectedTab, setSelectedTab] = useState("campaign");
 
+  // Interval editing
+  const [editingInterval, setEditingInterval] = useState(false);
+  const [newMinInterval, setNewMinInterval] = useState(30);
+  const [newMaxInterval, setNewMaxInterval] = useState(60);
+
   // Load data on mount
   useEffect(() => {
     loadActiveBroadcast();
@@ -617,6 +622,83 @@ export default function AdminBroadcast() {
   };
   const estimatedTimeRemaining = getEstimatedTimeRemaining();
 
+  // Calculate estimated completion time
+  const getEstimatedCompletion = (minSec?: number, maxSec?: number) => {
+    if (!currentBroadcast || currentBroadcast.status !== 'running') return null;
+    
+    const remaining = currentBroadcast.total_recipients - (currentBroadcast.sent_count + currentBroadcast.failed_count);
+    if (remaining <= 0) return null;
+    
+    const min = minSec ?? currentBroadcast.interval_min_seconds ?? 30;
+    const max = maxSec ?? currentBroadcast.interval_max_seconds ?? 60;
+    const avgInterval = (min + max) / 2;
+    const totalSeconds = remaining * avgInterval;
+    
+    const completionTime = new Date(Date.now() + totalSeconds * 1000);
+    return format(completionTime, "dd/MM 'às' HH:mm", { locale: ptBR });
+  };
+  const estimatedCompletion = getEstimatedCompletion();
+  const newEstimatedCompletion = editingInterval ? getEstimatedCompletion(newMinInterval, newMaxInterval) : null;
+
+  // Calculate new estimated time with new interval
+  const getNewEstimatedTime = () => {
+    if (!currentBroadcast || currentBroadcast.status !== 'running') return null;
+    
+    const remaining = currentBroadcast.total_recipients - (currentBroadcast.sent_count + currentBroadcast.failed_count);
+    if (remaining <= 0) return null;
+    
+    const avgInterval = (newMinInterval + newMaxInterval) / 2;
+    const totalSeconds = remaining * avgInterval;
+    
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    
+    if (hours > 0) {
+      return `~${hours}h ${minutes}min`;
+    } else if (minutes > 0) {
+      return `~${minutes}min`;
+    } else {
+      return `<1min`;
+    }
+  };
+
+  // Update broadcast interval
+  const updateBroadcastInterval = async () => {
+    if (!currentBroadcast) return;
+    
+    if (newMinInterval > newMaxInterval) {
+      toast.error("O intervalo mínimo não pode ser maior que o máximo");
+      return;
+    }
+    
+    const { error } = await supabase
+      .from('whatsapp_broadcasts')
+      .update({
+        interval_min_seconds: newMinInterval,
+        interval_max_seconds: newMaxInterval
+      })
+      .eq('id', currentBroadcast.id);
+    
+    if (error) {
+      toast.error("Erro ao atualizar intervalo");
+      return;
+    }
+    
+    toast.success("Intervalo atualizado com sucesso!");
+    setEditingInterval(false);
+    
+    // Reload broadcast data
+    const { data } = await supabase
+      .from('whatsapp_broadcasts')
+      .select('*')
+      .eq('id', currentBroadcast.id)
+      .single();
+    
+    if (data) {
+      setCurrentBroadcast(data as Broadcast);
+    }
+  };
+
   // Reports data
   const completedBroadcasts = allBroadcasts.filter(b => b.status === 'completed');
   const totalSent = completedBroadcasts.reduce((acc, b) => acc + b.sent_count, 0);
@@ -1075,6 +1157,96 @@ export default function AdminBroadcast() {
                             </p>
                           )}
                         </div>
+
+                        {/* Interval Control */}
+                        {currentBroadcast.status === 'running' && (
+                          <div className="p-3 border rounded-lg space-y-3 bg-muted/50">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-medium">Intervalo entre mensagens</Label>
+                              {!editingInterval && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setNewMinInterval(currentBroadcast.interval_min_seconds || 30);
+                                    setNewMaxInterval(currentBroadcast.interval_max_seconds || 60);
+                                    setEditingInterval(true);
+                                  }}
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-1" />
+                                  Alterar
+                                </Button>
+                              )}
+                            </div>
+                            
+                            {editingInterval ? (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Mínimo (seg)</Label>
+                                    <Input 
+                                      type="number" 
+                                      min={5}
+                                      max={300}
+                                      value={newMinInterval} 
+                                      onChange={(e) => setNewMinInterval(Number(e.target.value))}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Máximo (seg)</Label>
+                                    <Input 
+                                      type="number"
+                                      min={5}
+                                      max={300}
+                                      value={newMaxInterval} 
+                                      onChange={(e) => setNewMaxInterval(Number(e.target.value))}
+                                    />
+                                  </div>
+                                </div>
+                                
+                                {getNewEstimatedTime() && (
+                                  <div className="text-xs text-muted-foreground space-y-1">
+                                    <p className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      Novo tempo estimado: <span className="font-medium text-foreground">{getNewEstimatedTime()}</span>
+                                    </p>
+                                    {newEstimatedCompletion && (
+                                      <p className="flex items-center gap-1">
+                                        <CalendarIcon className="h-3 w-3" />
+                                        Nova previsão: <span className="font-medium text-foreground">{newEstimatedCompletion}</span>
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                <div className="flex gap-2">
+                                  <Button size="sm" onClick={updateBroadcastInterval}>
+                                    <Save className="h-4 w-4 mr-1" />
+                                    Salvar
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingInterval(false)}>
+                                    Cancelar
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                {currentBroadcast.interval_min_seconds || 30}s - {currentBroadcast.interval_max_seconds || 60}s
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Estimated Completion */}
+                        {estimatedCompletion && currentBroadcast.status === 'running' && (
+                          <div className="flex items-center justify-between text-sm p-2 bg-primary/5 rounded-lg">
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <CalendarIcon className="h-4 w-4" />
+                              Previsão de conclusão:
+                            </span>
+                            <span className="font-medium">{estimatedCompletion}</span>
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-3 gap-4 text-center">
                           <div className="p-3 bg-muted rounded-lg">
