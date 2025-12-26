@@ -232,12 +232,13 @@ serve(async (req) => {
 
     // Start or resume broadcast
     if (action === 'start' || action === 'resume') {
-      // Update status to running
+      // Update status to running and set last_processing_at to prevent duplicate processing
       await supabase
         .from('whatsapp_broadcasts')
         .update({ 
           status: 'running', 
-          started_at: action === 'start' ? new Date().toISOString() : broadcast.started_at 
+          started_at: action === 'start' ? new Date().toISOString() : broadcast.started_at,
+          last_processing_at: new Date().toISOString()
         })
         .eq('id', broadcastId);
 
@@ -354,23 +355,34 @@ serve(async (req) => {
           }
         }
 
-        // Check final status
-        const { data: finalBroadcast } = await supabase
-          .from('whatsapp_broadcasts')
-          .select('status')
-          .eq('id', broadcastId)
-          .single();
-
-        // Mark as completed if still running
-        if (finalBroadcast?.status === 'running') {
-          await supabase
-            .from('whatsapp_broadcasts')
-            .update({ status: 'completed', completed_at: new Date().toISOString() })
-            .eq('id', broadcastId);
-        }
+        // Check if there are more pending recipients
+        const { count: remainingPending } = await supabase
+          .from('whatsapp_broadcast_recipients')
+          .select('id', { count: 'exact', head: true })
+          .eq('broadcast_id', broadcastId)
+          .eq('status', 'pending');
 
         const totalElapsed = Math.floor((Date.now() - startTime) / 60000);
-        console.log(`[Broadcast] Completed! Sent: ${sentCount}, Failed: ${failedCount}, Total time: ${totalElapsed} minutes`);
+
+        if (remainingPending === 0) {
+          // All recipients processed, mark as completed
+          const { data: finalBroadcast } = await supabase
+            .from('whatsapp_broadcasts')
+            .select('status')
+            .eq('id', broadcastId)
+            .single();
+
+          if (finalBroadcast?.status === 'running') {
+            await supabase
+              .from('whatsapp_broadcasts')
+              .update({ status: 'completed', completed_at: new Date().toISOString() })
+              .eq('id', broadcastId);
+            console.log(`[Broadcast] COMPLETED! All recipients processed. Sent: ${sentCount}, Failed: ${failedCount}, Total time: ${totalElapsed} minutes`);
+          }
+        } else {
+          // Still more to process, will be picked up by cron
+          console.log(`[Broadcast] Batch finished. Sent: ${sentCount}, Failed: ${failedCount}, Remaining: ${remainingPending}. Will be continued by cron job.`);
+        }
       };
 
       // Use EdgeRuntime.waitUntil to keep function alive during background processing
