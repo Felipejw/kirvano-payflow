@@ -594,6 +594,29 @@ export default function AdminBroadcast() {
     ? ((currentBroadcast.sent_count + currentBroadcast.failed_count) / currentBroadcast.total_recipients) * 100 
     : 0;
 
+  // Calculate estimated time remaining
+  const getEstimatedTimeRemaining = () => {
+    if (!currentBroadcast || currentBroadcast.status !== 'running') return null;
+    
+    const remaining = currentBroadcast.total_recipients - (currentBroadcast.sent_count + currentBroadcast.failed_count);
+    if (remaining <= 0) return null;
+    
+    const avgInterval = ((currentBroadcast.interval_min_seconds || 30) + (currentBroadcast.interval_max_seconds || 60)) / 2;
+    const totalSeconds = remaining * avgInterval;
+    
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    
+    if (hours > 0) {
+      return `~${hours}h ${minutes}min restantes`;
+    } else if (minutes > 0) {
+      return `~${minutes}min restantes`;
+    } else {
+      return `<1min restante`;
+    }
+  };
+  const estimatedTimeRemaining = getEstimatedTimeRemaining();
+
   // Reports data
   const completedBroadcasts = allBroadcasts.filter(b => b.status === 'completed');
   const totalSent = completedBroadcasts.reduce((acc, b) => acc + b.sent_count, 0);
@@ -1045,6 +1068,12 @@ export default function AdminBroadcast() {
                             <span>{currentBroadcast.sent_count + currentBroadcast.failed_count} / {currentBroadcast.total_recipients} ({progressPercent.toFixed(1)}%)</span>
                           </div>
                           <Progress value={progressPercent} />
+                          {estimatedTimeRemaining && (
+                            <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {estimatedTimeRemaining}
+                            </p>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-3 gap-4 text-center">
