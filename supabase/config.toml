@@ -44,3 +44,6 @@ verify_jwt = true
 
 [functions.check-scheduled-broadcasts]
 verify_jwt = false
+
+[functions.continue-running-broadcasts]
+verify_jwt = false

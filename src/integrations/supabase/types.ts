@@ -1945,6 +1945,7 @@ export type Database = {
           interval_max_seconds: number | null
           interval_min_seconds: number | null
           interval_seconds: number | null
+          last_processing_at: string | null
           media_type: string | null
           media_url: string | null
           message: string
@@ -1964,6 +1965,7 @@ export type Database = {
           interval_max_seconds?: number | null
           interval_min_seconds?: number | null
           interval_seconds?: number | null
+          last_processing_at?: string | null
           media_type?: string | null
           media_url?: string | null
           message: string
@@ -1983,6 +1985,7 @@ export type Database = {
           interval_max_seconds?: number | null
           interval_min_seconds?: number | null
           interval_seconds?: number | null
+          last_processing_at?: string | null
           media_type?: string | null
           media_url?: string | null
           message?: string
