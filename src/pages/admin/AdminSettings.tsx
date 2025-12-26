@@ -132,7 +132,12 @@ export default function AdminSettings() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      console.log("Saving settings:", {
+        id: settings.id,
+        platform_gateway_type: settings.platform_gateway_type,
+      });
+
+      const { data, error, count } = await supabase
         .from("platform_settings")
         .update({
           platform_fee: settings.platform_fee,
@@ -152,19 +157,29 @@ export default function AdminSettings() {
           own_gateway_fee_fixed: settings.own_gateway_fee_fixed,
           platform_gateway_type: settings.platform_gateway_type,
         })
-        .eq("id", settings.id);
+        .eq("id", settings.id)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      console.log("Update result:", { data, count });
+
+      if (!data || data.length === 0) {
+        throw new Error("Nenhuma configuração foi atualizada. Verifique suas permissões de admin.");
+      }
 
       toast({
         title: "Sucesso",
-        description: "Configurações salvas com sucesso"
+        description: `Configurações salvas! Gateway: ${settings.platform_gateway_type?.toUpperCase()}`
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving settings:", error);
       toast({
-        title: "Erro",
-        description: "Falha ao salvar configurações",
+        title: "Erro ao salvar",
+        description: error.message || "Falha ao salvar configurações. Verifique se você tem permissão de admin.",
         variant: "destructive"
       });
     } finally {
