@@ -880,6 +880,7 @@ export type Database = {
           platform_fee: number
           platform_gateway_fee_fixed: number | null
           platform_gateway_fee_percentage: number | null
+          platform_gateway_type: string
           platform_gateway_withdrawal_fee: number | null
           privacy_url: string | null
           support_email: string | null
@@ -902,6 +903,7 @@ export type Database = {
           platform_fee?: number
           platform_gateway_fee_fixed?: number | null
           platform_gateway_fee_percentage?: number | null
+          platform_gateway_type?: string
           platform_gateway_withdrawal_fee?: number | null
           privacy_url?: string | null
           support_email?: string | null
@@ -924,6 +926,7 @@ export type Database = {
           platform_fee?: number
           platform_gateway_fee_fixed?: number | null
           platform_gateway_fee_percentage?: number | null
+          platform_gateway_type?: string
           platform_gateway_withdrawal_fee?: number | null
           privacy_url?: string | null
           support_email?: string | null
