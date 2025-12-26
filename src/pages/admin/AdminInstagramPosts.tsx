@@ -36,32 +36,32 @@ const postCategories = [
 
 const postTemplates = [
   // Feed Templates
-  { id: "feature", name: "Nova Funcionalidade", emoji: "🚀", category: "feed", prompt: "Create a modern social media post announcing a new feature for a digital payment platform called GateFlow. Use green (#10b981) as the primary color. Clean design, professional look, fintech style." },
-  { id: "promo", name: "Promoção", emoji: "🔥", category: "feed", prompt: "Create an eye-catching promotional social media post for a digital payment platform called GateFlow. Highlight special offer or discount. Use green (#10b981) and orange accents. Bold typography, attention-grabbing." },
-  { id: "tip", name: "Dica do Dia", emoji: "💡", category: "feed", prompt: "Create an educational social media post with a tip for digital entrepreneurs. Clean design for GateFlow platform. Use green (#10b981) color palette. Informative and professional style." },
-  { id: "testimonial", name: "Depoimento", emoji: "⭐", category: "feed", prompt: "Create a testimonial/review style social media post for GateFlow payment platform. Use green (#10b981) as accent. Include quote marks design element. Professional and trustworthy look." },
-  { id: "stats", name: "Estatísticas", emoji: "📊", category: "feed", prompt: "Create an infographic-style social media post showing impressive statistics for GateFlow digital payment platform. Use green (#10b981) color. Data visualization, modern design." },
+  { id: "feature", name: "Nova Funcionalidade", emoji: "🚀", category: "feed", prompt: "Crie um post moderno para redes sociais anunciando uma nova funcionalidade para a plataforma de pagamentos digitais GateFlow. Use verde (#10b981) como cor principal. Design limpo, visual profissional, estilo fintech. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "promo", name: "Promoção", emoji: "🔥", category: "feed", prompt: "Crie um post promocional chamativo para redes sociais da plataforma GateFlow. Destaque oferta especial ou desconto. Use verde (#10b981) com detalhes em laranja. Tipografia bold, chamativo. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "tip", name: "Dica do Dia", emoji: "💡", category: "feed", prompt: "Crie um post educativo para redes sociais com uma dica para empreendedores digitais. Design limpo para a plataforma GateFlow. Use paleta de cores verde (#10b981). Estilo informativo e profissional. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "testimonial", name: "Depoimento", emoji: "⭐", category: "feed", prompt: "Crie um post estilo depoimento/avaliação para a plataforma GateFlow. Use verde (#10b981) como destaque. Inclua elemento visual de aspas. Visual profissional e confiável. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "stats", name: "Estatísticas", emoji: "📊", category: "feed", prompt: "Crie um post estilo infográfico mostrando estatísticas impressionantes para a plataforma GateFlow. Use cor verde (#10b981). Visualização de dados, design moderno. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
   
   // Stories Templates
-  { id: "story-cta", name: "Call to Action", emoji: "👆", category: "stories", prompt: "Create a vertical Instagram Story with a strong call-to-action for GateFlow payment platform. Include 'Arraste para cima' or swipe up visual. Green (#10b981) theme. Modern, eye-catching, mobile-first design. 9:16 aspect ratio." },
-  { id: "story-countdown", name: "Countdown", emoji: "⏰", category: "stories", prompt: "Create a vertical Instagram Story with countdown/urgency theme for GateFlow platform launch or promotion. Exciting design with timer visual. Green (#10b981) accents. 9:16 vertical format." },
-  { id: "story-poll", name: "Enquete", emoji: "📊", category: "stories", prompt: "Create a vertical Instagram Story template with poll/question sticker area for GateFlow. Interactive design encouraging engagement. Green (#10b981) theme. Clean space for poll options. 9:16 format." },
-  { id: "story-quiz", name: "Quiz", emoji: "🧠", category: "stories", prompt: "Create a vertical Instagram Story quiz template for GateFlow. Fun, educational design about digital payments. Green (#10b981) brand colors. Space for question and answer options. 9:16 aspect ratio." },
-  { id: "story-behind", name: "Bastidores", emoji: "🎬", category: "stories", prompt: "Create a casual 'behind the scenes' vertical Instagram Story template for GateFlow. Authentic, personal feel. Green (#10b981) subtle accents. Modern overlay design. 9:16 format." },
+  { id: "story-cta", name: "Call to Action", emoji: "👆", category: "stories", prompt: "Crie um Story vertical do Instagram com forte chamada para ação para a plataforma GateFlow. Inclua visual de 'Arraste para cima' ou swipe up. Tema verde (#10b981). Design moderno, chamativo, mobile-first. Proporção 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "story-countdown", name: "Countdown", emoji: "⏰", category: "stories", prompt: "Crie um Story vertical do Instagram com tema de contagem regressiva/urgência para lançamento ou promoção da GateFlow. Design empolgante com visual de timer. Detalhes em verde (#10b981). Formato vertical 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "story-poll", name: "Enquete", emoji: "📊", category: "stories", prompt: "Crie um template de Story vertical do Instagram com área para enquete/pergunta para a GateFlow. Design interativo incentivando engajamento. Tema verde (#10b981). Espaço limpo para opções de votação. Formato 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "story-quiz", name: "Quiz", emoji: "🧠", category: "stories", prompt: "Crie um template de Story vertical do Instagram de quiz para a GateFlow. Design divertido e educativo sobre pagamentos digitais. Cores da marca verde (#10b981). Espaço para pergunta e opções de resposta. Proporção 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "story-behind", name: "Bastidores", emoji: "🎬", category: "stories", prompt: "Crie um template de Story vertical do Instagram estilo bastidores para a GateFlow. Visual casual e autêntico. Detalhes sutis em verde (#10b981). Design de overlay moderno. Formato 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
   
   // Reels Templates
-  { id: "reels-hook", name: "Hook/Gancho", emoji: "🪝", category: "reels", prompt: "Create a vertical Reels cover/thumbnail with a strong hook for GateFlow. Bold text that captures attention in first 3 seconds. Green (#10b981) theme. Cinematic, high-impact visual. 9:16 vertical format." },
-  { id: "reels-tutorial", name: "Tutorial", emoji: "📱", category: "reels", prompt: "Create a vertical Reels tutorial cover for GateFlow showing step-by-step theme. Educational, clean design. Numbered steps visual. Green (#10b981) accent. 9:16 format." },
-  { id: "reels-before-after", name: "Antes e Depois", emoji: "✨", category: "reels", prompt: "Create a vertical Reels before/after comparison cover for GateFlow transformation theme. Split screen visual concept. Green (#10b981) for 'after' side. Impactful contrast. 9:16 aspect ratio." },
-  { id: "reels-tips", name: "3 Dicas", emoji: "🎯", category: "reels", prompt: "Create a vertical Reels cover showing '3 tips' format for GateFlow. Numbered tips visual, engaging typography. Green (#10b981) theme. Modern, trendy design. 9:16 vertical format." },
-  { id: "reels-trending", name: "Trend", emoji: "📈", category: "reels", prompt: "Create a trendy vertical Reels cover for GateFlow that follows current social media aesthetics. Bold, modern, youthful energy. Green (#10b981) accents. High contrast. 9:16 format." },
+  { id: "reels-hook", name: "Hook/Gancho", emoji: "🪝", category: "reels", prompt: "Crie uma capa/thumbnail vertical de Reels com um gancho forte para a GateFlow. Texto bold que captura atenção nos primeiros 3 segundos. Tema verde (#10b981). Visual cinematográfico e impactante. Formato vertical 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "reels-tutorial", name: "Tutorial", emoji: "📱", category: "reels", prompt: "Crie uma capa vertical de Reels tutorial para a GateFlow mostrando tema de passo a passo. Design educativo e limpo. Visual de passos numerados. Destaque verde (#10b981). Formato 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "reels-before-after", name: "Antes e Depois", emoji: "✨", category: "reels", prompt: "Crie uma capa vertical de Reels de comparação antes/depois para a GateFlow com tema de transformação. Conceito visual de tela dividida. Verde (#10b981) para o lado 'depois'. Contraste impactante. Proporção 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "reels-tips", name: "3 Dicas", emoji: "🎯", category: "reels", prompt: "Crie uma capa vertical de Reels mostrando formato '3 dicas' para a GateFlow. Visual de dicas numeradas, tipografia engajante. Tema verde (#10b981). Design moderno e trending. Formato vertical 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "reels-trending", name: "Trend", emoji: "📈", category: "reels", prompt: "Crie uma capa vertical de Reels trending para a GateFlow seguindo estética atual de redes sociais. Bold, moderno, energia jovem. Detalhes verde (#10b981). Alto contraste. Formato 9:16. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
   
   // Carousel Templates  
-  { id: "carousel-steps", name: "Passo a Passo", emoji: "1️⃣", category: "carousel", prompt: "Create slide 1 of an Instagram carousel tutorial for GateFlow. Title slide with 'Passo a Passo' theme. Clean, educational design. Green (#10b981) brand colors. Indicate this is part of a series." },
-  { id: "carousel-myths", name: "Mitos vs Verdades", emoji: "❌", category: "carousel", prompt: "Create slide 1 of an Instagram carousel 'Myths vs Facts' for GateFlow. Bold design with X and ✓ visual elements. Green (#10b981) for truth. Engaging, informative style." },
-  { id: "carousel-list", name: "Top 5", emoji: "🏆", category: "carousel", prompt: "Create slide 1 of an Instagram carousel 'Top 5' list for GateFlow. Numbered list theme, trophy/ranking visual. Green (#10b981) accents. Modern, shareable design." },
-  { id: "carousel-compare", name: "Comparativo", emoji: "⚖️", category: "carousel", prompt: "Create slide 1 of an Instagram carousel comparison for GateFlow vs competitors. Professional comparison chart design. Green (#10b981) highlighting GateFlow benefits." },
-  { id: "carousel-story", name: "Storytelling", emoji: "📖", category: "carousel", prompt: "Create slide 1 of an Instagram carousel with storytelling format for GateFlow. Narrative hook, chapter 1 feel. Green (#10b981) theme. Engaging start that makes you swipe." },
+  { id: "carousel-steps", name: "Passo a Passo", emoji: "1️⃣", category: "carousel", prompt: "Crie o slide 1 de um carrossel do Instagram tutorial para a GateFlow. Slide de título com tema 'Passo a Passo'. Design limpo e educativo. Cores da marca verde (#10b981). Indique que faz parte de uma série. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "carousel-myths", name: "Mitos vs Verdades", emoji: "❌", category: "carousel", prompt: "Crie o slide 1 de um carrossel do Instagram 'Mitos vs Verdades' para a GateFlow. Design bold com elementos visuais de X e ✓. Verde (#10b981) para verdade. Estilo engajante e informativo. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "carousel-list", name: "Top 5", emoji: "🏆", category: "carousel", prompt: "Crie o slide 1 de um carrossel do Instagram 'Top 5' para a GateFlow. Tema de lista numerada, visual de troféu/ranking. Detalhes verde (#10b981). Design moderno e compartilhável. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "carousel-compare", name: "Comparativo", emoji: "⚖️", category: "carousel", prompt: "Crie o slide 1 de um carrossel do Instagram comparativo GateFlow vs concorrentes. Design profissional de gráfico comparativo. Verde (#10b981) destacando benefícios da GateFlow. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
+  { id: "carousel-story", name: "Storytelling", emoji: "📖", category: "carousel", prompt: "Crie o slide 1 de um carrossel do Instagram com formato storytelling para a GateFlow. Gancho narrativo, sensação de capítulo 1. Tema verde (#10b981). Início engajante que faz você deslizar. TODO TEXTO DEVE ESTAR EM PORTUGUÊS DO BRASIL CORRETO." },
 ];
 
 const suggestedHashtags = [
@@ -122,13 +122,25 @@ export default function AdminInstagramPosts() {
     setIsGenerating(true);
     
     try {
-      const fullPrompt = `${selectedTemplate.prompt} 
+      const fullPrompt = `${selectedTemplate.prompt}
 
-IMPORTANT: All text in the image MUST be in Brazilian Portuguese (pt-BR). Do NOT use Spanish, English or any other language. Write everything in Portuguese from Brazil.
+OBRIGATÓRIO - IDIOMA: Todo o texto na imagem DEVE estar em Português do Brasil (pt-BR) com ortografia CORRETA.
+- NÃO use espanhol (palavras como: disponible, accesar, venedores, conversçon, aora, conór)
+- NÃO use inglês
+- Use ortografia correta do português brasileiro:
+  * disponível (NÃO disponible)
+  * acessar (NÃO accesar)  
+  * vendedores (NÃO venedores)
+  * conversão (NÃO conversçon)
+  * conhecer (NÃO conór)
+  * agora (NÃO aora)
+  * receber (NÃO receiver)
+  * começar (NÃO comezar)
+  * pagamento (NÃO pagamiento)
 
-Main text on the image (in Portuguese): "${customText}"
-Aspect ratio: ${aspectRatio.name}
-Make sure the text is readable and prominent. Ultra high resolution. Instagram post style.`;
+Texto principal da imagem: "${customText}"
+Proporção: ${aspectRatio.name}
+Certifique-se de que o texto está legível e em destaque. Ultra alta resolução. Estilo post do Instagram.`;
 
       const { data, error } = await supabase.functions.invoke('generate-instagram-post', {
         body: { 
