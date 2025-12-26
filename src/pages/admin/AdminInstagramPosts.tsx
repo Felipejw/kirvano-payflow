@@ -123,7 +123,10 @@ export default function AdminInstagramPosts() {
     
     try {
       const fullPrompt = `${selectedTemplate.prompt} 
-Main text on the image: "${customText}"
+
+IMPORTANT: All text in the image MUST be in Brazilian Portuguese (pt-BR). Do NOT use Spanish, English or any other language. Write everything in Portuguese from Brazil.
+
+Main text on the image (in Portuguese): "${customText}"
 Aspect ratio: ${aspectRatio.name}
 Make sure the text is readable and prominent. Ultra high resolution. Instagram post style.`;
 
