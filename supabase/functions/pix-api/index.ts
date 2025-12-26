@@ -124,6 +124,136 @@ async function getSellerGatewayCredentials(
 // BSPAY API Integration
 const BSPAY_API_URL = "https://api.bspay.co/v2";
 
+// PIXUP API Integration (similar to BSPAY)
+const PIXUP_API_URL = "https://api.pixupbr.com/v2";
+
+async function getPixupToken(clientId: string, clientSecret: string): Promise<string> {
+  if (!clientId || !clientSecret) {
+    throw new Error('PIXUP credentials not provided');
+  }
+  
+  const credentials = `${clientId}:${clientSecret}`;
+  const base64Credentials = btoa(credentials);
+  
+  console.log('Getting PIXUP token...');
+  
+  const response = await fetch(`${PIXUP_API_URL}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${base64Credentials}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('PIXUP token error:', response.status, errorText);
+    throw new Error(`Failed to get PIXUP token: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('PIXUP token obtained successfully');
+  return data.access_token;
+}
+
+async function createPixupQRCode(
+  token: string,
+  amount: number,
+  externalId: string,
+  payer: { name?: string; email: string; document?: string },
+  postbackUrl: string,
+  description?: string
+): Promise<{ qrCode: string; qrCodeBase64: string; transactionId: string }> {
+  console.log('Creating PIXUP QRCode for amount:', amount);
+  
+  const payload = {
+    amount: amount,
+    external_id: externalId,
+    payerQuestion: description || "Pagamento via PIX",
+    payer: {
+      name: payer.name || "Cliente",
+      document: payer.document || "00000000000",
+      email: payer.email,
+    },
+    postbackUrl: postbackUrl,
+  };
+  
+  const response = await fetch(`${PIXUP_API_URL}/pix/qrcode`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('PIXUP QRCode error:', response.status, errorText);
+    throw new Error(`Failed to create PIXUP QRCode: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  console.log('PIXUP QRCode created:', data.transactionId || data.id);
+  
+  return {
+    qrCode: data.qrcode || data.qr_code || data.copyPaste || data.copy_paste,
+    qrCodeBase64: data.qrcodeBase64 || data.qr_code_base64 || data.qrCodeImage || '',
+    transactionId: data.transactionId || data.transaction_id || data.id,
+  };
+}
+
+async function getPixupBalance(clientId: string, clientSecret: string): Promise<{ balance: number }> {
+  const token = await getPixupToken(clientId, clientSecret);
+  console.log('Getting PIXUP balance...');
+  
+  const response = await fetch(`${PIXUP_API_URL}/balance`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('PIXUP balance error:', response.status, errorText);
+    throw new Error(`Failed to get PIXUP balance: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('PIXUP balance obtained:', data.balance);
+  return { balance: data.balance || data.available || 0 };
+}
+
+async function getPixupTransaction(token: string, pixId: string): Promise<any> {
+  console.log('Getting PIXUP transaction:', pixId);
+  
+  const response = await fetch(`${PIXUP_API_URL}/consult-transaction`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({ pix_id: pixId }),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('PIXUP transaction error:', response.status, errorText);
+    throw new Error(`Failed to get PIXUP transaction: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('PIXUP transaction status:', data.status);
+  return data;
+}
+
+// End of PIXUP Integration
+
 async function getBspayToken(clientId: string, clientSecret: string): Promise<string> {
   if (!clientId || !clientSecret) {
     throw new Error('BSPAY credentials not provided');
@@ -1240,14 +1370,36 @@ serve(async (req) => {
       let usePlatformGateway = false;
       
       if (paymentMode === 'platform_gateway') {
-        // Use platform's global BSPAY credentials
-        const globalClientId = Deno.env.get('BSPAY_CLIENT_ID');
-        const globalClientSecret = Deno.env.get('BSPAY_CLIENT_SECRET');
+        // Get platform gateway type (bspay or pixup)
+        const { data: platformSettings } = await supabase
+          .from('platform_settings')
+          .select('platform_gateway_type')
+          .single();
+        
+        const platformGatewayType = platformSettings?.platform_gateway_type || 'bspay';
+        console.log('Platform gateway type:', platformGatewayType);
+        
+        let globalClientId: string | undefined;
+        let globalClientSecret: string | undefined;
+        let gatewaySlug: string;
+        let gatewayName: string;
+        
+        if (platformGatewayType === 'pixup') {
+          globalClientId = Deno.env.get('PIXUP_CLIENT_ID');
+          globalClientSecret = Deno.env.get('PIXUP_CLIENT_SECRET');
+          gatewaySlug = 'pixup';
+          gatewayName = 'PIXUP (Plataforma)';
+        } else {
+          globalClientId = Deno.env.get('BSPAY_CLIENT_ID');
+          globalClientSecret = Deno.env.get('BSPAY_CLIENT_SECRET');
+          gatewaySlug = 'bspay';
+          gatewayName = 'BSPAY (Plataforma)';
+        }
         
         if (!globalClientId || !globalClientSecret) {
-          console.error('Platform gateway credentials not configured');
+          console.error('Platform gateway credentials not configured for:', platformGatewayType);
           return new Response(JSON.stringify({ 
-            error: 'Gateway da plataforma não está configurado. Entre em contato com o suporte.' 
+            error: `Gateway da plataforma (${platformGatewayType.toUpperCase()}) não está configurado. Entre em contato com o suporte.` 
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1258,10 +1410,10 @@ serve(async (req) => {
           client_id: globalClientId,
           client_secret: globalClientSecret,
         };
-        gateway = { slug: 'bspay', name: 'BSPAY (Plataforma)' };
+        gateway = { slug: gatewaySlug, name: gatewayName };
         usePlatformGateway = true;
         
-        console.log('Using platform BSPAY gateway for seller:', sellerId);
+        console.log(`Using platform ${gatewaySlug.toUpperCase()} gateway for seller:`, sellerId);
         
         // Platform gateway only supports PIX for now
         if (paymentMethod === 'card') {
@@ -1434,6 +1586,35 @@ serve(async (req) => {
           gatewayTransactionId = bspayResult.transactionId;
           
           console.log('BSPAY charge created successfully:', gatewayTransactionId);
+          
+        } else if (gateway.slug === 'pixup') {
+          // PIXUP PIX Integration (same API format as BSPAY)
+          const clientId = credentials.client_id;
+          const clientSecret = credentials.client_secret;
+          
+          if (!clientId || !clientSecret) {
+            throw new Error('PIXUP credentials incomplete');
+          }
+          
+          const token = await getPixupToken(clientId, clientSecret);
+          const pixupResult = await createPixupQRCode(
+            token,
+            body.amount,
+            externalId,
+            {
+              name: body.buyer_name,
+              email: body.buyer_email,
+              document: body.buyer_document,
+            },
+            webhookUrl,
+            body.description
+          );
+          
+          pixCode = pixupResult.qrCode;
+          qrCodeBase64 = pixupResult.qrCodeBase64;
+          gatewayTransactionId = pixupResult.transactionId;
+          
+          console.log('PIXUP charge created successfully:', gatewayTransactionId);
           
         } else if (gateway.slug === 'mercadopago') {
           // Mercado Pago PIX Integration
@@ -1711,10 +1892,10 @@ serve(async (req) => {
       });
     }
 
-    // POST /webhook - Handle BSPAY payment webhook
+    // POST /webhook - Handle BSPAY/PIXUP payment webhook (same format)
     if (req.method === 'POST' && path === '/webhook') {
       const body = await req.json();
-      console.log('Received BSPAY webhook:', JSON.stringify(body));
+      console.log('Received BSPAY/PIXUP webhook:', JSON.stringify(body));
       
       const requestBody = body.requestBody || body;
       
