@@ -299,13 +299,51 @@ const Transactions = () => {
     
     setDeleting(true);
     try {
-      // Primeiro, deletar transação (se existir na tabela transactions)
-      await supabase
+      // 1. Buscar o transaction_id relacionado à cobrança
+      const { data: transactionData } = await supabase
         .from('transactions')
+        .select('id')
+        .eq('charge_id', transactionToDelete.id)
+        .maybeSingle();
+      
+      const transactionId = transactionData?.id;
+
+      // 2. Deletar platform_gateway_logs (referencia ambas tabelas)
+      await supabase
+        .from('platform_gateway_logs')
+        .delete()
+        .eq('charge_id', transactionToDelete.id);
+      
+      if (transactionId) {
+        await supabase
+          .from('platform_gateway_logs')
+          .delete()
+          .eq('transaction_id', transactionId);
+      }
+
+      // 3. Deletar webhook_logs
+      await supabase
+        .from('webhook_logs')
         .delete()
         .eq('charge_id', transactionToDelete.id);
 
-      // Depois, deletar a cobrança PIX
+      // 4. Atualizar members para remover referência (não deletar o membro)
+      if (transactionId) {
+        await supabase
+          .from('members')
+          .update({ transaction_id: null })
+          .eq('transaction_id', transactionId);
+      }
+
+      // 5. Deletar transactions
+      if (transactionId) {
+        await supabase
+          .from('transactions')
+          .delete()
+          .eq('id', transactionId);
+      }
+
+      // 6. Por último, deletar a cobrança PIX
       const { error } = await supabase
         .from('pix_charges')
         .delete()
