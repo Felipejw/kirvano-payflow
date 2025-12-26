@@ -153,6 +153,16 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Declare EdgeRuntime type for background tasks
+declare const EdgeRuntime: {
+  waitUntil: (promise: Promise<unknown>) => void;
+};
+
+// Handle function shutdown - log progress
+addEventListener('beforeunload', (ev: Event & { detail?: { reason?: string } }) => {
+  console.log(`[Broadcast] Function shutdown - Reason: ${ev.detail?.reason || 'unknown'}`);
+});
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -247,13 +257,15 @@ serve(async (req) => {
         );
       }
 
-      console.log(`[Broadcast] Processing ${recipients?.length || 0} recipients`);
+      const totalRecipients = recipients?.length || 0;
+      console.log(`[Broadcast] Starting processing of ${totalRecipients} pending recipients (Total: ${broadcast.total_recipients})`);
 
       // Get interval range
       const minInterval = broadcast.interval_min_seconds || broadcast.interval_seconds || 30;
       const maxInterval = broadcast.interval_max_seconds || minInterval + 15;
 
       console.log(`[Broadcast] Using random interval between ${minInterval}s and ${maxInterval}s`);
+      const startTime = Date.now();
 
       // Process recipients in background
       const processRecipients = async () => {
@@ -323,12 +335,23 @@ serve(async (req) => {
             .update({ sent_count: sentCount, failed_count: failedCount })
             .eq('id', broadcastId);
 
-          console.log(`[Broadcast] Processed ${recipient.phone}: ${result.success ? 'sent' : 'failed'}`);
+          const processedSoFar = sentCount + failedCount;
+          const elapsedMinutes = Math.floor((Date.now() - startTime) / 60000);
+          
+          // Log progress every 10 messages or on each message for smaller batches
+          if (processedSoFar % 10 === 0 || totalRecipients <= 20) {
+            console.log(`[Broadcast] Progress: ${processedSoFar}/${totalRecipients} (${sentCount} sent, ${failedCount} failed) - Elapsed: ${elapsedMinutes}min`);
+          } else {
+            console.log(`[Broadcast] Processed ${recipient.phone}: ${result.success ? 'sent' : 'failed'} (${processedSoFar}/${totalRecipients})`);
+          }
 
-          // Wait for random interval before next message
-          const randomInterval = getRandomInterval(minInterval, maxInterval);
-          console.log(`[Broadcast] Waiting ${randomInterval}s before next message`);
-          await sleep(randomInterval * 1000);
+          // Wait for random interval before next message (skip if last recipient)
+          const recipientIndex = recipients?.indexOf(recipient) ?? 0;
+          if (recipientIndex < totalRecipients - 1) {
+            const randomInterval = getRandomInterval(minInterval, maxInterval);
+            console.log(`[Broadcast] Waiting ${randomInterval}s before next message`);
+            await sleep(randomInterval * 1000);
+          }
         }
 
         // Check final status
@@ -346,13 +369,16 @@ serve(async (req) => {
             .eq('id', broadcastId);
         }
 
-        console.log(`[Broadcast] Finished. Sent: ${sentCount}, Failed: ${failedCount}`);
+        const totalElapsed = Math.floor((Date.now() - startTime) / 60000);
+        console.log(`[Broadcast] Completed! Sent: ${sentCount}, Failed: ${failedCount}, Total time: ${totalElapsed} minutes`);
       };
 
-      // Run in background - start processing and return immediately
-      processRecipients().catch((err) => {
-        console.error('[Broadcast] Background processing error:', err);
-      });
+      // Use EdgeRuntime.waitUntil to keep function alive during background processing
+      EdgeRuntime.waitUntil(
+        processRecipients().catch((err) => {
+          console.error('[Broadcast] Background processing error:', err);
+        })
+      );
 
       return new Response(
         JSON.stringify({ success: true, message: 'Broadcast iniciado' }),
