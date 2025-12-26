@@ -46,12 +46,17 @@ interface PlatformSettings {
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<PlatformSettings | null>(null);
+  const [initialSettings, setInitialSettings] = useState<PlatformSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingGateway, setSavingGateway] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
+
+  // Check if gateway selection has changed
+  const hasGatewayChanges = settings?.platform_gateway_type !== initialSettings?.platform_gateway_type;
 
   const handleClearData = async (type: 'all' | 'products' | 'transactions' | 'affiliates' | 'charges') => {
     setDeleting(type);
@@ -103,7 +108,7 @@ export default function AdminSettings() {
         .single();
 
       if (error) throw error;
-      setSettings({
+      const processedSettings = {
         ...data,
         fee_percentage: data.fee_percentage || 4,
         fee_fixed_per_sale: data.fee_fixed_per_sale || 1,
@@ -114,7 +119,9 @@ export default function AdminSettings() {
         own_gateway_fee_percentage: data.own_gateway_fee_percentage || 3.99,
         own_gateway_fee_fixed: data.own_gateway_fee_fixed || 1,
         platform_gateway_type: (data.platform_gateway_type as 'bspay' | 'pixup') || 'bspay',
-      });
+      };
+      setSettings(processedSettings);
+      setInitialSettings(processedSettings);
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast({
@@ -171,6 +178,9 @@ export default function AdminSettings() {
         throw new Error("Nenhuma configuração foi atualizada. Verifique suas permissões de admin.");
       }
 
+      // Update initial settings to reflect saved state
+      setInitialSettings({ ...settings });
+
       toast({
         title: "Sucesso",
         description: `Configurações salvas! Gateway: ${settings.platform_gateway_type?.toUpperCase()}`
@@ -191,6 +201,48 @@ export default function AdminSettings() {
   const calculateExampleFee = (saleValue: number) => {
     if (!settings) return 0;
     return (saleValue * settings.fee_percentage / 100) + settings.fee_fixed_per_sale;
+  };
+
+  // Save gateway selection only
+  const handleSaveGateway = async () => {
+    if (!settings) return;
+
+    setSavingGateway(true);
+    try {
+      const { data, error } = await supabase
+        .from("platform_settings")
+        .update({
+          platform_gateway_type: settings.platform_gateway_type,
+        })
+        .eq("id", settings.id)
+        .select();
+
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error("Nenhuma configuração foi atualizada. Verifique suas permissões de admin.");
+      }
+
+      // Update initial settings to reflect saved state
+      setInitialSettings({ ...settings });
+
+      toast({
+        title: "Gateway salvo!",
+        description: `Gateway ${settings.platform_gateway_type?.toUpperCase()} ativado com sucesso.`
+      });
+    } catch (error: any) {
+      console.error("Error saving gateway:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: error.message || "Falha ao salvar gateway.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingGateway(false);
+    }
   };
 
   if (roleLoading || loading) {
@@ -224,15 +276,42 @@ export default function AdminSettings() {
         </div>
 
         {/* Seleção de Gateway da Plataforma */}
-        <Card className="glass-card border-yellow-500/30">
+        <Card className={`glass-card transition-all ${hasGatewayChanges ? 'border-yellow-500 ring-2 ring-yellow-500/30' : 'border-yellow-500/30'}`}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-yellow-500" />
-              Gateway Ativo da Plataforma
-            </CardTitle>
-            <CardDescription>
-              Escolha qual gateway processar os pagamentos da Opção A (Gateway da Plataforma)
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-yellow-500" />
+                  Gateway Ativo da Plataforma
+                  {hasGatewayChanges && (
+                    <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-yellow-500/20 text-yellow-600 rounded-full animate-pulse">
+                      Não salvo
+                    </span>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  Escolha qual gateway processar os pagamentos da Opção A (Gateway da Plataforma)
+                </CardDescription>
+              </div>
+              <Button 
+                onClick={handleSaveGateway} 
+                disabled={!hasGatewayChanges || savingGateway}
+                size="sm"
+                className={hasGatewayChanges ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''}
+              >
+                {savingGateway ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Gateway
+                  </>
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -282,12 +361,18 @@ export default function AdminSettings() {
                 </div>
               </div>
             </div>
-            <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+            <div className={`p-3 rounded-lg ${hasGatewayChanges ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-yellow-500/10 border-yellow-500/20'} border`}>
               <p className="text-sm">
-                <strong>Gateway ativo:</strong> {settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'} 
-                <span className="text-muted-foreground ml-2">
-                  (Salve as configurações para aplicar a mudança)
-                </span>
+                <strong>Gateway selecionado:</strong> {settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'}
+                {hasGatewayChanges ? (
+                  <span className="text-yellow-600 dark:text-yellow-400 ml-2 font-medium">
+                    ← Clique em "Salvar Gateway" para aplicar
+                  </span>
+                ) : (
+                  <span className="text-green-600 dark:text-green-400 ml-2">
+                    ✓ Salvo
+                  </span>
+                )}
               </p>
             </div>
           </CardContent>
