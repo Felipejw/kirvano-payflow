@@ -26,11 +26,14 @@ function getRandomInterval(min: number, max: number): number {
 }
 
 // Send text message via Z-API
-async function sendText(phone: string, message: string, instanceId: string, token: string): Promise<{ success: boolean; error?: string }> {
+async function sendText(phone: string, message: string, instanceId: string, token: string, clientToken: string): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Client-Token': clientToken
+      },
       body: JSON.stringify({
         phone: formatPhone(phone),
         message
@@ -53,11 +56,14 @@ async function sendText(phone: string, message: string, instanceId: string, toke
 }
 
 // Send image via Z-API
-async function sendImage(phone: string, imageUrl: string, caption: string, instanceId: string, token: string): Promise<{ success: boolean; error?: string }> {
+async function sendImage(phone: string, imageUrl: string, caption: string, instanceId: string, token: string, clientToken: string): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/send-image`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Client-Token': clientToken
+      },
       body: JSON.stringify({
         phone: formatPhone(phone),
         image: imageUrl,
@@ -81,11 +87,14 @@ async function sendImage(phone: string, imageUrl: string, caption: string, insta
 }
 
 // Send video via Z-API
-async function sendVideo(phone: string, videoUrl: string, caption: string, instanceId: string, token: string): Promise<{ success: boolean; error?: string }> {
+async function sendVideo(phone: string, videoUrl: string, caption: string, instanceId: string, token: string, clientToken: string): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/send-video`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Client-Token': clientToken
+      },
       body: JSON.stringify({
         phone: formatPhone(phone),
         video: videoUrl,
@@ -109,11 +118,14 @@ async function sendVideo(phone: string, videoUrl: string, caption: string, insta
 }
 
 // Send document via Z-API
-async function sendDocument(phone: string, documentUrl: string, fileName: string, instanceId: string, token: string): Promise<{ success: boolean; error?: string }> {
+async function sendDocument(phone: string, documentUrl: string, fileName: string, instanceId: string, token: string, clientToken: string): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/send-document`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Client-Token': clientToken
+      },
       body: JSON.stringify({
         phone: formatPhone(phone),
         document: documentUrl,
@@ -154,9 +166,10 @@ serve(async (req) => {
 
     const zapiInstanceId = Deno.env.get('ZAPI_INSTANCE_ID');
     const zapiToken = Deno.env.get('ZAPI_TOKEN');
+    const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN');
 
-    if (!zapiInstanceId || !zapiToken) {
-      console.error('[Broadcast] Z-API credentials not configured');
+    if (!zapiInstanceId || !zapiToken || !zapiClientToken) {
+      console.error('[Broadcast] Z-API credentials not configured - Instance:', !!zapiInstanceId, 'Token:', !!zapiToken, 'ClientToken:', !!zapiClientToken);
       return new Response(
         JSON.stringify({ error: 'Z-API credentials not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -267,19 +280,19 @@ serve(async (req) => {
 
           // Send based on media type
           if (broadcast.media_type === 'image' && broadcast.media_url) {
-            result = await sendImage(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken);
+            result = await sendImage(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
           } else if (broadcast.media_type === 'video' && broadcast.media_url) {
-            result = await sendVideo(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken);
+            result = await sendVideo(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
           } else if (broadcast.media_type === 'document' && broadcast.media_url) {
             const fileName = broadcast.media_url.split('/').pop() || 'documento';
-            result = await sendDocument(recipient.phone, broadcast.media_url, fileName, zapiInstanceId, zapiToken);
+            result = await sendDocument(recipient.phone, broadcast.media_url, fileName, zapiInstanceId, zapiToken, zapiClientToken);
             // Send text message after document
             if (result.success && personalizedMessage) {
               await sleep(2000);
-              await sendText(recipient.phone, personalizedMessage, zapiInstanceId, zapiToken);
+              await sendText(recipient.phone, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
             }
           } else {
-            result = await sendText(recipient.phone, personalizedMessage, zapiInstanceId, zapiToken);
+            result = await sendText(recipient.phone, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
           }
 
           // Update recipient status
