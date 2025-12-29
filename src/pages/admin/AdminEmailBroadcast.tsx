@@ -395,7 +395,7 @@ export default function AdminEmailBroadcast() {
                       className="mb-2"
                       onClick={() => {
                         setName("Promoção Chatbot WhatsApp");
-                        setSubject("🤖 Automatize seu WhatsApp e Venda 24h por Dia!");
+                        setSubject("🤖 Automatize seu WhatsApp e Venda 24h por Dia - Apenas R$49!");
                         setHtmlContent(`<!DOCTYPE html>
 <html>
 <head>
@@ -419,9 +419,8 @@ export default function AdminEmailBroadcast() {
           <!-- Content -->
           <tr>
             <td style="padding:40px 30px;">
-              <h2 style="color:#1f2937;margin:0 0 20px;">Olá {{nome}}! 👋</h2>
               <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px;">
-                Imagine ter um <strong>assistente virtual</strong> trabalhando 24 horas por dia, 
+                Imagine ter um <strong>assistente virtual inteligente</strong> trabalhando 24 horas por dia, 
                 7 dias por semana, respondendo seus clientes automaticamente no WhatsApp...
               </p>
               <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 30px;">
@@ -429,31 +428,65 @@ export default function AdminEmailBroadcast() {
                 Automatize respostas, qualifique leads e <strong>aumente suas vendas</strong> 
                 enquanto dorme.
               </p>
+
+              <!-- Price Box -->
+              <div style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);border-radius:12px;padding:25px;text-align:center;margin-bottom:30px;">
+                <p style="color:rgba(255,255,255,0.9);margin:0 0 5px;font-size:14px;">Por apenas</p>
+                <p style="color:#fff;margin:0;font-size:48px;font-weight:bold;">R$ 49</p>
+                <p style="color:rgba(255,255,255,0.9);margin:5px 0 0;font-size:14px;">Pagamento único • Acesso vitalício</p>
+              </div>
+              
+              <!-- Benefits Title -->
+              <h3 style="color:#1f2937;margin:0 0 20px;font-size:20px;text-align:center;">✨ O que você vai ter acesso:</h3>
               
               <!-- Benefits -->
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
                 <tr>
                   <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
                     <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
-                    <span style="color:#374151;font-size:15px;"><strong>Atendimento 24/7</strong> - Nunca perca uma venda</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Atendimento 24/7</strong> - Nunca perca uma venda, mesmo dormindo</span>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
                     <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
-                    <span style="color:#374151;font-size:15px;"><strong>Respostas Instantâneas</strong> - Impressione seus clientes</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Respostas Instantâneas</strong> - Impressione seus clientes com agilidade</span>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
                     <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
-                    <span style="color:#374151;font-size:15px;"><strong>Qualificação de Leads</strong> - Foque nos clientes certos</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Qualificação de Leads</strong> - Foque apenas nos clientes certos</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
+                    <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Múltiplos Atendentes</strong> - Escale seu atendimento sem contratar</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
+                    <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Mensagens Personalizadas</strong> - Crie fluxos de conversa únicos</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
+                    <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Integração com IA</strong> - Respostas inteligentes e contextuais</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
+                    <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Economia de Tempo</strong> - Automatize tarefas repetitivas</span>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:12px 0;">
                     <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
-                    <span style="color:#374151;font-size:15px;"><strong>Economia de Tempo</strong> - Automatize tarefas repetitivas</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Suporte Dedicado</strong> - Ajuda sempre que precisar</span>
                   </td>
                 </tr>
               </table>
@@ -461,10 +494,22 @@ export default function AdminEmailBroadcast() {
               <!-- CTA Button -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center" style="padding:10px 0 30px;">
-                    <a href="https://pay.chatbotwhatsapp.store/?s=chatbot" 
+                  <td align="center" style="padding:10px 0 20px;">
+                    <a href="https://chatbotwhatsapp.store/" 
                        style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#fff;text-decoration:none;padding:18px 40px;border-radius:8px;font-size:18px;font-weight:bold;box-shadow:0 4px 14px rgba(34,197,94,0.4);">
-                      🚀 QUERO MEU CHATBOT AGORA!
+                      🚀 QUERO MEU CHATBOT POR R$49!
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- WhatsApp Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:0 0 30px;">
+                    <a href="https://api.whatsapp.com/send/?phone=5511978665059&text=Ol%C3%A1%2C+gostaria+de+ajuda+para+adquirir+o+Chatbot%21&type=phone_number&app_absent=0" 
+                       style="display:inline-block;background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);color:#fff;text-decoration:none;padding:14px 30px;border-radius:8px;font-size:16px;font-weight:bold;box-shadow:0 4px 14px rgba(37,211,102,0.4);">
+                      💬 Tirar Dúvidas no WhatsApp
                     </a>
                   </td>
                 </tr>
@@ -473,12 +518,12 @@ export default function AdminEmailBroadcast() {
               <!-- Urgency -->
               <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:15px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;">
                 <p style="color:#92400e;margin:0;font-size:14px;">
-                  ⚡ <strong>Oferta por tempo limitado!</strong> Garanta agora e comece a automatizar hoje mesmo.
+                  ⚡ <strong>Oferta por tempo limitado!</strong> Garanta agora por apenas R$49 e comece a automatizar hoje mesmo.
                 </p>
               </div>
               
               <p style="color:#6b7280;font-size:14px;text-align:center;margin:0;">
-                ✅ Garantia de 7 dias | 🔒 Compra 100% segura
+                ✅ Garantia de 7 dias | 🔒 Compra 100% segura | 💳 Acesso imediato
               </p>
             </td>
           </tr>
