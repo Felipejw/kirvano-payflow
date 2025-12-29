@@ -60,8 +60,12 @@ import {
   TrendingUp,
   Target,
   Copy,
-  CalendarIcon
+  CalendarIcon,
+  Download,
+  Shield,
+  AlertTriangle
 } from "lucide-react";
+import * as XLSX from 'xlsx';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -594,6 +598,69 @@ export default function AdminBroadcast() {
     loadAllBroadcasts();
   };
 
+  // Download recipients list as Excel
+  const downloadRecipientsList = async () => {
+    if (!currentBroadcast) return;
+
+    try {
+      // Fetch all recipients for this broadcast
+      const { data: allRecipients, error } = await supabase
+        .from('whatsapp_broadcast_recipients')
+        .select('*')
+        .eq('broadcast_id', currentBroadcast.id)
+        .order('sent_at', { ascending: false, nullsFirst: false });
+
+      if (error) throw error;
+
+      // Separate sent and not sent
+      const sentRecipients = (allRecipients || []).filter(r => r.status === 'sent');
+      const notSentRecipients = (allRecipients || []).filter(r => r.status !== 'sent');
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Sent successfully
+      const sentData = sentRecipients.map(r => ({
+        'Telefone': r.phone,
+        'Nome': r.name || '',
+        'Status': 'Enviado',
+        'Data/Hora Envio': r.sent_at ? format(new Date(r.sent_at), "dd/MM/yyyy HH:mm:ss") : ''
+      }));
+      const ws1 = XLSX.utils.json_to_sheet(sentData);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Enviados com Sucesso');
+
+      // Sheet 2: Not sent
+      const notSentData = notSentRecipients.map(r => ({
+        'Telefone': r.phone,
+        'Nome': r.name || '',
+        'Status': r.status === 'pending' ? 'Pendente' : r.status === 'failed' ? 'Falhou' : r.status,
+        'Erro': r.error_message || ''
+      }));
+      const ws2 = XLSX.utils.json_to_sheet(notSentData);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Não Enviados');
+
+      // Generate filename
+      const fileName = `broadcast_${currentBroadcast.name.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`;
+
+      // Download
+      XLSX.writeFile(wb, fileName);
+      toast.success(`Lista exportada: ${sentRecipients.length} enviados, ${notSentRecipients.length} não enviados`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao exportar lista");
+    }
+  };
+
+  // Get risk level based on interval settings
+  const getRiskLevel = (min: number, max: number) => {
+    const avg = (min + max) / 2;
+    if (avg >= 60) return { level: 'low', label: 'Baixo', color: 'text-green-500', bgColor: 'bg-green-500' };
+    if (avg >= 30) return { level: 'medium', label: 'Médio', color: 'text-yellow-500', bgColor: 'bg-yellow-500' };
+    return { level: 'high', label: 'Alto', color: 'text-red-500', bgColor: 'bg-red-500' };
+  };
+
+  const currentRisk = getRiskLevel(intervalMin, intervalMax);
+
   const selectedCount = contacts.filter(c => c.selected).length;
   const progressPercent = currentBroadcast 
     ? ((currentBroadcast.sent_count + currentBroadcast.failed_count) / currentBroadcast.total_recipients) * 100 
@@ -904,34 +971,88 @@ export default function AdminBroadcast() {
                       </div>
                     )}
 
-                    <div className="space-y-4">
-                      <Label>Intervalo Randômico entre mensagens</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground">Mínimo (segundos)</Label>
-                          <Input
-                            type="number"
-                            min={15}
-                            max={300}
-                            value={intervalMin}
-                            onChange={(e) => setIntervalMin(Number(e.target.value))}
-                          />
+                    {/* Security Settings Card */}
+                    <Card className="border-2 border-dashed">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          Configurações de Segurança
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Risk Indicator */}
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <span className="text-sm font-medium">Nível de Risco:</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+                              <div 
+                                className={cn(
+                                  "h-full transition-all",
+                                  currentRisk.bgColor
+                                )}
+                                style={{ 
+                                  width: currentRisk.level === 'low' ? '33%' : 
+                                         currentRisk.level === 'medium' ? '66%' : '100%' 
+                                }}
+                              />
+                            </div>
+                            <Badge 
+                              variant="outline" 
+                              className={cn("font-medium", currentRisk.color)}
+                            >
+                              {currentRisk.label}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground">Máximo (segundos)</Label>
-                          <Input
-                            type="number"
-                            min={15}
-                            max={300}
-                            value={intervalMax}
-                            onChange={(e) => setIntervalMax(Number(e.target.value))}
-                          />
+
+                        {/* Interval Settings */}
+                        <div className="space-y-3">
+                          <Label>Intervalo entre mensagens</Label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">Mínimo (segundos)</Label>
+                              <Input
+                                type="number"
+                                min={15}
+                                max={300}
+                                value={intervalMin}
+                                onChange={(e) => setIntervalMin(Number(e.target.value))}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">Máximo (segundos)</Label>
+                              <Input
+                                type="number"
+                                min={15}
+                                max={300}
+                                value={intervalMax}
+                                onChange={(e) => setIntervalMax(Number(e.target.value))}
+                              />
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            O intervalo será um valor aleatório entre {intervalMin}s e {intervalMax}s
+                          </p>
                         </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        O intervalo será um valor aleatório entre {intervalMin}s e {intervalMax}s
-                      </p>
-                    </div>
+
+                        {/* Security Tips */}
+                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg space-y-2">
+                          <div className="flex items-center gap-2 text-sm font-medium text-yellow-600 dark:text-yellow-400">
+                            <AlertTriangle className="h-4 w-4" />
+                            Dicas para evitar banimento
+                          </div>
+                          <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                            <li>Use intervalos de <span className="font-medium text-foreground">60-180 segundos</span></li>
+                            <li>Evite enviar para contatos desconhecidos</li>
+                            <li>Use {"{{nome}}"} para personalizar mensagens</li>
+                            <li>Limite envios a <span className="font-medium text-foreground">200-300 por dia</span></li>
+                            <li>Evite envios fora do horário comercial (8h-20h)</li>
+                            <li>Evite links encurtados ou suspeitos</li>
+                            <li>Varie o conteúdo das mensagens</li>
+                          </ul>
+                        </div>
+                      </CardContent>
+                    </Card>
 
                     {/* Scheduling */}
                     <Separator />
@@ -1126,17 +1247,23 @@ export default function AdminBroadcast() {
                   <CardContent className="space-y-4">
                     {currentBroadcast ? (
                       <>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           {currentBroadcast.status === 'running' ? (
                             <Button variant="outline" onClick={pauseBroadcast}>
                               <Pause className="h-4 w-4 mr-2" />
                               Pausar
                             </Button>
                           ) : currentBroadcast.status === 'paused' ? (
-                            <Button variant="outline" onClick={resumeBroadcast}>
-                              <Play className="h-4 w-4 mr-2" />
-                              Retomar
-                            </Button>
+                            <>
+                              <Button variant="outline" onClick={resumeBroadcast}>
+                                <Play className="h-4 w-4 mr-2" />
+                                Retomar
+                              </Button>
+                              <Button variant="secondary" onClick={downloadRecipientsList}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Baixar Lista
+                              </Button>
+                            </>
                           ) : null}
                           <Button variant="destructive" onClick={cancelBroadcast}>
                             <StopCircle className="h-4 w-4 mr-2" />
