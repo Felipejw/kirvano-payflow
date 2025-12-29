@@ -8,6 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,9 +37,11 @@ import {
   Trash2,
   Eye,
   FileText,
+  CalendarIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface EmailBroadcast {
   id: string;
@@ -50,6 +55,7 @@ interface EmailBroadcast {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  scheduled_at: string | null;
   interval_min_seconds: number;
   interval_max_seconds: number;
 }
@@ -79,6 +85,11 @@ export default function AdminEmailBroadcast() {
   const [maxInterval, setMaxInterval] = useState(8);
   const [emailList, setEmailList] = useState("");
   const [parsedEmails, setParsedEmails] = useState<{ email: string; name: string }[]>([]);
+
+  // Scheduling state
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
+  const [scheduledTime, setScheduledTime] = useState("12:00");
 
   // Fetch broadcasts
   const fetchBroadcasts = async () => {
@@ -200,7 +211,7 @@ export default function AdminEmailBroadcast() {
   };
 
   // Create and start broadcast
-  const handleCreateBroadcast = async () => {
+  const handleCreateBroadcast = async (startImmediately: boolean = true) => {
     if (!name || !subject || !htmlContent) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
@@ -211,8 +222,37 @@ export default function AdminEmailBroadcast() {
       return;
     }
 
+    // Validate scheduling if enabled
+    if (isScheduled && !startImmediately) {
+      if (!scheduledDate) {
+        toast.error("Selecione a data do agendamento");
+        return;
+      }
+      
+      const [hours, minutes] = scheduledTime.split(":").map(Number);
+      const scheduledDateTime = new Date(scheduledDate);
+      scheduledDateTime.setHours(hours, minutes, 0, 0);
+      
+      if (scheduledDateTime <= new Date()) {
+        toast.error("A data de agendamento deve ser no futuro");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
+      // Calculate scheduled_at if scheduling
+      let scheduled_at: string | null = null;
+      let initialStatus = "draft";
+      
+      if (isScheduled && !startImmediately) {
+        const [hours, minutes] = scheduledTime.split(":").map(Number);
+        const scheduledDateTime = new Date(scheduledDate!);
+        scheduledDateTime.setHours(hours, minutes, 0, 0);
+        scheduled_at = scheduledDateTime.toISOString();
+        initialStatus = "scheduled";
+      }
+
       // Create broadcast
       const { data: broadcast, error: broadcastError } = await supabase
         .from("email_broadcasts")
@@ -224,7 +264,8 @@ export default function AdminEmailBroadcast() {
           interval_min_seconds: minInterval,
           interval_max_seconds: maxInterval,
           total_recipients: parsedEmails.length,
-          status: "draft",
+          status: initialStatus,
+          scheduled_at,
         })
         .select()
         .single();
@@ -244,15 +285,20 @@ export default function AdminEmailBroadcast() {
 
       if (recipientsError) throw recipientsError;
 
-      // Start broadcast
-      const { error: startError } = await supabase.functions.invoke("email-broadcast", {
-        body: { action: "start", broadcastId: broadcast.id },
-      });
+      // Start broadcast immediately if not scheduled
+      if (startImmediately || !isScheduled) {
+        const { error: startError } = await supabase.functions.invoke("email-broadcast", {
+          body: { action: "start", broadcastId: broadcast.id },
+        });
 
-      if (startError) throw startError;
+        if (startError) throw startError;
 
-      toast.success("Disparo iniciado com sucesso!");
-      setActiveTab("status");
+        toast.success("Disparo iniciado com sucesso!");
+        setActiveTab("status");
+      } else {
+        toast.success(`Disparo agendado para ${format(new Date(scheduled_at!), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`);
+        setActiveTab("history");
+      }
       
       // Clear form
       setName("");
@@ -260,6 +306,9 @@ export default function AdminEmailBroadcast() {
       setHtmlContent("");
       setEmailList("");
       setParsedEmails([]);
+      setIsScheduled(false);
+      setScheduledDate(undefined);
+      setScheduledTime("12:00");
 
       fetchBroadcasts();
     } catch (error: any) {
@@ -308,6 +357,7 @@ export default function AdminEmailBroadcast() {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
       draft: { variant: "secondary", label: "Rascunho" },
+      scheduled: { variant: "outline", label: "Agendado" },
       running: { variant: "default", label: "Enviando" },
       paused: { variant: "outline", label: "Pausado" },
       completed: { variant: "secondary", label: "Concluído" },
@@ -648,28 +698,120 @@ export default function AdminEmailBroadcast() {
               </Card>
             </div>
 
+            {/* Scheduling Option */}
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="font-medium">Agendar disparo</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Programe o envio para uma data e hora específica
+                    </p>
+                  </div>
+                  <Switch
+                    checked={isScheduled}
+                    onCheckedChange={setIsScheduled}
+                  />
+                </div>
+
+                {isScheduled && (
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-2">
+                      <Label>Data</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !scheduledDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {scheduledDate ? format(scheduledDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={scheduledDate}
+                            onSelect={setScheduledDate}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                            locale={ptBR}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="scheduledTime">Hora</Label>
+                      <Input
+                        id="scheduledTime"
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                      />
+                    </div>
+                    {scheduledDate && scheduledTime && (
+                      <div className="col-span-2 p-3 bg-muted rounded-lg">
+                        <p className="text-sm flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-primary" />
+                          <span>
+                            Agendado para:{" "}
+                            <strong>
+                              {format(scheduledDate, "EEEE, dd/MM/yyyy", { locale: ptBR })} às {scheduledTime}
+                            </strong>
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Preview and Submit */}
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <p className="font-medium">Pronto para enviar?</p>
+                    <p className="font-medium">
+                      {isScheduled ? "Pronto para agendar?" : "Pronto para enviar?"}
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {parsedEmails.length} destinatários | Intervalo: {minInterval}-{maxInterval}s
                     </p>
                   </div>
-                  <Button
-                    onClick={handleCreateBroadcast}
-                    disabled={loading || !name || !subject || !htmlContent || parsedEmails.length === 0}
-                    size="lg"
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4 mr-2" />
+                  <div className="flex gap-2">
+                    {isScheduled && (
+                      <Button
+                        onClick={() => handleCreateBroadcast(true)}
+                        disabled={loading || !name || !subject || !htmlContent || parsedEmails.length === 0}
+                        variant="outline"
+                      >
+                        {loading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4 mr-2" />
+                        )}
+                        Enviar Agora
+                      </Button>
                     )}
-                    Iniciar Disparo
-                  </Button>
+                    <Button
+                      onClick={() => handleCreateBroadcast(!isScheduled)}
+                      disabled={loading || !name || !subject || !htmlContent || parsedEmails.length === 0 || (isScheduled && !scheduledDate)}
+                      size="lg"
+                    >
+                      {loading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : isScheduled ? (
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-2" />
+                      )}
+                      {isScheduled ? "Agendar Disparo" : "Iniciar Disparo"}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
