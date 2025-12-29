@@ -148,6 +148,63 @@ async function sendDocument(phone: string, documentUrl: string, fileName: string
   }
 }
 
+// Send button actions via Z-API
+async function sendButtonActions(
+  phone: string, 
+  message: string, 
+  buttons: Array<{ type: string; label: string; value: string }>,
+  instanceId: string, 
+  token: string, 
+  clientToken: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Build button actions array for Z-API
+    const buttonList = buttons.map(btn => {
+      if (btn.type === 'url') {
+        return { id: `btn_${btn.type}`, type: 'URL', url: btn.value, label: btn.label };
+      } else if (btn.type === 'call') {
+        return { id: `btn_${btn.type}`, type: 'CALL', phoneNumber: btn.value, label: btn.label };
+      }
+      return null;
+    }).filter(Boolean);
+
+    const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/send-button-actions`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Client-Token': clientToken
+      },
+      body: JSON.stringify({
+        phone: formatPhone(phone),
+        message,
+        buttonActions: buttonList
+      })
+    });
+    
+    const data = await response.json();
+    console.log(`[Z-API Buttons] Response for ${phone}:`, JSON.stringify(data));
+    
+    if (!response.ok || data.error) {
+      return { success: false, error: data.error || data.message || 'Erro ao enviar botões' };
+    }
+    
+    return { success: true };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[Z-API Buttons] Error for ${phone}:`, error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+// Get random message variation
+function getRandomVariation(message: string, variations: string[]): { message: string; variationIndex: number | null } {
+  if (!variations || variations.length === 0) {
+    return { message, variationIndex: null };
+  }
+  const randomIndex = Math.floor(Math.random() * variations.length);
+  return { message: variations[randomIndex], variationIndex: randomIndex };
+}
+
 // Sleep function
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -286,13 +343,30 @@ serve(async (req) => {
             break;
           }
 
-          // Prepare message with name replacement
-          const personalizedMessage = broadcast.message.replace(/\{\{nome\}\}/gi, recipient.name || 'Cliente');
+          // Prepare message with name replacement and variations
+          let messageToSend = broadcast.message;
+          let variationUsed: number | null = null;
+          
+          // Check for message variations
+          const messageVariations = broadcast.message_variations as string[] | null;
+          if (messageVariations && messageVariations.length > 0) {
+            const { message: varMessage, variationIndex } = getRandomVariation(broadcast.message, messageVariations);
+            messageToSend = varMessage;
+            variationUsed = variationIndex;
+          }
+          
+          const personalizedMessage = messageToSend.replace(/\{\{nome\}\}/gi, recipient.name || 'Cliente');
 
           let result: { success: boolean; error?: string };
 
-          // Send based on media type
-          if (broadcast.media_type === 'image' && broadcast.media_url) {
+          // Check if buttons are enabled
+          const buttonsEnabled = broadcast.buttons_enabled;
+          const buttonActions = broadcast.button_actions as Array<{ type: string; label: string; value: string }> | null;
+          
+          if (buttonsEnabled && buttonActions && buttonActions.length > 0) {
+            // Send message with buttons (buttons only work with text, not media)
+            result = await sendButtonActions(recipient.phone, personalizedMessage, buttonActions, zapiInstanceId, zapiToken, zapiClientToken);
+          } else if (broadcast.media_type === 'image' && broadcast.media_url) {
             result = await sendImage(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
           } else if (broadcast.media_type === 'video' && broadcast.media_url) {
             result = await sendVideo(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
@@ -315,8 +389,9 @@ serve(async (req) => {
               .from('whatsapp_broadcast_recipients')
               .update({ 
                 status: 'sent', 
-                sent_at: new Date().toISOString() 
-              })
+                sent_at: new Date().toISOString(),
+                variation_used: variationUsed
+              } as any)
               .eq('id', recipient.id);
           } else {
             failedCount++;

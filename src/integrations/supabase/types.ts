@@ -2005,6 +2005,7 @@ export type Database = {
           phone: string
           sent_at: string | null
           status: string | null
+          variation_used: number | null
         }
         Insert: {
           broadcast_id: string
@@ -2015,6 +2016,7 @@ export type Database = {
           phone: string
           sent_at?: string | null
           status?: string | null
+          variation_used?: number | null
         }
         Update: {
           broadcast_id?: string
@@ -2025,6 +2027,7 @@ export type Database = {
           phone?: string
           sent_at?: string | null
           status?: string | null
+          variation_used?: number | null
         }
         Relationships: [
           {
@@ -2041,6 +2044,8 @@ export type Database = {
           admin_id: string
           batch_pause_minutes: number | null
           batch_paused_at: string | null
+          button_actions: Json | null
+          buttons_enabled: boolean | null
           completed_at: string | null
           created_at: string | null
           failed_count: number | null
@@ -2052,6 +2057,7 @@ export type Database = {
           media_type: string | null
           media_url: string | null
           message: string
+          message_variations: string[] | null
           messages_per_batch: number | null
           messages_sent_in_batch: number | null
           name: string
@@ -2066,6 +2072,8 @@ export type Database = {
           admin_id: string
           batch_pause_minutes?: number | null
           batch_paused_at?: string | null
+          button_actions?: Json | null
+          buttons_enabled?: boolean | null
           completed_at?: string | null
           created_at?: string | null
           failed_count?: number | null
@@ -2077,6 +2085,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message: string
+          message_variations?: string[] | null
           messages_per_batch?: number | null
           messages_sent_in_batch?: number | null
           name: string
@@ -2091,6 +2100,8 @@ export type Database = {
           admin_id?: string
           batch_pause_minutes?: number | null
           batch_paused_at?: string | null
+          button_actions?: Json | null
+          buttons_enabled?: boolean | null
           completed_at?: string | null
           created_at?: string | null
           failed_count?: number | null
@@ -2102,6 +2113,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message?: string
+          message_variations?: string[] | null
           messages_per_batch?: number | null
           messages_sent_in_batch?: number | null
           name?: string

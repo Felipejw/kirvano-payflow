@@ -63,7 +63,10 @@ import {
   CalendarIcon,
   Download,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  Link,
+  Phone,
+  Shuffle
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { supabase } from "@/integrations/supabase/client";
@@ -89,6 +92,12 @@ interface Recipient {
   sent_at: string | null;
 }
 
+interface ButtonAction {
+  type: 'url' | 'call';
+  label: string;
+  value: string;
+}
+
 interface Broadcast {
   id: string;
   name: string;
@@ -106,6 +115,9 @@ interface Broadcast {
   started_at: string | null;
   completed_at: string | null;
   scheduled_at: string | null;
+  buttons_enabled?: boolean;
+  button_actions?: unknown;
+  message_variations?: string[];
 }
 
 interface Template {
@@ -154,6 +166,16 @@ export default function AdminBroadcast() {
   const [editingInterval, setEditingInterval] = useState(false);
   const [newMinInterval, setNewMinInterval] = useState(30);
   const [newMaxInterval, setNewMaxInterval] = useState(60);
+
+  // Button actions
+  const [buttonsEnabled, setButtonsEnabled] = useState(false);
+  const [buttonActions, setButtonActions] = useState<ButtonAction[]>([
+    { type: 'url', label: '', value: '' }
+  ]);
+
+  // Message variations
+  const [messageVariations, setMessageVariations] = useState<string[]>(['', '']);
+  const [useVariations, setUseVariations] = useState(false);
 
   // Load data on mount
   useEffect(() => {
@@ -501,6 +523,12 @@ export default function AdminBroadcast() {
         scheduledAt = scheduledDateTime.toISOString();
       }
       
+      // Prepare message variations (main message + variations)
+      const variations: string[] = [];
+      if (useVariations) {
+        variations.push(...messageVariations.filter(v => v.trim()));
+      }
+
       // Create broadcast
       const { data: broadcast, error: broadcastError } = await supabase
         .from('whatsapp_broadcasts')
@@ -515,8 +543,11 @@ export default function AdminBroadcast() {
           interval_max_seconds: intervalMax,
           total_recipients: selectedContacts.length,
           status: isScheduled ? 'scheduled' : 'pending',
-          scheduled_at: scheduledAt
-        })
+          scheduled_at: scheduledAt,
+          buttons_enabled: buttonsEnabled,
+          button_actions: buttonsEnabled ? buttonActions.filter(b => b.label && b.value) as unknown as null : null,
+          message_variations: variations.length > 0 ? variations : null
+        } as any)
         .select()
         .single();
 
@@ -560,6 +591,10 @@ export default function AdminBroadcast() {
       setIsScheduled(false);
       setScheduledDate(undefined);
       setScheduledTime("12:00");
+      setButtonsEnabled(false);
+      setButtonActions([{ type: 'url', label: '', value: '' }]);
+      setUseVariations(false);
+      setMessageVariations(['', '']);
 
     } catch (error) {
       console.error(error);
@@ -612,9 +647,10 @@ export default function AdminBroadcast() {
 
       if (error) throw error;
 
-      // Separate sent and not sent
+      // Separate by status
       const sentRecipients = (allRecipients || []).filter(r => r.status === 'sent');
-      const notSentRecipients = (allRecipients || []).filter(r => r.status !== 'sent');
+      const failedRecipients = (allRecipients || []).filter(r => r.status === 'failed');
+      const pendingRecipients = (allRecipients || []).filter(r => r.status === 'pending');
 
       // Create workbook
       const wb = XLSX.utils.book_new();
@@ -626,25 +662,33 @@ export default function AdminBroadcast() {
         'Status': 'Enviado',
         'Data/Hora Envio': r.sent_at ? format(new Date(r.sent_at), "dd/MM/yyyy HH:mm:ss") : ''
       }));
-      const ws1 = XLSX.utils.json_to_sheet(sentData);
+      const ws1 = XLSX.utils.json_to_sheet(sentData.length > 0 ? sentData : [{ 'Telefone': '', 'Nome': '', 'Status': '', 'Data/Hora Envio': '' }]);
       XLSX.utils.book_append_sheet(wb, ws1, 'Enviados com Sucesso');
 
-      // Sheet 2: Not sent
-      const notSentData = notSentRecipients.map(r => ({
+      // Sheet 2: Failed
+      const failedData = failedRecipients.map(r => ({
         'Telefone': r.phone,
         'Nome': r.name || '',
-        'Status': r.status === 'pending' ? 'Pendente' : r.status === 'failed' ? 'Falhou' : r.status,
+        'Status': 'Falhou',
         'Erro': r.error_message || ''
       }));
-      const ws2 = XLSX.utils.json_to_sheet(notSentData);
-      XLSX.utils.book_append_sheet(wb, ws2, 'Não Enviados');
+      const ws2 = XLSX.utils.json_to_sheet(failedData.length > 0 ? failedData : [{ 'Telefone': '', 'Nome': '', 'Status': '', 'Erro': '' }]);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Erros');
+
+      // Sheet 3: Pending
+      const pendingData = pendingRecipients.map(r => ({
+        'Telefone': r.phone,
+        'Nome': r.name || ''
+      }));
+      const ws3 = XLSX.utils.json_to_sheet(pendingData.length > 0 ? pendingData : [{ 'Telefone': '', 'Nome': '' }]);
+      XLSX.utils.book_append_sheet(wb, ws3, 'Pendentes');
 
       // Generate filename
       const fileName = `broadcast_${currentBroadcast.name.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`;
 
       // Download
       XLSX.writeFile(wb, fileName);
-      toast.success(`Lista exportada: ${sentRecipients.length} enviados, ${notSentRecipients.length} não enviados`);
+      toast.success(`Lista exportada: ${sentRecipients.length} enviados, ${failedRecipients.length} erros, ${pendingRecipients.length} pendentes`);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao exportar lista");
@@ -909,6 +953,159 @@ export default function AdminBroadcast() {
                         Use {"{{nome}}"} para personalizar com o nome do contato
                       </p>
                     </div>
+
+                    {/* Message Variations */}
+                    <Card className="border-2 border-dashed border-primary/30">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Shuffle className="h-4 w-4" />
+                            Variações da Mensagem (Anti-Ban)
+                          </CardTitle>
+                          <Switch
+                            checked={useVariations}
+                            onCheckedChange={setUseVariations}
+                          />
+                        </div>
+                        <CardDescription>
+                          Use 2 ou 3 versões da mensagem para reduzir risco de banimento
+                        </CardDescription>
+                      </CardHeader>
+                      {useVariations && (
+                        <CardContent className="space-y-4">
+                          {messageVariations.map((variation, idx) => (
+                            <div key={idx} className="space-y-2">
+                              <Label className="text-sm">
+                                Variação {idx + 1} {idx === 0 && <span className="text-xs text-muted-foreground">(obrigatória)</span>}
+                              </Label>
+                              <Textarea
+                                placeholder={`Variação ${idx + 1}: Olá {{nome}}! Versão diferente da mensagem...`}
+                                value={variation}
+                                onChange={(e) => {
+                                  const newVariations = [...messageVariations];
+                                  newVariations[idx] = e.target.value;
+                                  setMessageVariations(newVariations);
+                                }}
+                                rows={3}
+                              />
+                            </div>
+                          ))}
+                          {messageVariations.length < 3 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setMessageVariations([...messageVariations, ''])}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Adicionar Variação
+                            </Button>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            O sistema escolherá aleatoriamente uma variação para cada contato
+                          </p>
+                        </CardContent>
+                      )}
+                    </Card>
+
+                    {/* Button Actions */}
+                    <Card className="border-2 border-dashed border-primary/30">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Link className="h-4 w-4" />
+                            Botões da Mensagem
+                          </CardTitle>
+                          <Switch
+                            checked={buttonsEnabled}
+                            onCheckedChange={setButtonsEnabled}
+                          />
+                        </div>
+                        <CardDescription>
+                          Adicione botões de ação (URL ou Ligar)
+                        </CardDescription>
+                      </CardHeader>
+                      {buttonsEnabled && (
+                        <CardContent className="space-y-4">
+                          {buttonActions.map((action, idx) => (
+                            <div key={idx} className="space-y-3 p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-sm font-medium">Botão {idx + 1}</Label>
+                                {idx > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setButtonActions(buttonActions.filter((_, i) => i !== idx));
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <Select
+                                  value={action.type}
+                                  onValueChange={(value: 'url' | 'call') => {
+                                    const newActions = [...buttonActions];
+                                    newActions[idx] = { ...action, type: value };
+                                    setButtonActions(newActions);
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="url">
+                                      <div className="flex items-center gap-2">
+                                        <Link className="h-3 w-3" />
+                                        URL
+                                      </div>
+                                    </SelectItem>
+                                    <SelectItem value="call">
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-3 w-3" />
+                                        Ligar
+                                      </div>
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Input
+                                  placeholder="Texto do botão"
+                                  value={action.label}
+                                  onChange={(e) => {
+                                    const newActions = [...buttonActions];
+                                    newActions[idx] = { ...action, label: e.target.value };
+                                    setButtonActions(newActions);
+                                  }}
+                                />
+                                <Input
+                                  placeholder={action.type === 'url' ? 'https://...' : '5511999999999'}
+                                  value={action.value}
+                                  onChange={(e) => {
+                                    const newActions = [...buttonActions];
+                                    newActions[idx] = { ...action, value: e.target.value };
+                                    setButtonActions(newActions);
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                          {buttonActions.length < 2 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setButtonActions([...buttonActions, { type: 'url', label: '', value: '' }])}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Adicionar Botão
+                            </Button>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            ⚠️ Máximo 2 botões (URL + Ligar) por mensagem
+                          </p>
+                        </CardContent>
+                      )}
+                    </Card>
 
                     <div className="space-y-2">
                       <Label>Tipo de Mídia</Label>
