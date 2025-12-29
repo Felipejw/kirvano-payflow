@@ -1173,6 +1173,24 @@ export default function AdminBroadcast() {
                               ? '⚠️ Máximo 3 botões de resposta por mensagem'
                               : '⚠️ Máximo 2 botões (URL + Ligar) por mensagem'}
                           </p>
+                          
+                          {/* Media compatibility warnings */}
+                          {buttonType === 'action' && (mediaType === 'image' || mediaType === 'video' || mediaType === 'document') && (
+                            <div className="mt-3 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded-md">
+                              <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Botões de URL/Ligar não suportam mídia na mesma mensagem. A mídia será enviada primeiro, seguida do texto com botões.
+                              </p>
+                            </div>
+                          )}
+                          {buttonType === 'reply' && (mediaType === 'image' || mediaType === 'video') && (
+                            <div className="mt-3 p-2 bg-green-500/10 border border-green-500/30 rounded-md">
+                              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Botões de Resposta Rápida suportam envio com {mediaType === 'image' ? 'imagem' : 'vídeo'} na mesma mensagem.
+                              </p>
+                            </div>
+                          )}
                         </CardContent>
                       )}
                     </Card>
