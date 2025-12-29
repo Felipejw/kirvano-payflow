@@ -147,7 +147,7 @@ async function sendDocument(phone: string, documentUrl: string, fileName: string
   }
 }
 
-// Send button actions via Z-API
+// Send button actions via Z-API (URL and Call buttons)
 async function sendButtonActions(
   phone: string, 
   message: string, 
@@ -190,6 +190,49 @@ async function sendButtonActions(
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[Z-API Buttons] Error for ${phone}:`, error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+// Send quick reply buttons via Z-API (Reply buttons)
+async function sendButtonList(
+  phone: string, 
+  message: string, 
+  buttons: Array<{ label: string }>,
+  instanceId: string, 
+  token: string, 
+  clientToken: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const buttonList = buttons.map((btn, idx) => ({
+      id: `reply_${idx}`,
+      label: btn.label
+    }));
+
+    const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/send-button-list`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Client-Token': clientToken
+      },
+      body: JSON.stringify({
+        phone: formatPhone(phone),
+        message,
+        buttonList
+      })
+    });
+    
+    const data = await response.json();
+    console.log(`[Z-API ButtonList] Response for ${phone}:`, JSON.stringify(data));
+    
+    if (!response.ok || data.error) {
+      return { success: false, error: data.error || data.message || 'Erro ao enviar botões de resposta' };
+    }
+    
+    return { success: true };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[Z-API ButtonList] Error for ${phone}:`, error);
     return { success: false, error: errorMessage };
   }
 }
@@ -324,9 +367,14 @@ async function processBroadcastBatch(
 
     const buttonsEnabled = (broadcast as any).buttons_enabled;
     const buttonActions = (broadcast as any).button_actions as Array<{ type: string; label: string; value: string }> | null;
+    const buttonType = (broadcast as any).button_type as string | null;
 
     if (buttonsEnabled && buttonActions && buttonActions.length > 0) {
-      result = await sendButtonActions(recipient.phone, personalizedMessage, buttonActions, zapiInstanceId, zapiToken, zapiClientToken);
+      if (buttonType === 'reply') {
+        result = await sendButtonList(recipient.phone, personalizedMessage, buttonActions, zapiInstanceId, zapiToken, zapiClientToken);
+      } else {
+        result = await sendButtonActions(recipient.phone, personalizedMessage, buttonActions, zapiInstanceId, zapiToken, zapiClientToken);
+      }
     } else if (broadcast.media_type === 'image' && broadcast.media_url) {
       result = await sendImage(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
     } else if (broadcast.media_type === 'video' && broadcast.media_url) {

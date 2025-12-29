@@ -93,7 +93,7 @@ interface Recipient {
 }
 
 interface ButtonAction {
-  type: 'url' | 'call';
+  type: 'url' | 'call' | 'reply';
   label: string;
   value: string;
 }
@@ -169,6 +169,7 @@ export default function AdminBroadcast() {
 
   // Button actions
   const [buttonsEnabled, setButtonsEnabled] = useState(false);
+  const [buttonType, setButtonType] = useState<'action' | 'reply'>('action');
   const [buttonActions, setButtonActions] = useState<ButtonAction[]>([
     { type: 'url', label: '', value: '' }
   ]);
@@ -545,7 +546,8 @@ export default function AdminBroadcast() {
           status: isScheduled ? 'scheduled' : 'pending',
           scheduled_at: scheduledAt,
           buttons_enabled: buttonsEnabled,
-          button_actions: buttonsEnabled ? buttonActions.filter(b => b.label && b.value) as unknown as null : null,
+          button_actions: buttonsEnabled ? buttonActions.filter(b => b.label && (buttonType === 'reply' || b.value)) as unknown as null : null,
+          button_type: buttonsEnabled ? buttonType : null,
           message_variations: variations.length > 0 ? variations : null
         } as any)
         .select()
@@ -592,6 +594,7 @@ export default function AdminBroadcast() {
       setScheduledDate(undefined);
       setScheduledTime("12:00");
       setButtonsEnabled(false);
+      setButtonType('action');
       setButtonActions([{ type: 'url', label: '', value: '' }]);
       setUseVariations(false);
       setMessageVariations(['', '']);
@@ -638,14 +641,30 @@ export default function AdminBroadcast() {
     if (!currentBroadcast) return;
 
     try {
-      // Fetch all recipients for this broadcast
-      const { data: allRecipients, error } = await supabase
-        .from('whatsapp_broadcast_recipients')
-        .select('*')
-        .eq('broadcast_id', currentBroadcast.id)
-        .order('sent_at', { ascending: false, nullsFirst: false });
+      // Fetch all recipients with pagination to overcome Supabase 1000 limit
+      let allRecipients: Recipient[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('whatsapp_broadcast_recipients')
+          .select('*')
+          .eq('broadcast_id', currentBroadcast.id)
+          .order('sent_at', { ascending: false, nullsFirst: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allRecipients = [...allRecipients, ...data];
+          page++;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
 
       // Separate by status
       const sentRecipients = (allRecipients || []).filter(r => r.status === 'sent');
@@ -1021,11 +1040,46 @@ export default function AdminBroadcast() {
                           />
                         </div>
                         <CardDescription>
-                          Adicione botões de ação (URL ou Ligar)
+                          Adicione botões interativos à mensagem
                         </CardDescription>
                       </CardHeader>
                       {buttonsEnabled && (
                         <CardContent className="space-y-4">
+                          {/* Button Type Selector */}
+                          <div className="space-y-2">
+                            <Label>Tipo de Botão</Label>
+                            <div className="flex gap-2">
+                              <Button
+                                variant={buttonType === 'action' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => {
+                                  setButtonType('action');
+                                  setButtonActions([{ type: 'url', label: '', value: '' }]);
+                                }}
+                              >
+                                <Link className="h-4 w-4 mr-1" />
+                                Ação (URL/Ligar)
+                              </Button>
+                              <Button
+                                variant={buttonType === 'reply' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => {
+                                  setButtonType('reply');
+                                  setButtonActions([{ type: 'reply', label: '', value: '' }]);
+                                }}
+                              >
+                                <MessageSquare className="h-4 w-4 mr-1" />
+                                Resposta Rápida
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {buttonType === 'action' 
+                                ? 'Botões que abrem URL ou iniciam ligação'
+                                : 'Botões que enviam uma mensagem de resposta ao clicar'}
+                            </p>
+                          </div>
+
+                          {/* Button List */}
                           {buttonActions.map((action, idx) => (
                             <div key={idx} className="space-y-3 p-3 bg-muted/50 rounded-lg">
                               <div className="flex items-center justify-between">
@@ -1042,66 +1096,82 @@ export default function AdminBroadcast() {
                                   </Button>
                                 )}
                               </div>
-                              <div className="grid grid-cols-3 gap-2">
-                                <Select
-                                  value={action.type}
-                                  onValueChange={(value: 'url' | 'call') => {
-                                    const newActions = [...buttonActions];
-                                    newActions[idx] = { ...action, type: value };
-                                    setButtonActions(newActions);
-                                  }}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="url">
-                                      <div className="flex items-center gap-2">
-                                        <Link className="h-3 w-3" />
-                                        URL
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="call">
-                                      <div className="flex items-center gap-2">
-                                        <Phone className="h-3 w-3" />
-                                        Ligar
-                                      </div>
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
+                              
+                              {buttonType === 'action' ? (
+                                <div className="grid grid-cols-3 gap-2">
+                                  <Select
+                                    value={action.type === 'reply' ? 'url' : action.type}
+                                    onValueChange={(value: 'url' | 'call') => {
+                                      const newActions = [...buttonActions];
+                                      newActions[idx] = { ...action, type: value };
+                                      setButtonActions(newActions);
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="url">
+                                        <div className="flex items-center gap-2">
+                                          <Link className="h-3 w-3" />
+                                          URL
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem value="call">
+                                        <div className="flex items-center gap-2">
+                                          <Phone className="h-3 w-3" />
+                                          Ligar
+                                        </div>
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Input
+                                    placeholder="Texto do botão"
+                                    value={action.label}
+                                    onChange={(e) => {
+                                      const newActions = [...buttonActions];
+                                      newActions[idx] = { ...action, label: e.target.value };
+                                      setButtonActions(newActions);
+                                    }}
+                                  />
+                                  <Input
+                                    placeholder={action.type === 'url' ? 'https://...' : '5511999999999'}
+                                    value={action.value}
+                                    onChange={(e) => {
+                                      const newActions = [...buttonActions];
+                                      newActions[idx] = { ...action, value: e.target.value };
+                                      setButtonActions(newActions);
+                                    }}
+                                  />
+                                </div>
+                              ) : (
                                 <Input
-                                  placeholder="Texto do botão"
+                                  placeholder="Texto do botão (ex: Sim, tenho interesse)"
                                   value={action.label}
                                   onChange={(e) => {
                                     const newActions = [...buttonActions];
-                                    newActions[idx] = { ...action, label: e.target.value };
+                                    newActions[idx] = { ...action, type: 'reply', label: e.target.value, value: e.target.value };
                                     setButtonActions(newActions);
                                   }}
                                 />
-                                <Input
-                                  placeholder={action.type === 'url' ? 'https://...' : '5511999999999'}
-                                  value={action.value}
-                                  onChange={(e) => {
-                                    const newActions = [...buttonActions];
-                                    newActions[idx] = { ...action, value: e.target.value };
-                                    setButtonActions(newActions);
-                                  }}
-                                />
-                              </div>
+                              )}
                             </div>
                           ))}
-                          {buttonActions.length < 2 && (
+                          
+                          {buttonActions.length < (buttonType === 'reply' ? 3 : 2) && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setButtonActions([...buttonActions, { type: 'url', label: '', value: '' }])}
+                              onClick={() => setButtonActions([...buttonActions, { type: buttonType === 'reply' ? 'reply' : 'url', label: '', value: '' }])}
                             >
                               <Plus className="h-4 w-4 mr-1" />
                               Adicionar Botão
                             </Button>
                           )}
                           <p className="text-xs text-muted-foreground">
-                            ⚠️ Máximo 2 botões (URL + Ligar) por mensagem
+                            {buttonType === 'reply' 
+                              ? '⚠️ Máximo 3 botões de resposta por mensagem'
+                              : '⚠️ Máximo 2 botões (URL + Ligar) por mensagem'}
                           </p>
                         </CardContent>
                       )}
