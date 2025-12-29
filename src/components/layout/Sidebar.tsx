@@ -18,7 +18,8 @@ import {
   Trophy,
   Server,
   MessageSquare,
-  Send
+  Send,
+  Mail
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -72,6 +73,7 @@ const adminMenuItems = [
   { icon: Server, label: "Logs Gateway", page: "admin/gateway-logs" },
   { icon: RefreshCw, label: "Recuperação", page: "admin/recovery" },
   { icon: Send, label: "Disparo WhatsApp", page: "admin/broadcast" },
+  { icon: Mail, label: "Disparo Email", page: "admin/email-broadcast" },
   { icon: Instagram, label: "Posts Instagram", page: "admin/instagram-posts" },
   { icon: Lightbulb, label: "Sugestões", page: "admin/suggestions" },
   { icon: Settings, label: "Configurações", page: "admin/settings" },

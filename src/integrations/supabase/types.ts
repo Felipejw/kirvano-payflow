@@ -388,6 +388,107 @@ export type Database = {
         }
         Relationships: []
       }
+      email_broadcast_recipients: {
+        Row: {
+          broadcast_id: string
+          created_at: string | null
+          email: string
+          error_message: string | null
+          id: string
+          name: string | null
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          broadcast_id: string
+          created_at?: string | null
+          email: string
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          broadcast_id?: string
+          created_at?: string | null
+          email?: string
+          error_message?: string | null
+          id?: string
+          name?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_broadcast_recipients_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "email_broadcasts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_broadcasts: {
+        Row: {
+          admin_id: string
+          completed_at: string | null
+          created_at: string | null
+          failed_count: number | null
+          html_content: string
+          id: string
+          interval_max_seconds: number | null
+          interval_min_seconds: number | null
+          interval_seconds: number | null
+          last_processing_at: string | null
+          name: string
+          scheduled_at: string | null
+          sent_count: number | null
+          started_at: string | null
+          status: string | null
+          subject: string
+          total_recipients: number | null
+        }
+        Insert: {
+          admin_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          failed_count?: number | null
+          html_content: string
+          id?: string
+          interval_max_seconds?: number | null
+          interval_min_seconds?: number | null
+          interval_seconds?: number | null
+          last_processing_at?: string | null
+          name: string
+          scheduled_at?: string | null
+          sent_count?: number | null
+          started_at?: string | null
+          status?: string | null
+          subject: string
+          total_recipients?: number | null
+        }
+        Update: {
+          admin_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          failed_count?: number | null
+          html_content?: string
+          id?: string
+          interval_max_seconds?: number | null
+          interval_min_seconds?: number | null
+          interval_seconds?: number | null
+          last_processing_at?: string | null
+          name?: string
+          scheduled_at?: string | null
+          sent_count?: number | null
+          started_at?: string | null
+          status?: string | null
+          subject?: string
+          total_recipients?: number | null
+        }
+        Relationships: []
+      }
       member_email_logs: {
         Row: {
           created_at: string
