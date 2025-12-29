@@ -157,14 +157,23 @@ async function sendButtonActions(
   clientToken: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const buttonList = buttons.map(btn => {
+    // Build button actions array for Z-API with unique IDs and correct format
+    const buttonList = buttons.map((btn, index) => {
       if (btn.type === 'url') {
-        return { id: `btn_${btn.type}`, type: 'URL', url: btn.value, label: btn.label };
+        return { id: `${index + 1}`, type: 'URL', url: btn.value, label: btn.label };
       } else if (btn.type === 'call') {
-        return { id: `btn_${btn.type}`, type: 'CALL', phoneNumber: btn.value, label: btn.label };
+        return { id: `${index + 1}`, type: 'CALL', phone: btn.value, label: btn.label };
       }
       return null;
     }).filter(Boolean);
+
+    const requestBody = {
+      phone: formatPhone(phone),
+      message,
+      buttonActions: buttonList
+    };
+
+    console.log(`[Z-API Buttons] Sending to ${phone}:`, JSON.stringify(requestBody));
 
     const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/send-button-actions`, {
       method: 'POST',
@@ -172,11 +181,7 @@ async function sendButtonActions(
         'Content-Type': 'application/json',
         'Client-Token': clientToken
       },
-      body: JSON.stringify({
-        phone: formatPhone(phone),
-        message,
-        buttonActions: buttonList
-      })
+      body: JSON.stringify(requestBody)
     });
     
     const data = await response.json();
@@ -477,21 +482,30 @@ async function processBroadcastBatch(
           result = await sendButtonList(recipient.phone, personalizedMessage, buttonActions, zapiInstanceId, zapiToken, zapiClientToken);
         }
       } else {
-        // Action buttons (URL/CALL) do NOT support media - send media first if present
+        // Action buttons (URL/CALL) do NOT support media - send media first WITH message as caption
         if (broadcast.media_type && broadcast.media_url) {
-          console.log(`[ContinueBroadcasts] Action buttons with media - sending media first to ${recipient.phone}`);
+          console.log(`[ContinueBroadcasts] Action buttons with media - sending media with message as caption to ${recipient.phone}`);
+          // Send media first WITH message as caption (fallback if buttons don't deliver)
           if (broadcast.media_type === 'image') {
-            await sendImage(recipient.phone, broadcast.media_url, '', zapiInstanceId, zapiToken, zapiClientToken);
+            await sendImage(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
           } else if (broadcast.media_type === 'video') {
-            await sendVideo(recipient.phone, broadcast.media_url, '', zapiInstanceId, zapiToken, zapiClientToken);
+            await sendVideo(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
           } else if (broadcast.media_type === 'document') {
             const fileName = broadcast.media_url.split('/').pop() || 'documento';
             await sendDocument(recipient.phone, broadcast.media_url, fileName, zapiInstanceId, zapiToken, zapiClientToken);
+            // Document doesn't support caption, send message separately
+            await sleep(1500);
+            await sendText(recipient.phone, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
           }
           await sleep(2000);
+          // Then send action buttons without message (already sent with media)
+          console.log(`[ContinueBroadcasts] Sending action buttons to ${recipient.phone}`);
+          result = await sendButtonActions(recipient.phone, '', buttonActions, zapiInstanceId, zapiToken, zapiClientToken);
+        } else {
+          // No media, send text with action buttons normally
+          console.log(`[ContinueBroadcasts] Sending action buttons to ${recipient.phone}`);
+          result = await sendButtonActions(recipient.phone, personalizedMessage, buttonActions, zapiInstanceId, zapiToken, zapiClientToken);
         }
-        console.log(`[ContinueBroadcasts] Sending action buttons to ${recipient.phone}`);
-        result = await sendButtonActions(recipient.phone, personalizedMessage, buttonActions, zapiInstanceId, zapiToken, zapiClientToken);
       }
     } else if (broadcast.media_type === 'image' && broadcast.media_url) {
       result = await sendImage(recipient.phone, broadcast.media_url, personalizedMessage, zapiInstanceId, zapiToken, zapiClientToken);
