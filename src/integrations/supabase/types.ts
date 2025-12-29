@@ -2039,6 +2039,8 @@ export type Database = {
       whatsapp_broadcasts: {
         Row: {
           admin_id: string
+          batch_pause_minutes: number | null
+          batch_paused_at: string | null
           completed_at: string | null
           created_at: string | null
           failed_count: number | null
@@ -2050,7 +2052,10 @@ export type Database = {
           media_type: string | null
           media_url: string | null
           message: string
+          messages_per_batch: number | null
+          messages_sent_in_batch: number | null
           name: string
+          safe_mode: boolean | null
           scheduled_at: string | null
           sent_count: number | null
           started_at: string | null
@@ -2059,6 +2064,8 @@ export type Database = {
         }
         Insert: {
           admin_id: string
+          batch_pause_minutes?: number | null
+          batch_paused_at?: string | null
           completed_at?: string | null
           created_at?: string | null
           failed_count?: number | null
@@ -2070,7 +2077,10 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message: string
+          messages_per_batch?: number | null
+          messages_sent_in_batch?: number | null
           name: string
+          safe_mode?: boolean | null
           scheduled_at?: string | null
           sent_count?: number | null
           started_at?: string | null
@@ -2079,6 +2089,8 @@ export type Database = {
         }
         Update: {
           admin_id?: string
+          batch_pause_minutes?: number | null
+          batch_paused_at?: string | null
           completed_at?: string | null
           created_at?: string | null
           failed_count?: number | null
@@ -2090,7 +2102,10 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message?: string
+          messages_per_batch?: number | null
+          messages_sent_in_batch?: number | null
           name?: string
+          safe_mode?: boolean | null
           scheduled_at?: string | null
           sent_count?: number | null
           started_at?: string | null
