@@ -729,20 +729,24 @@ export default function AdminBroadcast() {
     ? ((currentBroadcast.sent_count + currentBroadcast.failed_count) / currentBroadcast.total_recipients) * 100 
     : 0;
 
-  // Calculate estimated time remaining
+  // Calculate estimated time remaining (uses max interval for conservative estimate)
   const getEstimatedTimeRemaining = () => {
     if (!currentBroadcast || currentBroadcast.status !== 'running') return null;
     
     const remaining = currentBroadcast.total_recipients - (currentBroadcast.sent_count + currentBroadcast.failed_count);
     if (remaining <= 0) return null;
     
-    const avgInterval = ((currentBroadcast.interval_min_seconds || 30) + (currentBroadcast.interval_max_seconds || 60)) / 2;
-    const totalSeconds = remaining * avgInterval;
+    // Use max interval for worst-case estimate
+    const maxInterval = currentBroadcast.interval_max_seconds || 60;
+    const totalSeconds = remaining * maxInterval;
     
-    const hours = Math.floor(totalSeconds / 3600);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     
-    if (hours > 0) {
+    if (days > 0) {
+      return `~${days}d ${hours}h ${minutes}min restantes`;
+    } else if (hours > 0) {
       return `~${hours}h ${minutes}min restantes`;
     } else if (minutes > 0) {
       return `~${minutes}min restantes`;
@@ -752,38 +756,40 @@ export default function AdminBroadcast() {
   };
   const estimatedTimeRemaining = getEstimatedTimeRemaining();
 
-  // Calculate estimated completion time
-  const getEstimatedCompletion = (minSec?: number, maxSec?: number) => {
+  // Calculate estimated completion time (uses max interval for conservative estimate)
+  const getEstimatedCompletion = (maxSec?: number) => {
     if (!currentBroadcast || currentBroadcast.status !== 'running') return null;
     
     const remaining = currentBroadcast.total_recipients - (currentBroadcast.sent_count + currentBroadcast.failed_count);
     if (remaining <= 0) return null;
     
-    const min = minSec ?? currentBroadcast.interval_min_seconds ?? 30;
-    const max = maxSec ?? currentBroadcast.interval_max_seconds ?? 60;
-    const avgInterval = (min + max) / 2;
-    const totalSeconds = remaining * avgInterval;
+    // Use max interval for worst-case estimate
+    const maxInterval = maxSec ?? currentBroadcast.interval_max_seconds ?? 60;
+    const totalSeconds = remaining * maxInterval;
     
     const completionTime = new Date(Date.now() + totalSeconds * 1000);
-    return format(completionTime, "dd/MM 'às' HH:mm", { locale: ptBR });
+    return format(completionTime, "EEEE, dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   };
   const estimatedCompletion = getEstimatedCompletion();
-  const newEstimatedCompletion = editingInterval ? getEstimatedCompletion(newMinInterval, newMaxInterval) : null;
+  const newEstimatedCompletion = editingInterval ? getEstimatedCompletion(newMaxInterval) : null;
 
-  // Calculate new estimated time with new interval
+  // Calculate new estimated time with new interval (uses max interval)
   const getNewEstimatedTime = () => {
     if (!currentBroadcast || currentBroadcast.status !== 'running') return null;
     
     const remaining = currentBroadcast.total_recipients - (currentBroadcast.sent_count + currentBroadcast.failed_count);
     if (remaining <= 0) return null;
     
-    const avgInterval = (newMinInterval + newMaxInterval) / 2;
-    const totalSeconds = remaining * avgInterval;
+    // Use max interval for worst-case estimate
+    const totalSeconds = remaining * newMaxInterval;
     
-    const hours = Math.floor(totalSeconds / 3600);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     
-    if (hours > 0) {
+    if (days > 0) {
+      return `~${days}d ${hours}h ${minutes}min`;
+    } else if (hours > 0) {
       return `~${hours}h ${minutes}min`;
     } else if (minutes > 0) {
       return `~${minutes}min`;
