@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.continue-running-broadcasts]
 verify_jwt = false
+
+[functions.email-broadcast]
+verify_jwt = true
+
+[functions.continue-email-broadcasts]
+verify_jwt = false
