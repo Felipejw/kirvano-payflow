@@ -2045,6 +2045,7 @@ export type Database = {
           batch_pause_minutes: number | null
           batch_paused_at: string | null
           button_actions: Json | null
+          button_type: string | null
           buttons_enabled: boolean | null
           completed_at: string | null
           created_at: string | null
@@ -2073,6 +2074,7 @@ export type Database = {
           batch_pause_minutes?: number | null
           batch_paused_at?: string | null
           button_actions?: Json | null
+          button_type?: string | null
           buttons_enabled?: boolean | null
           completed_at?: string | null
           created_at?: string | null
@@ -2101,6 +2103,7 @@ export type Database = {
           batch_pause_minutes?: number | null
           batch_paused_at?: string | null
           button_actions?: Json | null
+          button_type?: string | null
           buttons_enabled?: boolean | null
           completed_at?: string | null
           created_at?: string | null
