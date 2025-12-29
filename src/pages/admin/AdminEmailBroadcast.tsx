@@ -388,6 +388,124 @@ export default function AdminEmailBroadcast() {
 
                   <div className="space-y-2">
                     <Label htmlFor="content">Corpo do Email (HTML) *</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mb-2"
+                      onClick={() => {
+                        setName("Promoção Chatbot WhatsApp");
+                        setSubject("🤖 Automatize seu WhatsApp e Venda 24h por Dia!");
+                        setHtmlContent(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:20px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);padding:40px 30px;text-align:center;">
+              <div style="font-size:48px;margin-bottom:10px;">🤖</div>
+              <h1 style="color:#fff;margin:0;font-size:28px;">CHATBOT WHATSAPP</h1>
+              <p style="color:rgba(255,255,255,0.9);margin:10px 0 0;">Automatize seu atendimento e venda mais!</p>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding:40px 30px;">
+              <h2 style="color:#1f2937;margin:0 0 20px;">Olá {{nome}}! 👋</h2>
+              <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px;">
+                Imagine ter um <strong>assistente virtual</strong> trabalhando 24 horas por dia, 
+                7 dias por semana, respondendo seus clientes automaticamente no WhatsApp...
+              </p>
+              <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 30px;">
+                Com o <strong>Chatbot WhatsApp</strong>, você pode fazer isso e muito mais! 
+                Automatize respostas, qualifique leads e <strong>aumente suas vendas</strong> 
+                enquanto dorme.
+              </p>
+              
+              <!-- Benefits -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
+                    <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Atendimento 24/7</strong> - Nunca perca uma venda</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
+                    <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Respostas Instantâneas</strong> - Impressione seus clientes</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
+                    <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Qualificação de Leads</strong> - Foque nos clientes certos</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;">
+                    <span style="color:#22c55e;font-size:18px;margin-right:10px;">✓</span>
+                    <span style="color:#374151;font-size:15px;"><strong>Economia de Tempo</strong> - Automatize tarefas repetitivas</span>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:10px 0 30px;">
+                    <a href="https://pay.chatbotwhatsapp.store/?s=chatbot" 
+                       style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:#fff;text-decoration:none;padding:18px 40px;border-radius:8px;font-size:18px;font-weight:bold;box-shadow:0 4px 14px rgba(34,197,94,0.4);">
+                      🚀 QUERO MEU CHATBOT AGORA!
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Urgency -->
+              <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:15px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;">
+                <p style="color:#92400e;margin:0;font-size:14px;">
+                  ⚡ <strong>Oferta por tempo limitado!</strong> Garanta agora e comece a automatizar hoje mesmo.
+                </p>
+              </div>
+              
+              <p style="color:#6b7280;font-size:14px;text-align:center;margin:0;">
+                ✅ Garantia de 7 dias | 🔒 Compra 100% segura
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f9fafb;padding:25px 30px;text-align:center;border-top:1px solid #e5e7eb;">
+              <p style="color:#9ca3af;font-size:13px;margin:0 0 10px;">
+                © 2024 ChatbotWhatsApp - Todos os direitos reservados
+              </p>
+              <p style="color:#9ca3af;font-size:12px;margin:0;">
+                Você recebeu este email porque se cadastrou em nossa lista.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`);
+                        toast.success("Template Chatbot aplicado!");
+                      }}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      📧 Usar Template Chatbot
+                    </Button>
                     <Textarea
                       id="content"
                       placeholder="<h1>Olá {{nome}}!</h1><p>Seu conteúdo aqui...</p>"
