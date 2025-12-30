@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Save, ArrowLeft, Trash2, AlertTriangle, Package, CreditCard, Users, ShoppingCart, Percent, DollarSign, Zap, CheckCircle } from "lucide-react";
+import { Save, ArrowLeft, Trash2, AlertTriangle, Package, CreditCard, Users, ShoppingCart, Percent, DollarSign, Zap, CheckCircle, Key } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAppNavigate } from "@/lib/routes";
 import { useUserRole } from "@/hooks/useUserRole";
 import { GatewayManagement } from "@/components/admin/GatewayManagement";
+import { GatewayCredentialsDialog } from "@/components/admin/GatewayCredentialsDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +52,7 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false);
   const [savingGateway, setSavingGateway] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useAppNavigate();
   const { isAdmin, loading: roleLoading } = useUserRole();
@@ -361,6 +363,20 @@ export default function AdminSettings() {
                 </div>
               </div>
             </div>
+            
+            {/* Credentials Management */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setCredentialsDialogOpen(true)}
+                className="flex-1"
+              >
+                <Key className="h-4 w-4 mr-2" />
+                Ver Credenciais do {settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'}
+              </Button>
+            </div>
+
             <div className={`p-3 rounded-lg ${hasGatewayChanges ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-yellow-500/10 border-yellow-500/20'} border`}>
               <p className="text-sm">
                 <strong>Gateway selecionado:</strong> {settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'}
@@ -377,6 +393,13 @@ export default function AdminSettings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Gateway Credentials Dialog */}
+        <GatewayCredentialsDialog
+          gateway={settings.platform_gateway_type}
+          open={credentialsDialogOpen}
+          onOpenChange={setCredentialsDialogOpen}
+        />
 
         {/* Taxas Gateway Plataforma (Opção A) */}
         <Card className="glass-card border-primary/20">
