@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Copy, Check, Key, Save } from "lucide-react";
+import { Eye, EyeOff, Copy, Check, Key, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface GatewayCredentialsDialogProps {
   gateway: 'bspay' | 'pixup';
@@ -19,22 +21,10 @@ interface GatewayCredentialsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface CredentialField {
-  key: string;
-  label: string;
-  envName: string;
+interface Credentials {
+  client_id: string | null;
+  client_secret: string | null;
 }
-
-const gatewayCredentials: Record<string, CredentialField[]> = {
-  bspay: [
-    { key: 'client_id', label: 'Client ID', envName: 'BSPAY_CLIENT_ID' },
-    { key: 'client_secret', label: 'Client Secret', envName: 'BSPAY_CLIENT_SECRET' },
-  ],
-  pixup: [
-    { key: 'client_id', label: 'Client ID', envName: 'PIXUP_CLIENT_ID' },
-    { key: 'client_secret', label: 'Client Secret', envName: 'PIXUP_CLIENT_SECRET' },
-  ],
-};
 
 export function GatewayCredentialsDialog({
   gateway,
@@ -43,35 +33,86 @@ export function GatewayCredentialsDialog({
 }: GatewayCredentialsDialogProps) {
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [credentials, setCredentials] = useState<Credentials | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const credentials = gatewayCredentials[gateway] || [];
   const gatewayName = gateway === 'bspay' ? 'BSPAY' : 'PIXUP';
+
+  useEffect(() => {
+    if (open) {
+      fetchCredentials();
+    } else {
+      // Reset state when dialog closes
+      setCredentials(null);
+      setShowSecrets({});
+      setError(null);
+    }
+  }, [open, gateway]);
+
+  const fetchCredentials = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('get-gateway-credentials', {
+        body: { gateway }
+      });
+
+      if (invokeError) {
+        throw invokeError;
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setCredentials(data.credentials);
+    } catch (err: any) {
+      console.error('Error fetching credentials:', err);
+      setError(err.message || 'Erro ao carregar credenciais');
+      toast.error('Erro ao carregar credenciais');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleShowSecret = (key: string) => {
     setShowSecrets((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const copyToClipboard = async (envName: string) => {
+  const copyToClipboard = async (key: 'client_id' | 'client_secret', label: string) => {
+    const value = credentials?.[key];
+    if (!value) {
+      toast.error('Valor não disponível para copiar');
+      return;
+    }
+
     try {
-      // Note: We can't actually access the secret values from the frontend
-      // We just copy the env name as a reference
-      await navigator.clipboard.writeText(`${envName}`);
-      setCopiedField(envName);
-      toast.success(`Nome da variável ${envName} copiado!`);
+      await navigator.clipboard.writeText(value);
+      setCopiedField(key);
+      toast.success(`${label} copiado!`);
       setTimeout(() => setCopiedField(null), 2000);
     } catch {
       toast.error("Falha ao copiar");
     }
   };
 
-  const handleUpdateCredentials = () => {
-    // Show info message - secrets need to be updated via Lovable's secret management
-    toast.info(
-      `Para atualizar as credenciais do ${gatewayName}, entre em contato com o administrador do sistema ou atualize diretamente nas configurações do Cloud.`,
-      { duration: 5000 }
-    );
-    onOpenChange(false);
+  const getMaskedValue = (value: string | null) => {
+    if (!value) return 'Não configurado';
+    return '••••••••••••••••••••••';
   };
+
+  const getDisplayValue = (key: 'client_id' | 'client_secret') => {
+    const value = credentials?.[key];
+    if (!value) return 'Não configurado';
+    return showSecrets[key] ? value : getMaskedValue(value);
+  };
+
+  const fields = [
+    { key: 'client_id' as const, label: 'Client ID' },
+    { key: 'client_secret' as const, label: 'Client Secret' },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,72 +123,92 @@ export function GatewayCredentialsDialog({
             Credenciais do {gatewayName}
           </DialogTitle>
           <DialogDescription>
-            Visualize e gerencie as credenciais de API do gateway {gatewayName}
+            Visualize e copie as credenciais de API do gateway {gatewayName}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm">
-            <p className="text-yellow-600 dark:text-yellow-400">
-              <strong>Nota:</strong> Por segurança, os valores das credenciais são armazenados de forma criptografada e não podem ser visualizados diretamente. Para atualizar, clique em "Alterar Credenciais".
-            </p>
-          </div>
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
+              <p className="text-destructive">{error}</p>
+            </div>
+          )}
 
-          {credentials.map((field) => (
-            <div key={field.key} className="space-y-2">
-              <Label htmlFor={field.key}>{field.label}</Label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    id={field.key}
-                    type={showSecrets[field.key] ? "text" : "password"}
-                    value="••••••••••••••••••••••"
-                    readOnly
-                    className="pr-10 bg-muted"
-                  />
+          {loading ? (
+            <div className="space-y-4">
+              {fields.map((field) => (
+                <div key={field.key} className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            fields.map((field) => (
+              <div key={field.key} className="space-y-2">
+                <Label htmlFor={field.key}>{field.label}</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id={field.key}
+                      type="text"
+                      value={getDisplayValue(field.key)}
+                      readOnly
+                      className="pr-10 bg-muted font-mono text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => toggleShowSecret(field.key)}
+                      disabled={!credentials?.[field.key]}
+                    >
+                      {showSecrets[field.key] ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="icon"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => toggleShowSecret(field.key)}
+                    onClick={() => copyToClipboard(field.key, field.label)}
+                    disabled={!credentials?.[field.key]}
+                    title={`Copiar ${field.label}`}
                   >
-                    {showSecrets[field.key] ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    {copiedField === field.key ? (
+                      <Check className="h-4 w-4 text-green-500" />
                     ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
+                      <Copy className="h-4 w-4" />
                     )}
                   </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => copyToClipboard(field.envName)}
-                  title={`Copiar nome da variável: ${field.envName}`}
-                >
-                  {copiedField === field.envName ? (
-                    <Check className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Variável de ambiente: <code className="bg-muted px-1 py-0.5 rounded">{field.envName}</code>
+            ))
+          )}
+
+          {!loading && !error && (
+            <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm">
+              <p className="text-yellow-600 dark:text-yellow-400">
+                <strong>Segurança:</strong> Essas credenciais são sensíveis. Para alterá-las, acesse as configurações de secrets do Cloud.
               </p>
             </div>
-          ))}
+          )}
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
-          <Button onClick={handleUpdateCredentials}>
-            <Save className="h-4 w-4 mr-2" />
-            Alterar Credenciais
-          </Button>
+          {!loading && !error && (
+            <Button onClick={fetchCredentials} variant="secondary">
+              <Loader2 className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

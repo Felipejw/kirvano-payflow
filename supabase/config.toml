@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.check-scheduled-email-broadcasts]
 verify_jwt = false
+
+[functions.get-gateway-credentials]
+verify_jwt = true
