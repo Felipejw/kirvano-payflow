@@ -983,10 +983,15 @@ async function createGhostpayPixPayment(
   
   console.log('Ghostpay PIX payment created:', data.id);
   
+  // GhostsPay retorna pix.qrcode (minúsculo) - este é o código copia e cola
+  const copyPasteCode = data.pix?.qrcode || data.pix?.qrCode || data.pix?.qr_code || data.pix?.emv || '';
+  
+  console.log('Ghostpay PIX copyPasteCode:', copyPasteCode ? copyPasteCode.substring(0, 50) + '...' : 'EMPTY');
+  
   return {
     transactionId: data.id,
-    qrCode: data.pix?.qrCode || data.pix?.qr_code || data.pix?.emv || '',
-    qrCodeBase64: data.pix?.qrCodeUrl || data.pix?.qr_code_url || '',
+    qrCode: copyPasteCode, // Código copia e cola (EMV)
+    qrCodeBase64: '', // GhostsPay não retorna imagem base64, usamos biblioteca para gerar
     status: mapGhostpayStatus(data.status),
   };
 }
