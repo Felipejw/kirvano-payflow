@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.get-gateway-credentials]
 verify_jwt = true
+
+[functions.external-payment-api]
+verify_jwt = false
