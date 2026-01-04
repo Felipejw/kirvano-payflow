@@ -19,12 +19,14 @@ import {
   CreditCard,
   AlertTriangle,
   Building2,
-  Check
+  Check,
+  Key
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePaymentMode, updatePaymentMode, PaymentMode } from "@/hooks/usePaymentMode";
 import { cn } from "@/lib/utils";
+import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
 
 const Settings = () => {
   const [profile, setProfile] = useState({
@@ -141,7 +143,7 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="bg-secondary/50">
+          <TabsList className="bg-secondary/50 flex-wrap">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
               Perfil
@@ -149,6 +151,10 @@ const Settings = () => {
             <TabsTrigger value="payment-mode" className="gap-2">
               <CreditCard className="h-4 w-4" />
               Modo de Venda
+            </TabsTrigger>
+            <TabsTrigger value="api" className="gap-2">
+              <Key className="h-4 w-4" />
+              API
             </TabsTrigger>
             <TabsTrigger value="theme" className="gap-2">
               <Palette className="h-4 w-4" />
@@ -453,6 +459,11 @@ const Settings = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* API Keys Settings */}
+          <TabsContent value="api">
+            <ApiKeysSection />
           </TabsContent>
         </Tabs>
       </div>
