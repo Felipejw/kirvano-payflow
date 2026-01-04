@@ -882,7 +882,7 @@ async function getAsaasPayment(apiKey: string, paymentId: string): Promise<any> 
 // ============================================================
 // GHOSTPAY API Integration
 // ============================================================
-const GHOSTPAY_API_URL = "https://api.ghostpaysv2.com/functions/v1";
+const GHOSTPAY_API_URL = "https://api.ghostspaysv2.com/functions/v1";
 
 function getGhostpayAuthHeader(secretKey: string, companyId: string): string {
   const credentials = `${secretKey}:${companyId}`;
