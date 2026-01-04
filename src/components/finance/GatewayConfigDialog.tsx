@@ -39,6 +39,8 @@ const fieldLabels: Record<string, string> = {
   seller_id: "Seller ID",
   x_picpay_token: "X-PicPay-Token",
   x_seller_token: "X-Seller-Token",
+  secret_key: "Secret Key",
+  company_id: "Company ID",
 };
 
 export function GatewayConfigDialog({

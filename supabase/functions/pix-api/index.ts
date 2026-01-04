@@ -879,6 +879,297 @@ async function getAsaasPayment(apiKey: string, paymentId: string): Promise<any> 
 // End of Asaas Integration
 // ============================================================
 
+// ============================================================
+// GHOSTPAY API Integration
+// ============================================================
+const GHOSTPAY_API_URL = "https://api.ghostpaysv2.com/functions/v1";
+
+function getGhostpayAuthHeader(secretKey: string, companyId: string): string {
+  const credentials = `${secretKey}:${companyId}`;
+  return `Basic ${btoa(credentials)}`;
+}
+
+// Map Ghostpay status to internal status
+function mapGhostpayStatus(ghostpayStatus: string): string {
+  const statusMap: Record<string, string> = {
+    'waiting_payment': 'pending',
+    'paid': 'paid',
+    'refused': 'failed',
+    'failed': 'failed',
+    'expired': 'expired',
+    'refunded': 'refunded',
+    'chargedback': 'chargeback',
+    'canceled': 'cancelled',
+    'in_analisys': 'pending',
+    'in_protest': 'disputed'
+  };
+  return statusMap[ghostpayStatus] || 'pending';
+}
+
+interface GhostpayPaymentResult {
+  transactionId: string;
+  qrCode?: string;
+  qrCodeBase64?: string;
+  boletoUrl?: string;
+  barcode?: string;
+  typedLine?: string;
+  status: string;
+}
+
+async function createGhostpayPixPayment(
+  secretKey: string,
+  companyId: string,
+  amount: number,
+  externalId: string,
+  customer: { name: string; email: string; document: string; phone?: string },
+  postbackUrl: string,
+  description?: string
+): Promise<GhostpayPaymentResult> {
+  console.log('Creating Ghostpay PIX payment for amount:', amount);
+  
+  const payload = {
+    amount: Math.round(amount * 100), // Ghostpay expects cents
+    payment_method: 'pix',
+    customer: {
+      name: customer.name || 'Cliente',
+      email: customer.email,
+      document: customer.document?.replace(/\D/g, '') || '00000000000',
+      phone_number: customer.phone?.replace(/\D/g, '') || undefined,
+    },
+    pix: {
+      expires_in: 1800, // 30 minutes
+    },
+    postback_url: postbackUrl,
+    metadata: {
+      external_id: externalId,
+      description: description || 'Pagamento via PIX',
+    },
+  };
+  
+  console.log('Ghostpay PIX payload:', JSON.stringify(payload, null, 2));
+  
+  const response = await fetch(`${GHOSTPAY_API_URL}/transactions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': getGhostpayAuthHeader(secretKey, companyId),
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  
+  const responseText = await response.text();
+  console.log('Ghostpay PIX response status:', response.status);
+  console.log('Ghostpay PIX response:', responseText);
+  
+  if (!response.ok) {
+    console.error('Ghostpay PIX error:', response.status, responseText);
+    throw new Error(`Failed to create Ghostpay PIX payment: ${response.status} - ${responseText}`);
+  }
+  
+  const data = JSON.parse(responseText);
+  
+  console.log('Ghostpay PIX payment created:', data.id);
+  
+  return {
+    transactionId: data.id,
+    qrCode: data.pix?.qr_code || data.pix?.emv || '',
+    qrCodeBase64: data.pix?.qr_code_url || '',
+    status: mapGhostpayStatus(data.status),
+  };
+}
+
+async function createGhostpayCardPayment(
+  secretKey: string,
+  companyId: string,
+  amount: number,
+  externalId: string,
+  customer: { name: string; email: string; document: string; phone?: string },
+  cardData: {
+    holderName: string;
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    ccv: string;
+  },
+  billingAddress: {
+    zipcode: string;
+    street: string;
+    street_number: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  },
+  installments: number,
+  postbackUrl: string,
+  description?: string
+): Promise<GhostpayPaymentResult> {
+  console.log('Creating Ghostpay card payment for amount:', amount, 'installments:', installments);
+  
+  const cleanCardNumber = cardData.number.replace(/\D/g, '');
+  
+  const payload = {
+    amount: Math.round(amount * 100), // Ghostpay expects cents
+    payment_method: 'credit_card',
+    customer: {
+      name: customer.name || 'Cliente',
+      email: customer.email,
+      document: customer.document?.replace(/\D/g, '') || '00000000000',
+      phone_number: customer.phone?.replace(/\D/g, '') || undefined,
+    },
+    credit_card: {
+      holder_name: cardData.holderName,
+      number: cleanCardNumber,
+      expiration_date: `${cardData.expiryMonth}${cardData.expiryYear.slice(-2)}`,
+      cvv: cardData.ccv,
+    },
+    billing: {
+      address: {
+        zipcode: billingAddress.zipcode?.replace(/\D/g, '') || '',
+        street: billingAddress.street || '',
+        street_number: billingAddress.street_number || '',
+        neighborhood: billingAddress.neighborhood || '',
+        city: billingAddress.city || '',
+        state: billingAddress.state || '',
+        country: 'BR',
+      },
+    },
+    installments: installments,
+    postback_url: postbackUrl,
+    metadata: {
+      external_id: externalId,
+      description: description || 'Pagamento via Cartão',
+    },
+  };
+  
+  console.log('Ghostpay card payload (sanitized):', JSON.stringify({
+    ...payload,
+    credit_card: { ...payload.credit_card, number: '****', cvv: '***' }
+  }, null, 2));
+  
+  const response = await fetch(`${GHOSTPAY_API_URL}/transactions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': getGhostpayAuthHeader(secretKey, companyId),
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  
+  const responseText = await response.text();
+  console.log('Ghostpay card response status:', response.status);
+  
+  if (!response.ok) {
+    console.error('Ghostpay card error:', response.status, responseText);
+    throw new Error(`Failed to create Ghostpay card payment: ${response.status} - ${responseText}`);
+  }
+  
+  const data = JSON.parse(responseText);
+  
+  console.log('Ghostpay card payment created:', data.id, 'status:', data.status);
+  
+  return {
+    transactionId: data.id,
+    status: mapGhostpayStatus(data.status),
+  };
+}
+
+async function createGhostpayBoletoPayment(
+  secretKey: string,
+  companyId: string,
+  amount: number,
+  externalId: string,
+  customer: { name: string; email: string; document: string; phone?: string },
+  postbackUrl: string,
+  description?: string
+): Promise<GhostpayPaymentResult> {
+  console.log('Creating Ghostpay boleto payment for amount:', amount);
+  
+  const expirationDate = new Date();
+  expirationDate.setDate(expirationDate.getDate() + 3); // 3 days to expire
+  
+  const payload = {
+    amount: Math.round(amount * 100), // Ghostpay expects cents
+    payment_method: 'boleto',
+    customer: {
+      name: customer.name || 'Cliente',
+      email: customer.email,
+      document: customer.document?.replace(/\D/g, '') || '00000000000',
+      phone_number: customer.phone?.replace(/\D/g, '') || undefined,
+    },
+    boleto: {
+      expiration_date: expirationDate.toISOString().split('T')[0],
+      instructions: description || 'Pagamento via Boleto',
+    },
+    postback_url: postbackUrl,
+    metadata: {
+      external_id: externalId,
+      description: description || 'Pagamento via Boleto',
+    },
+  };
+  
+  console.log('Ghostpay boleto payload:', JSON.stringify(payload, null, 2));
+  
+  const response = await fetch(`${GHOSTPAY_API_URL}/transactions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': getGhostpayAuthHeader(secretKey, companyId),
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  
+  const responseText = await response.text();
+  console.log('Ghostpay boleto response status:', response.status);
+  console.log('Ghostpay boleto response:', responseText);
+  
+  if (!response.ok) {
+    console.error('Ghostpay boleto error:', response.status, responseText);
+    throw new Error(`Failed to create Ghostpay boleto payment: ${response.status} - ${responseText}`);
+  }
+  
+  const data = JSON.parse(responseText);
+  
+  console.log('Ghostpay boleto payment created:', data.id);
+  
+  return {
+    transactionId: data.id,
+    boletoUrl: data.boleto?.url || data.boleto?.pdf_url || '',
+    barcode: data.boleto?.barcode || '',
+    typedLine: data.boleto?.digitable_line || data.boleto?.line || '',
+    status: mapGhostpayStatus(data.status),
+  };
+}
+
+async function getGhostpayPayment(secretKey: string, companyId: string, transactionId: string): Promise<any> {
+  console.log('Getting Ghostpay payment:', transactionId);
+  
+  const response = await fetch(`${GHOSTPAY_API_URL}/transactions/${transactionId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': getGhostpayAuthHeader(secretKey, companyId),
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Ghostpay get payment error:', response.status, errorText);
+    throw new Error(`Failed to get Ghostpay payment: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log('Ghostpay payment status:', data.status);
+  return data;
+}
+
+// ============================================================
+// End of Ghostpay Integration
+// ============================================================
+
 const generateExternalId = () => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 10);
@@ -1548,6 +1839,54 @@ serve(async (req) => {
             
             console.log('Asaas card payment created:', gatewayTransactionId, 'status:', cardPaymentStatus);
             
+          } else if (gateway.slug === 'ghostpay') {
+            // Ghostpay card payment - requires full card data
+            if (!body.card_data || !body.card_holder_info) {
+              return new Response(JSON.stringify({ 
+                error: 'Card data and holder info are required for Ghostpay card payments' 
+              }), {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
+            
+            const secretKey = credentials.secret_key;
+            const companyId = credentials.company_id;
+            if (!secretKey || !companyId) {
+              throw new Error('Ghostpay credentials not configured');
+            }
+            
+            const cardResult = await createGhostpayCardPayment(
+              secretKey,
+              companyId,
+              body.amount,
+              externalId,
+              {
+                name: body.buyer_name || body.card_holder_info.name,
+                email: body.buyer_email,
+                document: body.buyer_document || body.card_holder_info.cpfCnpj,
+                phone: body.buyer_phone,
+              },
+              body.card_data,
+              {
+                zipcode: body.card_holder_info.postalCode,
+                street: (body.card_holder_info as any).street || '',
+                street_number: body.card_holder_info.addressNumber,
+                neighborhood: (body.card_holder_info as any).neighborhood || '',
+                city: (body.card_holder_info as any).city || '',
+                state: (body.card_holder_info as any).state || '',
+              },
+              body.installments || 1,
+              webhookUrl + '/ghostpay',
+              description
+            );
+            
+            gatewayTransactionId = cardResult.transactionId;
+            cardPaymentStatus = cardResult.status === 'paid' ? 'approved' : cardResult.status;
+            cardStatusDetail = cardResult.status;
+            
+            console.log('Ghostpay card payment created:', gatewayTransactionId, 'status:', cardPaymentStatus);
+            
           } else {
             return new Response(JSON.stringify({ 
               error: `Pagamento com cartão não suportado pelo gateway ${gateway.name}.` 
@@ -1698,6 +2037,49 @@ serve(async (req) => {
           gatewayTransactionId = asaasResult.paymentId;
           
           console.log('Asaas charge created successfully:', gatewayTransactionId);
+          
+        } else if (gateway.slug === 'ghostpay') {
+          // Ghostpay PIX Integration
+          const secretKey = credentials.secret_key;
+          const companyId = credentials.company_id;
+          
+          if (!secretKey || !companyId) {
+            throw new Error('Ghostpay credentials incomplete');
+          }
+          
+          // Get product name for description
+          let description = body.description || 'Pagamento via PIX';
+          if (body.product_id) {
+            const { data: productInfo } = await supabase
+              .from('products')
+              .select('name')
+              .eq('id', body.product_id)
+              .maybeSingle();
+            if (productInfo) {
+              description = `Compra: ${productInfo.name}`;
+            }
+          }
+          
+          const ghostpayResult = await createGhostpayPixPayment(
+            secretKey,
+            companyId,
+            body.amount,
+            externalId,
+            {
+              name: body.buyer_name || 'Cliente',
+              email: body.buyer_email,
+              document: body.buyer_document || '00000000000',
+              phone: body.buyer_phone,
+            },
+            webhookUrl + '/ghostpay',
+            description
+          );
+          
+          pixCode = ghostpayResult.qrCode || '';
+          qrCodeBase64 = ghostpayResult.qrCodeBase64 || '';
+          gatewayTransactionId = ghostpayResult.transactionId;
+          
+          console.log('Ghostpay charge created successfully:', gatewayTransactionId);
           
         } else {
           // For other gateways, we'll need to implement their specific APIs
@@ -2065,6 +2447,68 @@ serve(async (req) => {
       });
     }
 
+    // POST /webhook/ghostpay - Handle Ghostpay payment webhook
+    if (req.method === 'POST' && (path === '/webhook/ghostpay' || path === '/webhook-ghostpay')) {
+      console.log('Received Ghostpay webhook');
+      
+      let body: any = {};
+      try {
+        const bodyText = await req.text();
+        if (bodyText) {
+          body = JSON.parse(bodyText);
+        }
+      } catch (e) {
+        console.log('No body or invalid JSON in Ghostpay webhook');
+      }
+      
+      console.log('Ghostpay webhook - body:', JSON.stringify(body));
+      
+      // Ghostpay sends transaction info with status
+      const transactionId = body.id || body.transaction_id;
+      const status = body.status;
+      const externalId = body.metadata?.external_id;
+      
+      // Process payment notifications
+      if (transactionId && status === 'paid') {
+        console.log('Processing Ghostpay payment notification:', transactionId);
+        
+        // Find the charge by external_id (which stores the Ghostpay transaction ID)
+        const { data: charge, error: fetchError } = await supabase
+          .from('pix_charges')
+          .select('*, products(name, seller_id, auto_send_access_email), affiliates(*)')
+          .or(`external_id.eq.${transactionId},external_id.eq.${externalId}`)
+          .maybeSingle();
+        
+        if (fetchError) {
+          console.error('Error fetching charge for Ghostpay webhook:', fetchError);
+        }
+        
+        if (charge && charge.status === 'pending') {
+          console.log('Payment confirmed via Ghostpay webhook, processing...');
+          await processPaymentConfirmation(supabase, charge, supabaseUrl);
+        } else if (!charge) {
+          console.log('No pending charge found for Ghostpay transaction ID:', transactionId);
+        } else {
+          console.log('Charge already processed:', charge.status);
+        }
+      } else if (transactionId && ['refused', 'failed', 'expired', 'canceled', 'refunded'].includes(status)) {
+        console.log('Processing Ghostpay cancellation:', transactionId, 'status:', status);
+        
+        const newStatus = status === 'refunded' ? 'cancelled' : status === 'expired' ? 'expired' : 'cancelled';
+        
+        await supabase
+          .from('pix_charges')
+          .update({ status: newStatus })
+          .or(`external_id.eq.${transactionId},external_id.eq.${externalId}`);
+      }
+      
+      // Always return 200 to acknowledge receipt
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // GET /charges/:id - Get charge status
     if (req.method === 'GET' && path.startsWith('/charges/')) {
       const chargeId = path.replace('/charges/', '');
@@ -2143,6 +2587,33 @@ serve(async (req) => {
                   .eq('id', charge.id);
                 
                 charge.status = 'cancelled';
+              }
+            } else if (gatewayData.gateway.slug === 'ghostpay') {
+              // Check Ghostpay payment status
+              const { credentials } = gatewayData;
+              const ghostpayPayment = await getGhostpayPayment(
+                credentials.secret_key!,
+                credentials.company_id!,
+                charge.external_id
+              );
+              
+              const mappedStatus = mapGhostpayStatus(ghostpayPayment.status);
+              
+              if (mappedStatus === 'paid') {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: 'paid', paid_at: new Date().toISOString() })
+                  .eq('id', charge.id);
+                
+                charge.status = 'paid';
+                charge.paid_at = new Date().toISOString();
+              } else if (['cancelled', 'expired', 'failed'].includes(mappedStatus)) {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: mappedStatus })
+                  .eq('id', charge.id);
+                
+                charge.status = mappedStatus;
               }
             }
           }
