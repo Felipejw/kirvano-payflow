@@ -109,10 +109,15 @@ export function GatewayCredentialsDialog({
     return showSecrets[key] ? value : getMaskedValue(value);
   };
 
-  const fields = [
-    { key: 'client_id' as const, label: 'Client ID' },
-    { key: 'client_secret' as const, label: 'Client Secret' },
-  ];
+  const fields = gateway === 'ghostpay' 
+    ? [
+        { key: 'client_id' as const, label: 'Company ID' },
+        { key: 'client_secret' as const, label: 'Secret Key' },
+      ]
+    : [
+        { key: 'client_id' as const, label: 'Client ID' },
+        { key: 'client_secret' as const, label: 'Client Secret' },
+      ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
