@@ -927,23 +927,35 @@ async function createGhostpayPixPayment(
 ): Promise<GhostpayPaymentResult> {
   console.log('Creating Ghostpay PIX payment for amount:', amount);
   
+  // Formato correto conforme documentação GhostsPay
   const payload = {
-    amount: Math.round(amount * 100), // Ghostpay expects cents
-    payment_method: 'pix',
+    amount: Math.round(amount * 100), // Valor em centavos
+    paymentMethod: 'PIX', // camelCase, valor em maiúsculo
     customer: {
       name: customer.name || 'Cliente',
       email: customer.email,
-      document: customer.document?.replace(/\D/g, '') || '00000000000',
-      phone_number: customer.phone?.replace(/\D/g, '') || undefined,
+      phone: customer.phone?.replace(/\D/g, '') || undefined,
+      document: {
+        number: customer.document?.replace(/\D/g, '') || '00000000000',
+        type: 'CPF'
+      }
     },
+    items: [
+      {
+        title: description || 'Pagamento via PIX',
+        unitPrice: Math.round(amount * 100),
+        quantity: 1,
+        externalRef: externalId
+      }
+    ],
     pix: {
-      expires_in: 1800, // 30 minutes
+      expiresInDays: 1
     },
-    postback_url: postbackUrl,
+    postbackUrl: postbackUrl,
     metadata: {
       external_id: externalId,
-      description: description || 'Pagamento via PIX',
-    },
+      ip: '0.0.0.0'
+    }
   };
   
   console.log('Ghostpay PIX payload:', JSON.stringify(payload, null, 2));
@@ -973,8 +985,8 @@ async function createGhostpayPixPayment(
   
   return {
     transactionId: data.id,
-    qrCode: data.pix?.qr_code || data.pix?.emv || '',
-    qrCodeBase64: data.pix?.qr_code_url || '',
+    qrCode: data.pix?.qrCode || data.pix?.qr_code || data.pix?.emv || '',
+    qrCodeBase64: data.pix?.qrCodeUrl || data.pix?.qr_code_url || '',
     status: mapGhostpayStatus(data.status),
   };
 }
@@ -1008,43 +1020,55 @@ async function createGhostpayCardPayment(
   
   const cleanCardNumber = cardData.number.replace(/\D/g, '');
   
+  // Formato correto conforme documentação GhostsPay
   const payload = {
-    amount: Math.round(amount * 100), // Ghostpay expects cents
-    payment_method: 'credit_card',
+    amount: Math.round(amount * 100), // Valor em centavos
+    paymentMethod: 'CREDIT_CARD', // camelCase, valor em maiúsculo
     customer: {
       name: customer.name || 'Cliente',
       email: customer.email,
-      document: customer.document?.replace(/\D/g, '') || '00000000000',
-      phone_number: customer.phone?.replace(/\D/g, '') || undefined,
+      phone: customer.phone?.replace(/\D/g, '') || undefined,
+      document: {
+        number: customer.document?.replace(/\D/g, '') || '00000000000',
+        type: 'CPF'
+      }
     },
-    credit_card: {
-      holder_name: cardData.holderName,
+    items: [
+      {
+        title: description || 'Pagamento via Cartão',
+        unitPrice: Math.round(amount * 100),
+        quantity: 1,
+        externalRef: externalId
+      }
+    ],
+    card: {
+      holderName: cardData.holderName,
       number: cleanCardNumber,
-      expiration_date: `${cardData.expiryMonth}${cardData.expiryYear.slice(-2)}`,
+      expirationDate: `${cardData.expiryMonth}/${cardData.expiryYear.slice(-2)}`,
       cvv: cardData.ccv,
+      installments: installments
     },
     billing: {
       address: {
-        zipcode: billingAddress.zipcode?.replace(/\D/g, '') || '',
+        zipCode: billingAddress.zipcode?.replace(/\D/g, '') || '',
         street: billingAddress.street || '',
-        street_number: billingAddress.street_number || '',
+        number: billingAddress.street_number || '',
         neighborhood: billingAddress.neighborhood || '',
         city: billingAddress.city || '',
         state: billingAddress.state || '',
         country: 'BR',
       },
     },
-    installments: installments,
-    postback_url: postbackUrl,
+    postbackUrl: postbackUrl,
     metadata: {
       external_id: externalId,
-      description: description || 'Pagamento via Cartão',
-    },
+      ip: '0.0.0.0'
+    }
   };
   
   console.log('Ghostpay card payload (sanitized):', JSON.stringify({
     ...payload,
-    credit_card: { ...payload.credit_card, number: '****', cvv: '***' }
+    card: { ...payload.card, number: '****', cvv: '***' }
   }, null, 2));
   
   const response = await fetch(`${GHOSTPAY_API_URL}/transactions`, {
@@ -1086,27 +1110,35 @@ async function createGhostpayBoletoPayment(
 ): Promise<GhostpayPaymentResult> {
   console.log('Creating Ghostpay boleto payment for amount:', amount);
   
-  const expirationDate = new Date();
-  expirationDate.setDate(expirationDate.getDate() + 3); // 3 days to expire
-  
+  // Formato correto conforme documentação GhostsPay
   const payload = {
-    amount: Math.round(amount * 100), // Ghostpay expects cents
-    payment_method: 'boleto',
+    amount: Math.round(amount * 100), // Valor em centavos
+    paymentMethod: 'BOLETO', // camelCase, valor em maiúsculo
     customer: {
       name: customer.name || 'Cliente',
       email: customer.email,
-      document: customer.document?.replace(/\D/g, '') || '00000000000',
-      phone_number: customer.phone?.replace(/\D/g, '') || undefined,
+      phone: customer.phone?.replace(/\D/g, '') || undefined,
+      document: {
+        number: customer.document?.replace(/\D/g, '') || '00000000000',
+        type: 'CPF'
+      }
     },
+    items: [
+      {
+        title: description || 'Pagamento via Boleto',
+        unitPrice: Math.round(amount * 100),
+        quantity: 1,
+        externalRef: externalId
+      }
+    ],
     boleto: {
-      expiration_date: expirationDate.toISOString().split('T')[0],
-      instructions: description || 'Pagamento via Boleto',
+      expiresInDays: 3
     },
-    postback_url: postbackUrl,
+    postbackUrl: postbackUrl,
     metadata: {
       external_id: externalId,
-      description: description || 'Pagamento via Boleto',
-    },
+      ip: '0.0.0.0'
+    }
   };
   
   console.log('Ghostpay boleto payload:', JSON.stringify(payload, null, 2));
@@ -1136,9 +1168,9 @@ async function createGhostpayBoletoPayment(
   
   return {
     transactionId: data.id,
-    boletoUrl: data.boleto?.url || data.boleto?.pdf_url || '',
+    boletoUrl: data.boleto?.url || data.boleto?.pdfUrl || data.boleto?.pdf_url || '',
     barcode: data.boleto?.barcode || '',
-    typedLine: data.boleto?.digitable_line || data.boleto?.line || '',
+    typedLine: data.boleto?.digitableLine || data.boleto?.digitable_line || data.boleto?.line || '',
     status: mapGhostpayStatus(data.status),
   };
 }
