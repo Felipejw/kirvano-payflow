@@ -49,9 +49,9 @@ Deno.serve(async (req) => {
 
     const { gateway } = await req.json();
 
-    if (!gateway || !['bspay', 'pixup'].includes(gateway)) {
+    if (!gateway || !['bspay', 'pixup', 'ghostpay'].includes(gateway)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid gateway. Must be bspay or pixup' }),
+        JSON.stringify({ error: 'Invalid gateway. Must be bspay, pixup or ghostpay' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -62,6 +62,11 @@ Deno.serve(async (req) => {
       credentials = {
         client_id: Deno.env.get('BSPAY_CLIENT_ID') ?? null,
         client_secret: Deno.env.get('BSPAY_CLIENT_SECRET') ?? null,
+      };
+    } else if (gateway === 'ghostpay') {
+      credentials = {
+        client_id: Deno.env.get('GHOSTPAY_COMPANY_ID') ?? null,
+        client_secret: Deno.env.get('GHOSTPAY_SECRET_KEY') ?? null,
       };
     } else {
       credentials = {

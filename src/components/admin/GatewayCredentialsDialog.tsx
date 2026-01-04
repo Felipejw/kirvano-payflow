@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface GatewayCredentialsDialogProps {
-  gateway: 'bspay' | 'pixup';
+  gateway: 'bspay' | 'pixup' | 'ghostpay';
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -37,7 +37,7 @@ export function GatewayCredentialsDialog({
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const gatewayName = gateway === 'bspay' ? 'BSPAY' : 'PIXUP';
+  const gatewayName = gateway === 'bspay' ? 'BSPAY' : gateway === 'ghostpay' ? 'GHOSTPAY' : 'PIXUP';
 
   useEffect(() => {
     if (open) {

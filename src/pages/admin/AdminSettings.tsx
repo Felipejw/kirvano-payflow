@@ -42,7 +42,7 @@ interface PlatformSettings {
   platform_gateway_withdrawal_fee: number;
   own_gateway_fee_percentage: number;
   own_gateway_fee_fixed: number;
-  platform_gateway_type: 'bspay' | 'pixup';
+  platform_gateway_type: 'bspay' | 'pixup' | 'ghostpay';
 }
 
 export default function AdminSettings() {
@@ -120,7 +120,7 @@ export default function AdminSettings() {
         platform_gateway_withdrawal_fee: data.platform_gateway_withdrawal_fee || 5,
         own_gateway_fee_percentage: data.own_gateway_fee_percentage || 3.99,
         own_gateway_fee_fixed: data.own_gateway_fee_fixed || 1,
-        platform_gateway_type: (data.platform_gateway_type as 'bspay' | 'pixup') || 'bspay',
+        platform_gateway_type: (data.platform_gateway_type as 'bspay' | 'pixup' | 'ghostpay') || 'bspay',
       };
       setSettings(processedSettings);
       setInitialSettings(processedSettings);
@@ -316,7 +316,7 @@ export default function AdminSettings() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               {/* BSPAY */}
               <div 
                 className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
@@ -362,6 +362,29 @@ export default function AdminSettings() {
                   </div>
                 </div>
               </div>
+
+              {/* GHOSTPAY */}
+              <div 
+                className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                  settings.platform_gateway_type === 'ghostpay' 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border hover:border-primary/50'
+                }`}
+                onClick={() => setSettings({ ...settings, platform_gateway_type: 'ghostpay' })}
+              >
+                {settings.platform_gateway_type === 'ghostpay' && (
+                  <CheckCircle className="absolute right-2 top-2 h-5 w-5 text-primary" />
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-500/10">
+                    <span className="font-bold text-purple-500">GP</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">GHOSTPAY</h3>
+                    <p className="text-sm text-muted-foreground">PIX, Cartão e Boleto</p>
+                  </div>
+                </div>
+              </div>
             </div>
             
             {/* Credentials Management */}
@@ -373,13 +396,13 @@ export default function AdminSettings() {
                 className="flex-1"
               >
                 <Key className="h-4 w-4 mr-2" />
-                Ver Credenciais do {settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'}
+                Ver Credenciais do {settings.platform_gateway_type === 'ghostpay' ? 'GHOSTPAY' : settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'}
               </Button>
             </div>
 
             <div className={`p-3 rounded-lg ${hasGatewayChanges ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-yellow-500/10 border-yellow-500/20'} border`}>
               <p className="text-sm">
-                <strong>Gateway selecionado:</strong> {settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'}
+                <strong>Gateway selecionado:</strong> {settings.platform_gateway_type === 'ghostpay' ? 'GHOSTPAY' : settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'}
                 {hasGatewayChanges ? (
                   <span className="text-yellow-600 dark:text-yellow-400 ml-2 font-medium">
                     ← Clique em "Salvar Gateway" para aplicar
@@ -406,7 +429,7 @@ export default function AdminSettings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Percent className="h-5 w-5 text-primary" />
-              Taxas Opção A - Gateway Plataforma ({settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'})
+              Taxas Opção A - Gateway Plataforma ({settings.platform_gateway_type === 'ghostpay' ? 'GHOSTPAY' : settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'})
             </CardTitle>
             <CardDescription>
               Taxas para vendedores que usam nosso gateway integrado
