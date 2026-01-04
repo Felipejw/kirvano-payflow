@@ -1680,6 +1680,11 @@ serve(async (req) => {
           globalClientSecret = Deno.env.get('PIXUP_CLIENT_SECRET');
           gatewaySlug = 'pixup';
           gatewayName = 'PIXUP (Plataforma)';
+        } else if (platformGatewayType === 'ghostpay') {
+          globalClientId = Deno.env.get('GHOSTPAY_COMPANY_ID');
+          globalClientSecret = Deno.env.get('GHOSTPAY_SECRET_KEY');
+          gatewaySlug = 'ghostpay';
+          gatewayName = 'GHOSTPAY (Plataforma)';
         } else {
           globalClientId = Deno.env.get('BSPAY_CLIENT_ID');
           globalClientSecret = Deno.env.get('BSPAY_CLIENT_SECRET');
