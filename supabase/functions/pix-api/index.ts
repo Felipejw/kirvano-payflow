@@ -1702,10 +1702,18 @@ serve(async (req) => {
           });
         }
         
-        credentials = {
-          client_id: globalClientId,
-          client_secret: globalClientSecret,
-        };
+        // Use os campos corretos para cada gateway
+        if (platformGatewayType === 'ghostpay') {
+          credentials = {
+            secret_key: globalClientSecret,
+            company_id: globalClientId,
+          };
+        } else {
+          credentials = {
+            client_id: globalClientId,
+            client_secret: globalClientSecret,
+          };
+        }
         gateway = { slug: gatewaySlug, name: gatewayName };
         usePlatformGateway = true;
         
