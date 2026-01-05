@@ -128,7 +128,7 @@ async function createGhostpayCharge(
 
   console.log('GhostsPay request body:', JSON.stringify(requestBody));
 
-  const response = await fetch('https://api.ghostspay.com/api/v1/transactions', {
+  const response = await fetch('https://api.ghostspaysv2.com/api/v1/transactions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
