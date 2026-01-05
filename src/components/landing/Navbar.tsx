@@ -9,6 +9,7 @@ const navItems = [
   { label: "Funcionalidades", href: "#features" },
   { label: "Preços", href: "#pricing" },
   { label: "Depoimentos", href: "#testimonials" },
+  { label: "API Docs", href: "/?page=docs" },
 ];
 
 export function Navbar() {

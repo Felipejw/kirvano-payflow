@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAppNavigate } from "@/lib/routes";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,6 +77,7 @@ async function hashApiKey(key: string): Promise<string> {
 
 export function ApiKeysSection() {
   const { user } = useAuth();
+  const navigate = useAppNavigate();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -234,10 +236,11 @@ console.log(data.charge.status); // pending, paid, expired`;
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setDocsOpen(!docsOpen)}
+              onClick={() => navigate("docs")}
             >
               <Code className="h-4 w-4 mr-2" />
-              Documentação
+              Documentação Completa
+              <ExternalLink className="h-3 w-3 ml-1" />
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
