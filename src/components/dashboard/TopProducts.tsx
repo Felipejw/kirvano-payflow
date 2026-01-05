@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Package, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { startOfDay, endOfDay } from "date-fns";
 
 interface TopProduct {
   id: string;
@@ -12,20 +13,29 @@ interface TopProduct {
   growth: string;
 }
 
-export function TopProducts() {
+interface DateRange {
+  from: Date;
+  to: Date;
+}
+
+interface TopProductsProps {
+  dateRange?: DateRange;
+  selectedProductIds?: string[];
+}
+
+export function TopProducts({ dateRange, selectedProductIds = [] }: TopProductsProps) {
   const [products, setProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchTopProducts();
-  }, []);
+  }, [dateRange, selectedProductIds]);
 
   const fetchTopProducts = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Fetch transactions with products
-    const { data: transactions } = await supabase
+    let query = supabase
       .from('transactions')
       .select(`
         amount,
@@ -38,6 +48,20 @@ export function TopProducts() {
       `)
       .eq('seller_id', user.id)
       .eq('status', 'paid');
+
+    // Apply date filter if provided
+    if (dateRange) {
+      query = query
+        .gte('created_at', startOfDay(dateRange.from).toISOString())
+        .lte('created_at', endOfDay(dateRange.to).toISOString());
+    }
+
+    // Apply product filter if provided
+    if (selectedProductIds.length > 0) {
+      query = query.in('product_id', selectedProductIds);
+    }
+
+    const { data: transactions } = await query;
 
     if (transactions) {
       // Group by product

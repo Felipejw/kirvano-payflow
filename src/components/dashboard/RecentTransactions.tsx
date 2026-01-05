@@ -28,19 +28,23 @@ const statusConfig = {
   cancelled: { label: "Cancelado", variant: "destructive" as const },
 };
 
-export function RecentTransactions() {
+interface RecentTransactionsProps {
+  selectedProductIds?: string[];
+}
+
+export function RecentTransactions({ selectedProductIds = [] }: RecentTransactionsProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [selectedProductIds]);
 
   const fetchTransactions = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('transactions')
       .select(`
         id,
@@ -58,6 +62,12 @@ export function RecentTransactions() {
       .eq('seller_id', user.id)
       .order('created_at', { ascending: false })
       .limit(5);
+
+    if (selectedProductIds.length > 0) {
+      query = query.in('product_id', selectedProductIds);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       const formattedData = data.map((tx: any) => ({

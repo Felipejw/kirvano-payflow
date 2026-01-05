@@ -10,6 +10,7 @@ import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ConversionFunnel, ConversionChart } from "@/components/dashboard/ConversionMetrics";
 import { GeneratePixDialog } from "@/components/dashboard/GeneratePixDialog";
 import { DateRangeFilter, DateRange, DateRangeOption } from "@/components/dashboard/DateRangeFilter";
+import { ProductFilter } from "@/components/dashboard/ProductFilter";
 import { startOfDay, endOfDay } from "date-fns";
 import { 
   DollarSign, 
@@ -50,6 +51,7 @@ const Dashboard = () => {
     from: startOfDay(new Date()),
     to: endOfDay(new Date()),
   });
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalRevenue: 0,
     totalSales: 0,
@@ -65,11 +67,11 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useAppNavigate();
 
-  const fetchDashboardStats = useCallback(async (userId: string, range: DateRange) => {
+  const fetchDashboardStats = useCallback(async (userId: string, range: DateRange, productIds: string[]) => {
     setLoading(true);
 
-    // Fetch paid transactions within date range
-    const { data: paidTransactions } = await supabase
+    // Build queries with optional product filter
+    let paidTransQuery = supabase
       .from('transactions')
       .select('*')
       .eq('seller_id', userId)
@@ -77,22 +79,32 @@ const Dashboard = () => {
       .gte('created_at', range.from.toISOString())
       .lte('created_at', range.to.toISOString());
 
-    // Fetch all PIX charges (generated) for conversion calculation within date range
-    const { data: pixCharges } = await supabase
+    let pixChargesQuery = supabase
       .from('pix_charges')
       .select('id, amount, status, buyer_email')
       .eq('seller_id', userId)
       .gte('created_at', range.from.toISOString())
       .lte('created_at', range.to.toISOString());
 
-    // Fetch pending transactions (cancelled/expired)
-    const { data: pendingTransactions } = await supabase
+    let pendingTransQuery = supabase
       .from('transactions')
       .select('amount')
       .eq('seller_id', userId)
       .in('status', ['pending', 'cancelled', 'expired'])
       .gte('created_at', range.from.toISOString())
       .lte('created_at', range.to.toISOString());
+
+    // Apply product filter if selected
+    if (productIds.length > 0) {
+      paidTransQuery = paidTransQuery.in('product_id', productIds);
+      pixChargesQuery = pixChargesQuery.in('product_id', productIds);
+      pendingTransQuery = pendingTransQuery.in('product_id', productIds);
+    }
+
+    // Execute queries
+    const { data: paidTransactions } = await paidTransQuery;
+    const { data: pixCharges } = await pixChargesQuery;
+    const { data: pendingTransactions } = await pendingTransQuery;
 
     // Calculate pending revenue from pix charges not paid
     const pendingPixRevenue = pixCharges
@@ -129,13 +141,19 @@ const Dashboard = () => {
     const previousPeriodEnd = new Date(range.from.getTime() - 1);
     const previousPeriodStart = new Date(previousPeriodEnd.getTime() - periodDuration);
 
-    const { data: previousPaidTransactions } = await supabase
+    let previousTransQuery = supabase
       .from('transactions')
       .select('amount')
       .eq('seller_id', userId)
       .eq('status', 'paid')
       .gte('created_at', previousPeriodStart.toISOString())
       .lte('created_at', previousPeriodEnd.toISOString());
+
+    if (productIds.length > 0) {
+      previousTransQuery = previousTransQuery.in('product_id', productIds);
+    }
+
+    const { data: previousPaidTransactions } = await previousTransQuery;
 
     const previousRevenue = previousPaidTransactions?.reduce((acc, t) => acc + Number(t.amount), 0) || 0;
     const previousSalesCount = previousPaidTransactions?.length || 0;
@@ -178,18 +196,25 @@ const Dashboard = () => {
         navigate("auth");
       } else {
         setUser(session.user);
-        fetchDashboardStats(session.user.id, dateRange);
+        fetchDashboardStats(session.user.id, dateRange, selectedProducts);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, fetchDashboardStats, dateRange]);
+  }, [navigate, fetchDashboardStats, dateRange, selectedProducts]);
 
   const handleDateRangeChange = (range: DateRange, option: DateRangeOption) => {
     setDateRange(range);
     setDateRangeOption(option);
     if (user) {
-      fetchDashboardStats(user.id, range);
+      fetchDashboardStats(user.id, range, selectedProducts);
+    }
+  };
+
+  const handleProductsChange = (productIds: string[]) => {
+    setSelectedProducts(productIds);
+    if (user) {
+      fetchDashboardStats(user.id, dateRange, productIds);
     }
   };
 
@@ -207,7 +232,7 @@ const Dashboard = () => {
               <Button 
                 variant="outline" 
                 size="icon"
-                onClick={() => user && fetchDashboardStats(user.id, dateRange)}
+                onClick={() => user && fetchDashboardStats(user.id, dateRange, selectedProducts)}
                 disabled={loading}
                 title="Atualizar dados"
               >
@@ -226,11 +251,17 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Date Range Filter */}
-          <DateRangeFilter 
-            onRangeChange={handleDateRangeChange}
-            selectedOption={dateRangeOption}
-          />
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <ProductFilter 
+              selectedProducts={selectedProducts}
+              onProductsChange={handleProductsChange}
+            />
+            <DateRangeFilter 
+              onRangeChange={handleDateRangeChange}
+              selectedOption={dateRangeOption}
+            />
+          </div>
         </div>
 
         {/* Stats Grid - Row 1 */}
@@ -339,23 +370,23 @@ const Dashboard = () => {
           <TabsContent value="overview" className="space-y-6">
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <SalesChart />
-              <TopProducts />
+              <SalesChart dateRange={dateRange} selectedProductIds={selectedProducts} />
+              <TopProducts dateRange={dateRange} selectedProductIds={selectedProducts} />
             </div>
 
             {/* Ticket Médio Chart */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <AverageTicketChart />
+              <AverageTicketChart dateRange={dateRange} selectedProductIds={selectedProducts} />
             </div>
 
             {/* Recent Transactions */}
-            <RecentTransactions />
+            <RecentTransactions selectedProductIds={selectedProducts} />
           </TabsContent>
 
           <TabsContent value="conversions" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <ConversionChart />
-              <ConversionFunnel />
+              <ConversionChart dateRange={dateRange} selectedProductIds={selectedProducts} />
+              <ConversionFunnel dateRange={dateRange} selectedProductIds={selectedProducts} />
             </div>
 
             {/* Conversion Tips */}

@@ -11,6 +11,16 @@ interface DailyTicketData {
   vendas: number;
 }
 
+interface DateRange {
+  from: Date;
+  to: Date;
+}
+
+interface AverageTicketChartProps {
+  dateRange?: DateRange;
+  selectedProductIds?: string[];
+}
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -28,33 +38,42 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function AverageTicketChart() {
+export function AverageTicketChart({ dateRange, selectedProductIds = [] }: AverageTicketChartProps) {
   const [data, setData] = useState<DailyTicketData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchTicketData();
-  }, []);
+  }, [dateRange, selectedProductIds]);
 
   const fetchTicketData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const now = new Date();
-    const sevenDaysAgo = startOfDay(subDays(now, 6));
+    const now = dateRange?.to || new Date();
+    const startDate = dateRange?.from || startOfDay(subDays(new Date(), 6));
 
-    const { data: transactions } = await supabase
+    let query = supabase
       .from('transactions')
       .select('amount, created_at')
       .eq('seller_id', user.id)
       .eq('status', 'paid')
-      .gte('created_at', sevenDaysAgo.toISOString())
+      .gte('created_at', startOfDay(startDate).toISOString())
       .lte('created_at', endOfDay(now).toISOString());
 
-    // Initialize last 7 days with zero
+    if (selectedProductIds.length > 0) {
+      query = query.in('product_id', selectedProductIds);
+    }
+
+    const { data: transactions } = await query;
+
+    // Calculate days in range
+    const daysDiff = Math.ceil((endOfDay(now).getTime() - startOfDay(startDate).getTime()) / (1000 * 60 * 60 * 24));
+
+    // Initialize all days with zero
     const dailyData: Map<string, { total: number; count: number }> = new Map();
     
-    for (let i = 6; i >= 0; i--) {
+    for (let i = daysDiff - 1; i >= 0; i--) {
       const date = subDays(now, i);
       const key = format(date, 'yyyy-MM-dd');
       dailyData.set(key, { total: 0, count: 0 });
@@ -77,7 +96,7 @@ export function AverageTicketChart() {
 
     // Convert to array format with average calculation
     const chartData: DailyTicketData[] = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = daysDiff - 1; i >= 0; i--) {
       const date = subDays(now, i);
       const key = format(date, 'yyyy-MM-dd');
       const dayData = dailyData.get(key) || { total: 0, count: 0 };

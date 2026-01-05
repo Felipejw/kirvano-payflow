@@ -26,7 +26,17 @@ interface ConversionDataItem {
   paid: number;
 }
 
-export function ConversionFunnel() {
+interface DateRange {
+  from: Date;
+  to: Date;
+}
+
+interface ConversionFunnelProps {
+  dateRange?: DateRange;
+  selectedProductIds?: string[];
+}
+
+export function ConversionFunnel({ dateRange, selectedProductIds = [] }: ConversionFunnelProps) {
   const [funnelData, setFunnelData] = useState<FunnelItem[]>([
     { name: "PIX Gerado", value: 0, fill: "hsl(var(--primary))" },
     { name: "Pagos", value: 0, fill: "hsl(var(--accent))" },
@@ -35,37 +45,46 @@ export function ConversionFunnel() {
 
   useEffect(() => {
     fetchFunnelData();
-  }, []);
+  }, [dateRange, selectedProductIds]);
 
   const fetchFunnelData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Get all transactions for this seller
-    const { data: allTransactions } = await supabase
-      .from('transactions')
+    const now = dateRange?.to || new Date();
+    const startDate = dateRange?.from || startOfDay(subDays(new Date(), 6));
+
+    // Get PIX charges
+    let pixQuery = supabase
+      .from('pix_charges')
       .select('status')
-      .eq('seller_id', user.id);
+      .eq('seller_id', user.id)
+      .gte('created_at', startOfDay(startDate).toISOString())
+      .lte('created_at', endOfDay(now).toISOString());
 
-    // Get all pix_charges for products owned by this seller
-    const { data: products } = await supabase
-      .from('products')
-      .select('id')
-      .eq('seller_id', user.id);
-
-    const productIds = products?.map(p => p.id) || [];
-
-    let pixCharges: any[] = [];
-    if (productIds.length > 0) {
-      const { data: charges } = await supabase
-        .from('pix_charges')
-        .select('status')
-        .in('product_id', productIds);
-      pixCharges = charges || [];
+    if (selectedProductIds.length > 0) {
+      pixQuery = pixQuery.in('product_id', selectedProductIds);
     }
 
-    const pixGenerated = pixCharges.length || allTransactions?.length || 0;
-    const paidCount = allTransactions?.filter(t => t.status === 'paid').length || 0;
+    const { data: pixCharges } = await pixQuery;
+
+    // Get paid transactions
+    let transQuery = supabase
+      .from('transactions')
+      .select('status')
+      .eq('seller_id', user.id)
+      .eq('status', 'paid')
+      .gte('created_at', startOfDay(startDate).toISOString())
+      .lte('created_at', endOfDay(now).toISOString());
+
+    if (selectedProductIds.length > 0) {
+      transQuery = transQuery.in('product_id', selectedProductIds);
+    }
+
+    const { data: transactions } = await transQuery;
+
+    const pixGenerated = pixCharges?.length || 0;
+    const paidCount = transactions?.length || 0;
 
     setFunnelData([
       { name: "PIX Gerado", value: pixGenerated, fill: "hsl(var(--primary))" },
@@ -139,42 +158,62 @@ export function ConversionFunnel() {
   );
 }
 
-export function ConversionChart() {
+interface ConversionChartProps {
+  dateRange?: DateRange;
+  selectedProductIds?: string[];
+}
+
+export function ConversionChart({ dateRange, selectedProductIds = [] }: ConversionChartProps) {
   const [conversionData, setConversionData] = useState<ConversionDataItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchConversionData();
-  }, []);
+  }, [dateRange, selectedProductIds]);
 
   const fetchConversionData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const now = new Date();
-    const sevenDaysAgo = startOfDay(subDays(now, 6));
+    const now = dateRange?.to || new Date();
+    const startDate = dateRange?.from || startOfDay(subDays(new Date(), 6));
 
-    // Get all PIX charges (generated) for the last 7 days
-    const { data: pixCharges } = await supabase
+    // Get all PIX charges (generated) for the period
+    let pixQuery = supabase
       .from('pix_charges')
       .select('id, created_at, status')
       .eq('seller_id', user.id)
-      .gte('created_at', sevenDaysAgo.toISOString())
+      .gte('created_at', startOfDay(startDate).toISOString())
       .lte('created_at', endOfDay(now).toISOString());
 
-    // Get paid transactions for the last 7 days
-    const { data: paidTransactions } = await supabase
+    if (selectedProductIds.length > 0) {
+      pixQuery = pixQuery.in('product_id', selectedProductIds);
+    }
+
+    const { data: pixCharges } = await pixQuery;
+
+    // Get paid transactions for the period
+    let transQuery = supabase
       .from('transactions')
       .select('id, created_at')
       .eq('seller_id', user.id)
       .eq('status', 'paid')
-      .gte('created_at', sevenDaysAgo.toISOString())
+      .gte('created_at', startOfDay(startDate).toISOString())
       .lte('created_at', endOfDay(now).toISOString());
 
-    // Initialize last 7 days
+    if (selectedProductIds.length > 0) {
+      transQuery = transQuery.in('product_id', selectedProductIds);
+    }
+
+    const { data: paidTransactions } = await transQuery;
+
+    // Calculate days in range
+    const daysDiff = Math.ceil((endOfDay(now).getTime() - startOfDay(startDate).getTime()) / (1000 * 60 * 60 * 24));
+
+    // Initialize days
     const dailyData: Map<string, { total: number; paid: number }> = new Map();
     
-    for (let i = 6; i >= 0; i--) {
+    for (let i = daysDiff - 1; i >= 0; i--) {
       const date = subDays(now, i);
       const key = format(date, 'yyyy-MM-dd');
       dailyData.set(key, { total: 0, paid: 0 });
@@ -208,7 +247,7 @@ export function ConversionChart() {
 
     // Convert to array format
     const chartData: ConversionDataItem[] = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = daysDiff - 1; i >= 0; i--) {
       const date = subDays(now, i);
       const key = format(date, 'yyyy-MM-dd');
       const dayData = dailyData.get(key)!;
