@@ -47,6 +47,7 @@ import Withdrawals from "./pages/Withdrawals";
 import Quizzes from "./pages/Quizzes";
 import QuizBuilder from "./pages/QuizBuilder";
 import QuizPlayer from "./pages/QuizPlayer";
+import ApiDocs from "./pages/ApiDocs";
 import { getUrlParam } from "./lib/routes";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
@@ -93,6 +94,8 @@ function PageRouter() {
       return <Auth />;
     case "checkout":
       return <Checkout />;
+    case "docs":
+      return <ApiDocs />;
     case "dashboard":
       return <Dashboard />;
     case "dashboard/products":

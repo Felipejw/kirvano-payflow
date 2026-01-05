@@ -489,6 +489,47 @@ export type Database = {
         }
         Relationships: []
       }
+      external_webhook_logs: {
+        Row: {
+          error_message: string | null
+          event_type: string
+          id: string
+          payload: Json | null
+          response_body: string | null
+          response_status: number | null
+          sent_at: string | null
+          webhook_id: string | null
+        }
+        Insert: {
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload?: Json | null
+          response_body?: string | null
+          response_status?: number | null
+          sent_at?: string | null
+          webhook_id?: string | null
+        }
+        Update: {
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          response_body?: string | null
+          response_status?: number | null
+          sent_at?: string | null
+          webhook_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_webhook_logs_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_email_logs: {
         Row: {
           created_at: string
@@ -1913,6 +1954,42 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      webhook_configs: {
+        Row: {
+          created_at: string | null
+          events: string[] | null
+          failure_count: number | null
+          id: string
+          is_active: boolean | null
+          last_triggered_at: string | null
+          secret: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          events?: string[] | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          secret: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          events?: string[] | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          secret?: string
+          url?: string
           user_id?: string
         }
         Relationships: []

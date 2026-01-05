@@ -7,6 +7,7 @@ export const PAGES = {
   home: "",
   auth: "auth",
   checkout: "checkout",
+  docs: "docs",
   
   // Dashboard
   dashboard: "dashboard",
