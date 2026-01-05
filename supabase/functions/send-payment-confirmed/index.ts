@@ -28,6 +28,8 @@ interface PaymentConfirmedRequest {
   send_whatsapp?: boolean;
   has_members_area?: boolean;
   member_id?: string;
+  member_password?: string;
+  is_new_member?: boolean;
 }
 
 const formatCurrency = (value: number) => {
@@ -100,6 +102,14 @@ const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
     minute: '2-digit'
   });
 
+  // Determine the password to display
+  const displayPassword = data.member_password || '123456';
+  const passwordNote = data.is_new_member && data.member_password 
+    ? `<p style="color: #10b981; font-size: 12px; margin: 8px 0 0 0;">
+        ✨ <strong>Sua senha foi gerada automaticamente.</strong>
+       </p>`
+    : '';
+
   // Seção de acesso à área de membros (só aparece se o produto tiver área de membros)
   const membersAccessSection = data.has_members_area !== false ? `
       <!-- Member Access Section -->
@@ -122,10 +132,11 @@ const sendConfirmationEmail = async (data: PaymentConfirmedRequest) => {
               <td style="color: #ffffff; padding: 8px 0; font-size: 14px; font-weight: 600; text-align: right;">${data.buyer_email}</td>
             </tr>
             <tr>
-              <td style="color: #9ca3af; padding: 8px 0; font-size: 14px; text-align: left;">🔑 Senha Padrão:</td>
-              <td style="color: #fbbf24; padding: 8px 0; font-size: 16px; font-weight: bold; text-align: right; font-family: monospace;">123456</td>
+              <td style="color: #9ca3af; padding: 8px 0; font-size: 14px; text-align: left;">🔑 Senha:</td>
+              <td style="color: #fbbf24; padding: 8px 0; font-size: 16px; font-weight: bold; text-align: right; font-family: monospace;">${displayPassword}</td>
             </tr>
           </table>
+          ${passwordNote}
         </div>
         
         <a href="https://gatteflow.store/?page=members/login" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 16px; margin-bottom: 12px;">
@@ -337,6 +348,9 @@ const sendConfirmationWhatsApp = async (data: PaymentConfirmedRequest) => {
     minute: '2-digit'
   });
 
+  // Determine the password to display for WhatsApp
+  const whatsappPassword = data.member_password || '123456';
+
   // Seção de acesso à área de membros no WhatsApp
   const membersAccessSection = data.has_members_area !== false ? `
 
@@ -344,7 +358,7 @@ const sendConfirmationWhatsApp = async (data: PaymentConfirmedRequest) => {
 
 🌐 Link: https://gatteflow.store/?page=members/login
 📧 Email: ${data.buyer_email}
-🔑 Senha: 123456
+🔑 Senha: ${whatsappPassword}
 
 ⚠️ Recomendamos alterar sua senha após o primeiro acesso.` : '';
 

@@ -1332,6 +1332,30 @@ async function processPaymentConfirmation(
 ): Promise<void> {
   console.log('Processing payment confirmation for charge:', charge.id);
   
+  // Re-check charge status to prevent duplicate processing
+  const { data: currentCharge } = await supabase
+    .from('pix_charges')
+    .select('status')
+    .eq('id', charge.id)
+    .single();
+
+  if (currentCharge?.status === 'paid') {
+    console.log('Charge already paid, skipping duplicate processing:', charge.id);
+    return;
+  }
+
+  // Check if transaction already exists for this charge (extra safety)
+  const { data: existingTransaction } = await supabase
+    .from('transactions')
+    .select('id')
+    .eq('charge_id', charge.id)
+    .maybeSingle();
+
+  if (existingTransaction) {
+    console.log('Transaction already exists for charge, skipping:', charge.id);
+    return;
+  }
+  
   // Update charge status
   await supabase
     .from('pix_charges')
@@ -1413,8 +1437,10 @@ async function processPaymentConfirmation(
     }
   }
 
-  // Variable to store member ID for payment confirmation email logging
+  // Variables to store member info for payment confirmation email
   let memberId: string | null = null;
+  let memberPassword: string | null = null;
+  let isNewMember = false;
 
   // Create membership for buyer and send access email
   if (charge.product_id && charge.buyer_email) {
@@ -1427,6 +1453,12 @@ async function processPaymentConfirmation(
         transaction?.id
       );
       console.log('Membership created:', membershipResult);
+      
+      // Store password for new users
+      if (membershipResult.isNewUser && membershipResult.password) {
+        memberPassword = membershipResult.password;
+        isNewMember = true;
+      }
       
       // Get the member ID for email logging
       const { data: memberData } = await supabase
@@ -1442,34 +1474,11 @@ async function processPaymentConfirmation(
       // Check if auto email sending is enabled for this product (default: true)
       const autoSendEnabled = charge.products?.auto_send_access_email ?? true;
       
+      // NOTE: We no longer send a separate access email here because
+      // the send-payment-confirmed function already includes access credentials.
+      // This prevents duplicate emails being sent to buyers.
       if (autoSendEnabled) {
-        // Send automatic access email
-        try {
-          const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-member-access-email`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-            },
-            body: JSON.stringify({
-              memberEmail: charge.buyer_email,
-              memberName: charge.buyer_name,
-              productName: charge.products?.name || 'Produto',
-              productId: charge.product_id,
-              memberId: memberData?.id,
-              autoSend: true,
-              password: membershipResult.isNewUser ? membershipResult.password : null,
-            }),
-          });
-          
-          if (emailResponse.ok) {
-            console.log('Access email sent automatically to:', charge.buyer_email);
-          } else {
-            console.error('Failed to send access email:', await emailResponse.text());
-          }
-        } catch (emailError) {
-          console.error('Error sending access email:', emailError);
-        }
+        console.log('Access info will be included in payment confirmation email for:', charge.buyer_email);
       } else {
         console.log('Auto email disabled for product:', charge.product_id);
       }
@@ -1534,6 +1543,8 @@ async function processPaymentConfirmation(
       send_whatsapp: !!charge.buyer_phone,
       has_members_area: !!charge.product_id,
       member_id: memberId,
+      member_password: memberPassword,
+      is_new_member: isNewMember,
     };
     
     console.log('Sending payment confirmed notification to buyer with member_id:', memberId);
