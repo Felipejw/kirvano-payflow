@@ -98,7 +98,7 @@ export function ApiKeysSection() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedProductId, setSelectedProductId] = useState<string>("all");
   const [showNewKey, setShowNewKey] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
@@ -166,14 +166,14 @@ export function ApiKeysSection() {
           key_hash: keyHash,
           key_prefix: keyPrefix,
           status: 'active',
-          product_id: selectedProductId || null,
+          product_id: selectedProductId === 'all' ? null : selectedProductId || null,
         });
 
       if (error) throw error;
 
       setShowNewKey(newKey);
       setNewKeyName("");
-      setSelectedProductId("");
+      setSelectedProductId("all");
       setDialogOpen(false);
       await fetchApiKeys();
       toast.success('API key criada com sucesso!');
@@ -312,7 +312,7 @@ console.log(data.charge.status); // pending, paid, expired`;
                         <SelectValue placeholder="Todos os produtos" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos os produtos</SelectItem>
+                        <SelectItem value="all">Todos os produtos</SelectItem>
                         {products.map((product) => (
                           <SelectItem key={product.id} value={product.id}>
                             {product.name}
