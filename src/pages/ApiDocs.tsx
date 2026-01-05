@@ -163,7 +163,7 @@ export default function ApiDocs() {
               <ParameterTable
                 title="Body (JSON)"
                 parameters={[
-                  { name: "product_id", type: "string", required: true, description: "ID do produto cadastrado no GateFlow", example: "uuid-do-produto" },
+                  { name: "product_id", type: "string", required: false, description: "ID do produto. Opcional se a API Key estiver vinculada a um produto.", example: "uuid-do-produto" },
                   { name: "amount", type: "number", required: true, description: "Valor em reais (ex: 99.90)", example: "99.90" },
                   { name: "buyer_email", type: "string", required: true, description: "E-mail do comprador", example: "cliente@email.com" },
                   { name: "buyer_name", type: "string", required: false, description: "Nome do comprador", example: "João Silva" },

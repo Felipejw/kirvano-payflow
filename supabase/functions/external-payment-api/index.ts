@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface CreateChargeRequest {
-  product_id: string;
+  product_id?: string; // Now optional - can be inferred from API key
   amount: number;
   buyer_email: string;
   buyer_name?: string;
@@ -50,7 +50,7 @@ async function generateSignature(payload: string, secret: string): Promise<strin
 }
 
 // Validate API key and return seller info
-async function validateApiKey(supabase: any, apiKey: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
+async function validateApiKey(supabase: any, apiKey: string): Promise<{ valid: boolean; userId?: string; productId?: string | null; error?: string }> {
   if (!apiKey) {
     return { valid: false, error: 'API key is required' };
   }
@@ -63,7 +63,7 @@ async function validateApiKey(supabase: any, apiKey: string): Promise<{ valid: b
 
   const { data: keyData, error } = await supabase
     .from('api_keys')
-    .select('id, user_id, status, expires_at, rate_limit')
+    .select('id, user_id, status, expires_at, rate_limit, product_id')
     .eq('key_prefix', prefix)
     .eq('key_hash', keyHash)
     .single();
@@ -87,7 +87,7 @@ async function validateApiKey(supabase: any, apiKey: string): Promise<{ valid: b
     .update({ last_used_at: new Date().toISOString() })
     .eq('id', keyData.id);
 
-  return { valid: true, userId: keyData.user_id };
+  return { valid: true, userId: keyData.user_id, productId: keyData.product_id };
 }
 
 // Get platform gateway credentials
@@ -269,13 +269,27 @@ serve(async (req) => {
       const body: CreateChargeRequest = await req.json();
       console.log('Create charge request:', JSON.stringify(body));
 
+      // Determine product_id: prioritize request body, then API key
+      const productId = body.product_id || validation.productId;
+
       // Validate required fields
-      if (!body.product_id || !body.amount || !body.buyer_email) {
+      if (!body.amount || !body.buyer_email) {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Missing required fields: product_id, amount, buyer_email',
+            error: 'Missing required fields: amount, buyer_email',
             code: 'MISSING_FIELDS'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!productId) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'product_id is required. Either provide it in the request or link a product to your API key.',
+            code: 'MISSING_PRODUCT_ID'
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -285,7 +299,7 @@ serve(async (req) => {
       const { data: product, error: productError } = await supabase
         .from('products')
         .select('id, name, seller_id, price')
-        .eq('id', body.product_id)
+        .eq('id', productId)
         .eq('seller_id', validation.userId)
         .single();
 
@@ -319,7 +333,7 @@ serve(async (req) => {
         .from('pix_charges')
         .insert({
           external_id: externalId,
-          product_id: body.product_id,
+          product_id: productId,
           seller_id: validation.userId,
           amount: body.amount,
           buyer_email: body.buyer_email,
@@ -351,7 +365,7 @@ serve(async (req) => {
           amount: body.amount,
           buyer_email: body.buyer_email,
           buyer_name: body.buyer_name,
-          product_id: body.product_id,
+          product_id: productId,
           charge_id: charge.id,
           external_id: externalId,
           gateway_response: { gateway_transaction_id: chargeResult.transactionId },
