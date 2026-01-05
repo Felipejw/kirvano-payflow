@@ -302,6 +302,20 @@ const Products = () => {
                       </div>
                     )}
 
+                    {/* Product ID */}
+                    <div 
+                      className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 rounded px-2 py-1 cursor-pointer hover:bg-secondary transition-colors"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await navigator.clipboard.writeText(product.id);
+                        toast.success("ID copiado!");
+                      }}
+                      title="Clique para copiar o ID"
+                    >
+                      <Copy className="h-3 w-3" />
+                      <span className="font-mono truncate">ID: {product.id}</span>
+                    </div>
+
                     <div className="flex items-center justify-between pt-2 border-t border-border/50">
                       <div>
                         <p className="text-lg font-bold">
