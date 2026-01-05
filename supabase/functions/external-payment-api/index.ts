@@ -116,24 +116,43 @@ async function createGhostpayCharge(
 
   const requestBody = {
     amount: Math.round(amount * 100), // Convert to cents
-    paymentMethod: 'pix',
+    paymentMethod: 'PIX',
     customer: {
       name: buyerName || 'Cliente',
       email: buyerEmail,
-      document: buyerDocument?.replace(/\D/g, '') || '00000000000',
+      document: {
+        number: buyerDocument?.replace(/\D/g, '') || '00000000000',
+        type: 'CPF'
+      }
     },
-    externalReference: externalId,
-    expiresInMinutes,
+    items: [
+      {
+        title: 'Pagamento via API',
+        unitPrice: Math.round(amount * 100),
+        quantity: 1,
+        externalRef: externalId
+      }
+    ],
+    pix: {
+      expiresInDays: 1
+    },
+    metadata: {
+      external_id: externalId
+    }
   };
 
   console.log('GhostsPay request body:', JSON.stringify(requestBody));
 
-  const response = await fetch('https://api.ghostspaysv2.com/api/v1/transactions', {
+  // Create Basic Auth header
+  const authString = `${credentials.secretKey}:${credentials.companyId}`;
+  const authBase64 = btoa(authString);
+
+  const response = await fetch('https://api.ghostspaysv2.com/functions/v1/transactions', {
     method: 'POST',
     headers: {
+      'Authorization': `Basic ${authBase64}`,
       'Content-Type': 'application/json',
-      'X-Company-ID': credentials.companyId,
-      'X-Secret-Key': credentials.secretKey,
+      'Accept': 'application/json',
     },
     body: JSON.stringify(requestBody),
   });
