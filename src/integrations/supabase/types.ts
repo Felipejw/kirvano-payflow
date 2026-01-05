@@ -68,6 +68,7 @@ export type Database = {
           last_used_at: string | null
           name: string
           permissions: string[]
+          product_id: string | null
           rate_limit: number
           status: string
           user_id: string
@@ -81,6 +82,7 @@ export type Database = {
           last_used_at?: string | null
           name: string
           permissions?: string[]
+          product_id?: string | null
           rate_limit?: number
           status?: string
           user_id: string
@@ -94,11 +96,20 @@ export type Database = {
           last_used_at?: string | null
           name?: string
           permissions?: string[]
+          product_id?: string | null
           rate_limit?: number
           status?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       broadcast_templates: {
         Row: {

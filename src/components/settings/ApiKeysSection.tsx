@@ -18,8 +18,16 @@ import {
   RefreshCw,
   Code,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  Package
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +62,13 @@ interface ApiKey {
   created_at: string;
   last_used_at: string | null;
   expires_at: string | null;
+  product_id: string | null;
+  products?: { name: string } | null;
+}
+
+interface Product {
+  id: string;
+  name: string;
 }
 
 // Generate a secure API key
@@ -79,9 +94,11 @@ export function ApiKeysSection() {
   const { user } = useAuth();
   const navigate = useAppNavigate();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [showNewKey, setShowNewKey] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
@@ -92,7 +109,7 @@ export function ApiKeysSection() {
     try {
       const { data, error } = await supabase
         .from('api_keys')
-        .select('id, name, key_prefix, status, created_at, last_used_at, expires_at')
+        .select('id, name, key_prefix, status, created_at, last_used_at, expires_at, product_id, products(name)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -106,8 +123,27 @@ export function ApiKeysSection() {
     }
   };
 
+  const fetchProducts = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name')
+        .eq('seller_id', user.id)
+        .eq('status', 'active')
+        .order('name');
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  };
+
   useEffect(() => {
     fetchApiKeys();
+    fetchProducts();
   }, [user]);
 
   const handleCreateKey = async () => {
@@ -130,12 +166,15 @@ export function ApiKeysSection() {
           key_hash: keyHash,
           key_prefix: keyPrefix,
           status: 'active',
+          product_id: selectedProductId || null,
         });
 
       if (error) throw error;
 
       setShowNewKey(newKey);
       setNewKeyName("");
+      setSelectedProductId("");
+      setDialogOpen(false);
       await fetchApiKeys();
       toast.success('API key criada com sucesso!');
     } catch (error) {
@@ -266,6 +305,25 @@ console.log(data.charge.status); // pending, paid, expired`;
                       onChange={(e) => setNewKeyName(e.target.value)}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="productId">Vincular a Produto (opcional)</Label>
+                    <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos os produtos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos os produtos</SelectItem>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Se vinculado, o product_id será opcional nas chamadas da API
+                    </p>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -392,6 +450,12 @@ console.log(data.charge.status); // pending, paid, expired`;
                     <Badge variant={key.status === 'active' ? 'default' : 'secondary'}>
                       {key.status === 'active' ? 'Ativa' : 'Inativa'}
                     </Badge>
+                    {key.products?.name && (
+                      <Badge variant="outline" className="gap-1">
+                        <Package className="h-3 w-3" />
+                        {key.products.name}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <code>{key.key_prefix}...</code>
