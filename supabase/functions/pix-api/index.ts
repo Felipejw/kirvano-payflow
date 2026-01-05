@@ -2513,10 +2513,27 @@ serve(async (req) => {
       
       console.log('Ghostpay webhook - body:', JSON.stringify(body));
       
-      // Ghostpay sends transaction info with status
-      const transactionId = body.id || body.transaction_id;
-      const status = body.status;
-      const externalId = body.metadata?.external_id;
+      // GhostsPay sends transaction data inside body.data
+      const transactionData = body.data || body;
+      
+      // Parse metadata if it's a string (GhostsPay sends it as JSON string)
+      let metadata: any = {};
+      if (typeof transactionData.metadata === 'string') {
+        try {
+          metadata = JSON.parse(transactionData.metadata);
+        } catch (e) {
+          console.log('Could not parse metadata string:', transactionData.metadata);
+        }
+      } else if (transactionData.metadata) {
+        metadata = transactionData.metadata;
+      }
+      
+      // Get the correct transaction ID and status from the nested data
+      const transactionId = transactionData.id || body.objectId || body.id;
+      const status = transactionData.status || body.status;
+      const externalId = metadata.external_id || transactionData.external_id;
+      
+      console.log('Ghostpay webhook parsed:', { transactionId, status, externalId, metadata });
       
       // Process payment notifications
       if (transactionId && status === 'paid') {
