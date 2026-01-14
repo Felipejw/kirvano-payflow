@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Ban, Wallet, Clock, Sparkles, Calculator } from "lucide-react";
+import { ArrowRight, Wallet, Clock, Sparkles, Calculator } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getPageUrl } from "@/lib/routes";
 
@@ -78,8 +78,7 @@ export function Hero() {
 
           {/* Feature Pills - Diferenciais */}
           <div className="flex flex-wrap items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '300ms' }}>
-            {[
-              { icon: Ban, text: "0 Estorno", color: "text-destructive", hoverBg: "hover:bg-destructive/10" },
+          {[
               { icon: Wallet, text: "Sem Taxa de Saque", color: "text-accent", hoverBg: "hover:bg-accent/10" },
               { icon: Clock, text: "Saque 24/7", color: "text-primary", hoverBg: "hover:bg-primary/10" },
             ].map((item, index) => (
