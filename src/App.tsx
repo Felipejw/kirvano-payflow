@@ -28,7 +28,7 @@ import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage";
 import AdminInvoicesPage from "./pages/admin/AdminInvoicesPage";
 import AdminGatewaysPage from "./pages/admin/AdminGatewaysPage";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminSuggestions from "./pages/admin/AdminSuggestions";
+
 import AdminRecovery from "./pages/admin/AdminRecovery";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminInstagramPosts from "./pages/admin/AdminInstagramPosts";
@@ -40,7 +40,7 @@ import Recovery from "./pages/Recovery";
 import MembersLogin from "./pages/members/MembersLogin";
 import MemberProduct from "./pages/members/MemberProduct";
 import Clients from "./pages/Clients";
-import Suggestions from "./pages/Suggestions";
+
 import Members from "./pages/Members";
 import MembersConfig from "./pages/members/MembersConfig";
 import Withdrawals from "./pages/Withdrawals";
@@ -116,8 +116,6 @@ function PageRouter() {
       return <Members />;
     case "dashboard/members/config":
       return <MembersConfig />;
-    case "dashboard/suggestions":
-      return <Suggestions />;
     case "dashboard/recovery":
       return <Recovery />;
     case "dashboard/withdrawals":
@@ -152,8 +150,6 @@ function PageRouter() {
       return <AdminGatewaysPage />;
     case "admin/analytics":
       return <AdminAnalytics />;
-    case "admin/suggestions":
-      return <AdminSuggestions />;
     case "admin/settings":
       return <AdminSettings />;
     case "admin/instagram-posts":

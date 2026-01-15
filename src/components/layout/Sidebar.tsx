@@ -11,7 +11,6 @@ import {
   Menu,
   Shield,
   TrendingUp,
-  Lightbulb,
   UserCheck,
   RefreshCw,
   Instagram,
@@ -75,12 +74,11 @@ const adminMenuItems = [
   { icon: Send, label: "Disparo WhatsApp", page: "admin/broadcast" },
   { icon: Mail, label: "Disparo Email", page: "admin/email-broadcast" },
   { icon: Instagram, label: "Posts Instagram", page: "admin/instagram-posts" },
-  { icon: Lightbulb, label: "Sugestões", page: "admin/suggestions" },
+  
   { icon: Settings, label: "Configurações", page: "admin/settings" },
 ];
 
 const bottomMenuItems = [
-  { icon: Lightbulb, label: "Sugestões", page: "dashboard/suggestions" },
   { icon: Settings, label: "Configurações", page: "dashboard/settings" },
 ];
 
