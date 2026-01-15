@@ -6,7 +6,6 @@ import { WhiteLabelSection } from "@/components/sales/WhiteLabelSection";
 import { EarningModelsSection } from "@/components/sales/EarningModelsSection";
 import { ClosingOffer } from "@/components/sales/ClosingOffer";
 import { SalesFAQ } from "@/components/sales/SalesFAQ";
-import { FinalClosing } from "@/components/sales/FinalClosing";
 
 const SalesPage = () => {
   const handleBuyClick = () => {
@@ -37,9 +36,6 @@ const SalesPage = () => {
       
       {/* Section 6 - FAQ */}
       <SalesFAQ onBuyClick={handleBuyClick} />
-      
-      {/* Final Closing - NO FOOTER AFTER THIS */}
-      <FinalClosing onBuyClick={handleBuyClick} />
       
       {/* Fixed CTA Bar */}
       <FixedCTA onBuyClick={handleBuyClick} />
