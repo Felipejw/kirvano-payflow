@@ -22,7 +22,6 @@ export const PAGES = {
   paymentMethods: "dashboard/payment-methods",
   finance: "dashboard/finance",
   settings: "dashboard/settings",
-  suggestions: "dashboard/suggestions",
   
   // Admin
   admin: "admin",
@@ -36,7 +35,7 @@ export const PAGES = {
   adminInvoices: "admin/invoices",
   adminGateways: "admin/gateways",
   adminAnalytics: "admin/analytics",
-  adminSuggestions: "admin/suggestions",
+  
   adminSettings: "admin/settings",
   adminRecovery: "admin/recovery",
   adminInstagramPosts: "admin/instagram-posts",
