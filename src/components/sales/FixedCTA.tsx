@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface FixedCTAProps {
@@ -29,7 +29,7 @@ export const FixedCTA = ({ onBuyClick }: FixedCTAProps) => {
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
         >
-          <div className="container max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div className="container max-w-5xl mx-auto px-4 py-3 flex items-center justify-center sm:justify-between gap-4">
             <div className="hidden sm:block">
               <p className="text-sm font-medium text-foreground">
                 Sistema completo por apenas <span className="text-accent font-bold">R$97</span>
@@ -39,9 +39,10 @@ export const FixedCTA = ({ onBuyClick }: FixedCTAProps) => {
             
             <Button
               onClick={onBuyClick}
-              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6 py-2 h-auto flex-shrink-0 hover:scale-105 transition-transform"
+              size="lg"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-8 py-4 h-auto flex-shrink-0 hover:scale-105 transition-transform text-base"
             >
-              <ShieldCheck className="w-4 h-4 mr-2" />
+              <ShoppingCart className="w-5 h-5 mr-2" />
               Comprar Agora por R$97
             </Button>
           </div>
