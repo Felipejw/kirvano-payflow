@@ -1,6 +1,7 @@
 import { SalesHero } from "@/components/sales/SalesHero";
 import { FixedCTA } from "@/components/sales/FixedCTA";
 import { UseOwnSection } from "@/components/sales/UseOwnSection";
+import { SystemShowcaseSection } from "@/components/sales/SystemShowcaseSection";
 import { CompleteSystemSection } from "@/components/sales/CompleteSystemSection";
 import { WhiteLabelSection } from "@/components/sales/WhiteLabelSection";
 import { EarningModelsSection } from "@/components/sales/EarningModelsSection";
@@ -20,19 +21,22 @@ const SalesPage = () => {
       {/* Section 1 - Use for yourself */}
       <UseOwnSection onBuyClick={handleBuyClick} />
       
-      {/* Section 2 - Complete System */}
+      {/* Section 2 - System Showcase with real screenshots */}
+      <SystemShowcaseSection />
+      
+      {/* Section 3 - Complete System features list */}
       <CompleteSystemSection onBuyClick={handleBuyClick} />
       
-      {/* Section 3 - White Label */}
+      {/* Section 4 - White Label */}
       <WhiteLabelSection />
       
-      {/* Section 4 - Earning Models */}
+      {/* Section 5 - Earning Models */}
       <EarningModelsSection onBuyClick={handleBuyClick} />
       
-      {/* Section 5 - Closing Offer */}
+      {/* Section 6 - Closing Offer */}
       <ClosingOffer onBuyClick={handleBuyClick} />
       
-      {/* Section 6 - FAQ */}
+      {/* Section 7 - FAQ */}
       <SalesFAQ onBuyClick={handleBuyClick} />
       
       {/* Fixed CTA Bar */}
