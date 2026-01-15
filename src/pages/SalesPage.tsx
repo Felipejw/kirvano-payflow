@@ -20,7 +20,7 @@ const SalesPage = () => {
       <SalesHero onBuyClick={handleBuyClick} />
       
       {/* Section 1 - Use for yourself */}
-      <UseOwnSection />
+      <UseOwnSection onBuyClick={handleBuyClick} />
       
       {/* Section 2 - Complete System */}
       <CompleteSystemSection />
