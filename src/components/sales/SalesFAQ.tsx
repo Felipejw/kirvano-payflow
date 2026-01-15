@@ -1,43 +1,48 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const faqs = [
   {
     question: "O pagamento é mensal?",
-    answer: "Não. O pagamento é único, no valor de R$97. Você paga uma vez e tem acesso vitalício ao sistema."
+    answer: "Não. O pagamento é único, no valor de R$97. Você compra uma vez e pode usar o sistema sem mensalidades."
   },
   {
     question: "Posso usar apenas para mim?",
-    answer: "Sim. Você pode usar para economizar taxas e não vender acesso para ninguém. Muitos clientes usam apenas para gerenciar suas próprias vendas."
+    answer: "Sim. Você pode usar o Gatteflow apenas para uso próprio, economizando taxas de gateways e tendo controle total sobre seus pagamentos."
   },
   {
     question: "Posso cobrar taxas de outros usuários?",
-    answer: "Sim. O sistema permite que você monetize sua própria plataforma cobrando uma porcentagem de cada venda realizada pelos seus usuários."
+    answer: "Sim. O sistema permite que você crie sua própria plataforma e cobre taxas sobre cada venda feita pelos seus usuários."
   },
   {
     question: "Preciso saber programar?",
-    answer: "Não. O sistema é pronto para uso. Basta configurar suas informações e começar a vender."
+    answer: "Não. O sistema é pronto para uso e não exige conhecimento técnico. Se quiser algo mais avançado, também há opções de integração via API."
   },
   {
     question: "O sistema é White Label?",
-    answer: "Sim. Você pode personalizar totalmente: nome, logotipo, cores, domínio e muito mais. Seus clientes nunca saberão que você usa o Gatteflow."
+    answer: "Sim. O Gatteflow é 100% White Label. Você pode usar sua própria marca, logotipo, cores e domínio."
   },
   {
     question: "Tem suporte?",
-    answer: "Sim. Suporte direto via WhatsApp para tirar dúvidas e ajudar na configuração."
+    answer: "Sim. Você conta com suporte via WhatsApp para tirar dúvidas e receber ajuda quando precisar."
   },
   {
     question: "Tem atualizações?",
-    answer: "Sim. Atualizações gratuitas e contínuas. O sistema é constantemente melhorado com novas funcionalidades."
+    answer: "Sim. O sistema recebe atualizações constantes, sem custo adicional."
   },
 ];
 
-export const SalesFAQ = () => {
+interface SalesFAQProps {
+  onBuyClick?: () => void;
+}
+
+export const SalesFAQ = ({ onBuyClick }: SalesFAQProps) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   const toggleFAQ = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -92,13 +97,33 @@ export const SalesFAQ = () => {
                 transition={{ duration: 0.3, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
-                <p className="px-5 pb-5 text-muted-foreground">
-                  {faq.answer}
-                </p>
+                <div className="px-5 pb-5 flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-accent mt-1 flex-shrink-0" />
+                  <span className="text-muted-foreground">{faq.answer}</span>
+                </div>
               </motion.div>
             </motion.div>
           ))}
         </div>
+
+        {/* CTA após FAQ */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.5 }}
+          className="mt-12 text-center"
+        >
+          <p className="text-lg text-muted-foreground mb-4">
+            Tudo esclarecido? Então é só começar.
+          </p>
+          <Button 
+            onClick={onBuyClick}
+            size="lg"
+            className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-8 py-6 text-lg"
+          >
+            Comprar Agora por R$97
+          </Button>
+        </motion.div>
       </div>
     </section>
   );
