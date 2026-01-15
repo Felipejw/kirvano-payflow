@@ -1,48 +1,53 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-import { Wallet, Users, CreditCard, Laptop, Briefcase } from "lucide-react";
+import { Wallet, Users, CreditCard, Laptop, Briefcase, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+interface EarningModelsSectionProps {
+  onBuyClick: () => void;
+}
 
 const models = [
   {
     icon: Wallet,
-    title: "Use para economizar taxas",
-    description: "Reduza seus custos usando sua própria estrutura de pagamentos."
+    title: "Economize em cada venda",
+    description: "Pare de entregar parte do seu faturamento para gateways e aumente sua margem usando sua própria estrutura."
   },
   {
     icon: Users,
-    title: "Cobre taxas de clientes",
-    description: "Monetize cobrando uma porcentagem de cada venda dos seus usuários."
+    title: "Ganhe em cada venda dos seus usuários",
+    description: "Cobre uma porcentagem sobre cada venda feita dentro da sua plataforma."
   },
   {
     icon: CreditCard,
-    title: "Crie planos",
-    description: "Ofereça diferentes níveis de acesso com preços variados."
+    title: "Venda acesso em diferentes níveis",
+    description: "Crie planos com valores e recursos diferentes para cada tipo de cliente."
   },
   {
     icon: Laptop,
-    title: "Venda como SaaS",
-    description: "Transforme em um produto recorrente com mensalidades."
+    title: "Crie sua própria renda recorrente",
+    description: "Transforme o sistema em um produto mensal e construa faturamento previsível."
   },
   {
     icon: Briefcase,
-    title: "Ofereça como serviço",
-    description: "Venda a implementação e suporte para outros empreendedores."
+    title: "Venda implementação e suporte",
+    description: "Cobre para configurar, personalizar e dar suporte para outros empreendedores."
   },
 ];
 
-export const EarningModelsSection = () => {
+export const EarningModelsSection = ({ onBuyClick }: EarningModelsSectionProps) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-20 px-4 bg-background">
-      <div className="container max-w-5xl mx-auto">
+    <section ref={ref} className="py-24 px-4 bg-background">
+      <div className="container max-w-4xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-12"
+          className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Você decide como <span className="text-accent">ganhar dinheiro</span> com ele
@@ -74,6 +79,32 @@ export const EarningModelsSection = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* Financial Anchor + CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.8 }}
+          className="mt-12 text-center"
+        >
+          <div className="inline-flex items-center gap-2 bg-accent/10 px-5 py-3 rounded-full mb-6">
+            <CheckCircle className="w-5 h-5 text-accent" />
+            <span className="text-foreground font-medium">
+              Com apenas alguns clientes ou poucas vendas, o Gatteflow já se paga.
+            </span>
+          </div>
+          
+          <div>
+            <Button 
+              onClick={onBuyClick}
+              variant="gradient"
+              size="lg"
+              className="text-lg px-8"
+            >
+              Comprar Agora por R$97
+            </Button>
+          </div>
+        </motion.div>
       </div>
     </section>
   );
