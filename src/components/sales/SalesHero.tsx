@@ -35,21 +35,11 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
           </h1>
         </motion.div>
 
-        {/* VSL */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-          className="mb-8"
-        >
-          <VSLPlayer onProgress={handleVideoProgress} />
-        </motion.div>
-
         {/* Headline */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.2 }}
           className="text-center mb-8"
         >
           <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 leading-tight">
@@ -63,6 +53,16 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
             O Gatteflow é um sistema completo de vendas digitais com checkout, pagamentos, afiliados, área de membros, automações e IA. 
             Você pode usar somente para você, reduzindo custos com gateways, ou usar como plataforma para terceiros, cobrando taxas por venda.
           </p>
+        </motion.div>
+
+        {/* VSL */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="mb-8"
+        >
+          <VSLPlayer onProgress={handleVideoProgress} />
         </motion.div>
 
         {/* CTA Principal */}
