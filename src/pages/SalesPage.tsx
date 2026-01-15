@@ -23,7 +23,7 @@ const SalesPage = () => {
       <UseOwnSection onBuyClick={handleBuyClick} />
       
       {/* Section 2 - Complete System */}
-      <CompleteSystemSection />
+      <CompleteSystemSection onBuyClick={handleBuyClick} />
       
       {/* Section 3 - White Label */}
       <WhiteLabelSection />
