@@ -4,6 +4,7 @@ import { UseOwnSection } from "@/components/sales/UseOwnSection";
 import { CompleteSystemSection } from "@/components/sales/CompleteSystemSection";
 import { WhiteLabelSection } from "@/components/sales/WhiteLabelSection";
 import { EarningModelsSection } from "@/components/sales/EarningModelsSection";
+import { ClosingOffer } from "@/components/sales/ClosingOffer";
 import { SalesFAQ } from "@/components/sales/SalesFAQ";
 import { FinalClosing } from "@/components/sales/FinalClosing";
 
@@ -31,7 +32,10 @@ const SalesPage = () => {
       {/* Section 4 - Earning Models */}
       <EarningModelsSection onBuyClick={handleBuyClick} />
       
-      {/* Section 5 - FAQ */}
+      {/* Section 5 - Closing Offer */}
+      <ClosingOffer onBuyClick={handleBuyClick} />
+      
+      {/* Section 6 - FAQ */}
       <SalesFAQ onBuyClick={handleBuyClick} />
       
       {/* Final Closing - NO FOOTER AFTER THIS */}
