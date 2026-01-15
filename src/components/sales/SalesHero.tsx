@@ -46,12 +46,8 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
             Tenha sua própria estrutura de pagamentos e vendas{" "}
             <span className="text-accent">pagando apenas R$97</span>
           </h2>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-4">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
             Use para economizar taxas de gateways ou transforme em um negócio cobrando taxas de outros vendedores.
-          </p>
-          <p className="text-base text-muted-foreground/80 max-w-2xl mx-auto">
-            O Gatteflow é um sistema completo de vendas digitais com checkout, pagamentos, afiliados, área de membros, automações e IA. 
-            Você pode usar somente para você, reduzindo custos com gateways, ou usar como plataforma para terceiros, cobrando taxas por venda.
           </p>
         </motion.div>
 
@@ -98,6 +94,12 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
               Acesso Imediato
             </span>
           </div>
+
+          {/* Description text below CTA */}
+          <p className="text-base text-muted-foreground/80 max-w-2xl mx-auto mt-8">
+            O Gatteflow é um sistema completo de vendas digitais com checkout, pagamentos, afiliados, área de membros, automações e IA. 
+            Você pode usar somente para você, reduzindo custos com gateways, ou usar como plataforma para terceiros, cobrando taxas por venda.
+          </p>
         </motion.div>
       </div>
     </section>
