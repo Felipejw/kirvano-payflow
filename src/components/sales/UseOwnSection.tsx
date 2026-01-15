@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
 import { Wallet, Ban, TrendingDown, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const benefits = [
   {
@@ -26,23 +27,27 @@ const benefits = [
   }
 ];
 
-export const UseOwnSection = () => {
+interface UseOwnSectionProps {
+  onBuyClick?: () => void;
+}
+
+export const UseOwnSection = ({ onBuyClick }: UseOwnSectionProps) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-20 px-4 bg-muted/30">
+    <section ref={ref} className="py-24 px-4 bg-muted/30">
       <div className="container max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-12"
+          className="text-center mb-8"
         >
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">
             Use para você e <span className="text-accent">pare de pagar taxas abusivas</span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
             Crie sua própria estrutura e tenha controle total sobre seus pagamentos.
           </p>
         </motion.div>
@@ -51,12 +56,12 @@ export const UseOwnSection = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-center text-muted-foreground mb-12 max-w-3xl mx-auto"
+          className="text-center text-muted-foreground mb-16 max-w-[700px] mx-auto leading-relaxed"
         >
           Se você vende produtos digitais ou serviços, já percebeu que boa parte do seu lucro fica com gateways de pagamento. Com o Gatteflow, você deixa de ser refém dessas taxas, cria sua própria estrutura de cobrança, conecta seus bancos e passa a controlar 100% dos seus recebimentos.
         </motion.p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {benefits.map((benefit, index) => (
             <motion.div
               key={benefit.title}
@@ -73,6 +78,23 @@ export const UseOwnSection = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* CTA Secundário */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5, delay: 0.7 }}
+          className="text-center"
+        >
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={onBuyClick}
+            className="border-accent/50 text-accent hover:bg-accent/10 hover:border-accent"
+          >
+            Comprar Agora por R$97
+          </Button>
+        </motion.div>
       </div>
     </section>
   );
