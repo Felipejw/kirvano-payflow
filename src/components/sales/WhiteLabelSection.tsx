@@ -1,7 +1,10 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
-import { useRef, useState } from "react";
-import { Palette, Type, Globe, ImageIcon, Sun, Moon } from "lucide-react";
+import { useRef } from "react";
+import { Palette, Type, Globe, ImageIcon } from "lucide-react";
+
+// Import real dashboard screenshot
+import dashboardImg from "@/assets/screenshots/dashboard.png";
 
 const customizations = [
   { icon: Type, label: "Nome da marca" },
@@ -13,7 +16,6 @@ const customizations = [
 export const WhiteLabelSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [isDarkPreview, setIsDarkPreview] = useState(true);
 
   return (
     <section ref={ref} className="py-16 md:py-24 px-4 bg-muted/30">
@@ -52,74 +54,38 @@ export const WhiteLabelSection = () => {
             </div>
           </motion.div>
 
-          {/* Dashboard mockup */}
+          {/* Dashboard screenshot */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="order-1 lg:order-2"
           >
-            <div className={`relative rounded-xl md:rounded-2xl overflow-hidden shadow-2xl border border-border ${isDarkPreview ? 'bg-zinc-900' : 'bg-white'} max-h-[350px] md:max-h-[400px]`}>
+            <div className="relative rounded-xl md:rounded-2xl overflow-hidden shadow-2xl border border-border bg-card">
               {/* Mock browser bar */}
-              <div className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-3 ${isDarkPreview ? 'bg-zinc-800' : 'bg-gray-100'} border-b ${isDarkPreview ? 'border-zinc-700' : 'border-gray-200'}`}>
+              <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-3 bg-muted border-b border-border">
                 <div className="flex gap-1 md:gap-1.5">
                   <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-red-500" />
                   <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-yellow-500" />
                   <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-green-500" />
                 </div>
-                <div className={`flex-1 text-center text-xs md:text-sm ${isDarkPreview ? 'text-zinc-400' : 'text-gray-500'} truncate px-2`}>
+                <div className="flex-1 text-center text-xs md:text-sm text-muted-foreground truncate px-2">
                   suamarca.com.br/dashboard
                 </div>
-                <button 
-                  onClick={() => setIsDarkPreview(!isDarkPreview)}
-                  className={`p-1 rounded ${isDarkPreview ? 'hover:bg-zinc-700' : 'hover:bg-gray-200'}`}
-                >
-                  {isDarkPreview ? (
-                    <Sun className="w-3 h-3 md:w-4 md:h-4 text-zinc-400" />
-                  ) : (
-                    <Moon className="w-3 h-3 md:w-4 md:h-4 text-gray-500" />
-                  )}
-                </button>
               </div>
 
-              {/* Mock dashboard content */}
-              <div className="p-4 md:p-6">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4 md:mb-6">
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500" />
-                    <span className={`text-sm md:text-lg font-bold ${isDarkPreview ? 'text-white' : 'text-gray-900'}`}>Sua Marca</span>
-                  </div>
-                  <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full ${isDarkPreview ? 'bg-zinc-700' : 'bg-gray-200'}`} />
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
-                  {[
-                    { label: "Vendas", value: "R$ 12.450" },
-                    { label: "Conversão", value: "4,2%" },
-                    { label: "Clientes", value: "342" },
-                  ].map((stat) => (
-                    <div 
-                      key={stat.label}
-                      className={`p-2 md:p-4 rounded-lg ${isDarkPreview ? 'bg-zinc-800' : 'bg-gray-50'}`}
-                    >
-                      <p className={`text-xs ${isDarkPreview ? 'text-zinc-400' : 'text-gray-500'}`}>{stat.label}</p>
-                      <p className={`text-sm md:text-xl font-bold ${isDarkPreview ? 'text-white' : 'text-gray-900'}`}>{stat.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Chart placeholder */}
-                <div className={`h-16 md:h-24 rounded-lg ${isDarkPreview ? 'bg-zinc-800' : 'bg-gray-50'} flex items-end justify-around p-2 md:p-3`}>
-                  {[40, 65, 45, 80, 55, 70, 90].map((height, i) => (
-                    <div
-                      key={i}
-                      className="w-3 md:w-6 rounded-t bg-gradient-to-t from-blue-500 to-purple-500"
-                      style={{ height: `${height}%` }}
-                    />
-                  ))}
-                </div>
+              {/* Screenshot */}
+              <div className="relative overflow-hidden">
+                <motion.img
+                  src={dashboardImg}
+                  alt="Dashboard do sistema Gateflow"
+                  className="w-full h-auto object-cover"
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.4 }}
+                />
+                
+                {/* Gradient overlay at bottom */}
+                <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-card to-transparent pointer-events-none" />
               </div>
             </div>
           </motion.div>
