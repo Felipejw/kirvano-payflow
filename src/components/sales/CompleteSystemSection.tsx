@@ -13,7 +13,7 @@ import {
   Mail,
   Sparkles,
   Gift,
-  Target,
+  TrendingUp,
   Link,
   Bell,
   Moon,
@@ -22,6 +22,7 @@ import {
   Zap,
   Layout,
   Cpu,
+  Search,
   LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,23 +37,26 @@ interface FeatureCategory {
   title: string;
   icon: LucideIcon;
   features: Feature[];
+  color: string;
 }
 
 const featureCategories: FeatureCategory[] = [
   {
     title: "Vendas & Pagamentos",
     icon: CreditCard,
+    color: "text-emerald-500",
     features: [
       { icon: ShoppingCart, label: "Checkout com sua marca", hasPreview: true },
       { icon: Building2, label: "Conecte seus próprios bancos" },
       { icon: Gift, label: "Order bumps integrados" },
-      { icon: Target, label: "Rastreie cada venda" },
+      { icon: TrendingUp, label: "Monitore conversões em tempo real" },
       { icon: Link, label: "Saiba de onde vem cada venda" },
     ]
   },
   {
     title: "Automação & Escala",
     icon: Zap,
+    color: "text-amber-500",
     features: [
       { icon: RefreshCw, label: "Recupere vendas perdidas", hasPreview: true },
       { icon: Send, label: "Fale com clientes em escala" },
@@ -63,6 +67,7 @@ const featureCategories: FeatureCategory[] = [
   {
     title: "Gestão & Experiência",
     icon: Layout,
+    color: "text-blue-500",
     features: [
       { icon: BarChart3, label: "Veja tudo em tempo real", hasPreview: true },
       { icon: GraduationCap, label: "Acesso liberado automaticamente", hasPreview: true },
@@ -74,6 +79,7 @@ const featureCategories: FeatureCategory[] = [
   {
     title: "Tecnologia & IA",
     icon: Cpu,
+    color: "text-purple-500",
     features: [
       { icon: Sparkles, label: "Crie conteúdo com IA" },
       { icon: Code, label: "API para integrações" },
@@ -86,9 +92,10 @@ interface FeatureCardProps {
   index: number;
   isInView: boolean;
   categoryIndex: number;
+  categoryColor: string;
 }
 
-const FeatureCard = ({ feature, index, isInView, categoryIndex }: FeatureCardProps) => {
+const FeatureCard = ({ feature, index, isInView, categoryIndex, categoryColor }: FeatureCardProps) => {
   const [showPreview, setShowPreview] = useState(false);
 
   return (
@@ -105,8 +112,8 @@ const FeatureCard = ({ feature, index, isInView, categoryIndex }: FeatureCardPro
       onMouseLeave={() => setShowPreview(false)}
     >
       <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted transition-all group cursor-default hover:scale-[1.02]">
-        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
-          <feature.icon className="w-4 h-4 text-accent" />
+        <div className={`flex-shrink-0 w-9 h-9 rounded-full bg-current/10 flex items-center justify-center group-hover:bg-current/20 transition-colors ${categoryColor}`}>
+          <feature.icon className="w-4 h-4" />
         </div>
         <span className="text-sm font-medium text-foreground">{feature.label}</span>
         {feature.hasPreview && (
@@ -161,10 +168,14 @@ export const CompleteSystemSection = ({ onBuyClick }: CompleteSystemSectionProps
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Sem depender de várias ferramentas e sem mensalidades.
           </p>
+          <p className="text-sm text-muted-foreground/70 mt-4 flex items-center justify-center gap-2">
+            <Search className="w-4 h-4" />
+            Veja como o sistema funciona na prática ao longo da página
+          </p>
         </motion.div>
 
         {/* Categories */}
-        <div className="space-y-12">
+        <div className="space-y-16">
           {featureCategories.map((category, categoryIndex) => (
             <motion.div
               key={category.title}
@@ -174,8 +185,8 @@ export const CompleteSystemSection = ({ onBuyClick }: CompleteSystemSectionProps
             >
               {/* Category Header */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                  <category.icon className="w-5 h-5 text-accent" />
+                <div className={`w-10 h-10 rounded-lg bg-current/10 flex items-center justify-center ${category.color}`}>
+                  <category.icon className="w-5 h-5" />
                 </div>
                 <h3 className="text-xl font-semibold text-foreground">{category.title}</h3>
                 <div className="flex-1 h-px bg-border/50 ml-4" />
@@ -190,6 +201,7 @@ export const CompleteSystemSection = ({ onBuyClick }: CompleteSystemSectionProps
                     index={index}
                     isInView={isInView}
                     categoryIndex={categoryIndex}
+                    categoryColor={category.color}
                   />
                 ))}
               </div>
