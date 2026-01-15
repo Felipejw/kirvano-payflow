@@ -29,7 +29,7 @@ const SalesPage = () => {
       <WhiteLabelSection />
       
       {/* Section 4 - Earning Models */}
-      <EarningModelsSection />
+      <EarningModelsSection onBuyClick={handleBuyClick} />
       
       {/* Section 5 - FAQ */}
       <SalesFAQ />
