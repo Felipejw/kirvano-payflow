@@ -24,16 +24,6 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
   return (
     <section className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 pt-8 pb-16 px-4">
       <div className="container max-w-5xl mx-auto">
-        {/* Logo */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            Gate<span className="text-accent">flow</span>
-          </h1>
-        </motion.div>
 
         {/* Headline */}
         <motion.div
