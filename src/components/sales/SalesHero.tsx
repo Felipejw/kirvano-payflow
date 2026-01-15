@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { VSLPlayer } from "./VSLPlayer";
-import { ShieldCheck, Zap, CheckCircle } from "lucide-react";
+import { ShoppingCart, Zap, CheckCircle, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 interface SalesHeroProps {
@@ -22,7 +22,7 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
   };
 
   return (
-    <section className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 py-12 md:py-16 px-4">
+    <section className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 py-8 md:py-12 px-4">
       <div className="container max-w-5xl mx-auto">
 
         {/* Headline */}
@@ -32,11 +32,11 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
           transition={{ delay: 0.2 }}
           className="text-center mb-6 md:mb-8"
         >
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-3 md:mb-4 leading-tight px-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-3 md:mb-4 leading-snug px-2">
             Tenha sua própria estrutura de pagamentos e vendas{" "}
             <span className="text-accent">pagando apenas R$97</span>
           </h2>
-          <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto px-2">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-3xl mx-auto px-2 leading-relaxed">
             Use para economizar taxas de gateways ou transforme em um negócio cobrando taxas de outros vendedores.
           </p>
         </motion.div>
@@ -61,15 +61,9 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
           <Button
             size="lg"
             onClick={onBuyClick}
-            className={`
-              bg-accent hover:bg-accent/90 text-accent-foreground 
-              text-base sm:text-lg md:text-xl px-6 sm:px-8 py-5 md:py-6 h-auto
-              transform hover:scale-105 transition-all duration-300
-              shadow-lg hover:shadow-xl
-              ${ctaPulsed ? 'animate-pulse-subtle' : ''}
-            `}
+            className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base md:text-lg px-6 md:px-8 py-4 md:py-5 h-auto hover:scale-105 transition-all shadow-lg hover:shadow-xl"
           >
-            <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
+            <ShoppingCart className="w-5 h-5 mr-2" />
             Comprar Agora por R$97
           </Button>
 
@@ -106,7 +100,7 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
           </div>
 
           {/* Description text below CTA */}
-          <p className="text-sm md:text-base text-muted-foreground/80 max-w-2xl mx-auto mt-6 md:mt-8 px-2">
+          <p className="text-xs sm:text-sm md:text-base text-muted-foreground/80 max-w-2xl mx-auto mt-4 md:mt-6 px-2">
             O Gatteflow é uma estrutura completa para quem quer vender online sem depender de gateways caros. Você pode usar apenas para você, economizando taxas, ou transformar em uma plataforma e cobrar por cada venda feita nela.
           </p>
         </motion.div>

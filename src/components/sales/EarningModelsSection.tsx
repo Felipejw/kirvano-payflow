@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-import { Wallet, Users, CreditCard, Laptop, Briefcase, CheckCircle } from "lucide-react";
+import { Wallet, Users, CreditCard, Laptop, Briefcase, CheckCircle, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface EarningModelsSectionProps {
@@ -41,18 +41,18 @@ export const EarningModelsSection = ({ onBuyClick }: EarningModelsSectionProps) 
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-16 md:py-24 px-4 bg-background">
+    <section ref={ref} className="py-12 md:py-16 px-4 bg-background">
       <div className="container max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-10 md:mb-14"
+          className="text-center mb-8 md:mb-12"
         >
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-3 md:mb-4 px-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-3 md:mb-4 px-2 leading-snug">
             Você decide como <span className="text-accent">ganhar dinheiro</span> com ele
           </h2>
-          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
             Use internamente ou transforme em um negócio.
           </p>
         </motion.div>
@@ -85,7 +85,7 @@ export const EarningModelsSection = ({ onBuyClick }: EarningModelsSectionProps) 
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.8 }}
-          className="mt-10 md:mt-12 text-center"
+          className="mt-8 md:mt-10 text-center"
         >
           <div className="flex flex-wrap items-center justify-center gap-2 bg-accent/10 px-4 py-3 rounded-full mb-2 mx-auto max-w-fit">
             <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-accent flex-shrink-0" />
@@ -100,10 +100,10 @@ export const EarningModelsSection = ({ onBuyClick }: EarningModelsSectionProps) 
           <div>
             <Button 
               onClick={onBuyClick}
-              variant="gradient"
               size="lg"
-              className="text-base md:text-lg px-6 md:px-8"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base md:text-lg px-6 md:px-8 py-4 md:py-5 h-auto hover:scale-105 transition-all"
             >
+              <ShoppingCart className="w-5 h-5 mr-2" />
               Comprar Agora por R$97
             </Button>
           </div>

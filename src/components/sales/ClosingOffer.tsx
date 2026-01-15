@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-import { CheckCircle, Lock } from "lucide-react";
+import { CheckCircle, Lock, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ClosingOfferProps {
@@ -28,20 +28,20 @@ export const ClosingOffer = ({ onBuyClick }: ClosingOfferProps) => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-16 md:py-24 bg-background">
+    <section ref={ref} className="py-12 md:py-16 bg-background">
       <div className="container max-w-5xl mx-auto px-4">
         {/* Headline */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-8 md:mb-12"
+          className="text-center mb-6 md:mb-10"
         >
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4 px-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4 px-2 leading-snug">
             Tenha acesso ao Gatteflow hoje com{" "}
             <span className="text-accent">pagamento único</span>
           </h2>
-          <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-2">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
             Toda a estrutura de pagamentos, vendas e automações em um único sistema — sem mensalidades.
           </p>
         </motion.div>
@@ -105,9 +105,10 @@ export const ClosingOffer = ({ onBuyClick }: ClosingOfferProps) => {
             >
               <Button
                 onClick={onBuyClick}
-                size="xl"
-                className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold px-8 md:px-12 py-6 md:py-7 text-lg md:text-xl w-full sm:w-auto animate-[pulse_4s_ease-in-out_infinite] hover:animate-none"
+                size="lg"
+                className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base md:text-lg px-6 md:px-8 py-4 md:py-5 h-auto hover:scale-105 transition-all w-full sm:w-auto"
               >
+                <ShoppingCart className="w-5 h-5 mr-2" />
                 Comprar Agora por R$97
               </Button>
               

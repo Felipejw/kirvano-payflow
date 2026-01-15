@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-import { Wallet, Percent, Globe, Zap } from "lucide-react";
+import { Wallet, Percent, Globe, Zap, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const benefits = [
@@ -36,18 +36,18 @@ export const UseOwnSection = ({ onBuyClick }: UseOwnSectionProps) => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-16 md:py-24 px-4 bg-muted/30">
+    <section ref={ref} className="py-12 md:py-16 px-4 bg-muted/30">
       <div className="container max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-10 md:mb-12"
+          className="text-center mb-8 md:mb-10"
         >
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-3 md:mb-4 px-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-3 md:mb-4 px-2 leading-snug">
             Use para <span className="text-accent">você mesmo</span>
           </h2>
-          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
             Tenha controle total sobre seus pagamentos e economize em cada venda.
           </p>
         </motion.div>
@@ -83,11 +83,11 @@ export const UseOwnSection = ({ onBuyClick }: UseOwnSectionProps) => {
         >
           <Button 
             onClick={onBuyClick}
-            variant="gradient"
             size="lg"
-            className="text-base md:text-lg px-6 md:px-8"
+            className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base md:text-lg px-6 md:px-8 py-4 md:py-5 h-auto hover:scale-105 transition-all"
           >
-            Quero Economizar nas Minhas Vendas
+            <ShoppingCart className="w-5 h-5 mr-2" />
+            Comprar Agora por R$97
           </Button>
         </motion.div>
       </div>
