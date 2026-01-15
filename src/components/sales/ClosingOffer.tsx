@@ -85,7 +85,7 @@ export const ClosingOffer = ({ onBuyClick }: ClosingOfferProps) => {
               <p className="text-base md:text-lg text-muted-foreground line-through mb-1">
                 De R$297,00
               </p>
-              <p className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-accent mb-2">
+              <p className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold text-accent mb-3">
                 R$97
               </p>
               <p className="text-sm md:text-base text-muted-foreground font-medium">
