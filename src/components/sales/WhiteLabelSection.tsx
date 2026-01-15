@@ -31,11 +31,11 @@ export const WhiteLabelSection = () => {
             <p className="text-lg text-muted-foreground mb-6">
               Use, personalize e venda como se tivesse criado do zero.
             </p>
-            <p className="text-muted-foreground mb-8">
+            <p className="text-muted-foreground mb-5">
               O Gatteflow é 100% White Label. Você escolhe nome, logotipo, cores, domínio e modelo de uso.
             </p>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {customizations.map((item, index) => (
                 <motion.div
                   key={item.label}
@@ -62,8 +62,9 @@ export const WhiteLabelSection = () => {
           >
             <div 
               className={`
-                rounded-xl border overflow-hidden shadow-2xl transition-all duration-500
-                ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'}
+                rounded-xl border overflow-hidden transition-all duration-500
+                shadow-[0_20px_60px_-15px_rgba(16,185,129,0.3)]
+                ${isDark ? 'bg-zinc-900 border-emerald-500/30' : 'bg-white border-emerald-500/30'}
               `}
             >
               {/* Header */}
@@ -124,10 +125,17 @@ export const WhiteLabelSection = () => {
                   ))}
                 </div>
               </div>
+              
+              {/* Caption */}
+              <div className={`px-4 py-2 border-t text-center ${isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-zinc-100 bg-zinc-50/50'}`}>
+                <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                  📸 Exemplo real do painel do sistema
+                </p>
+              </div>
             </div>
 
             {/* Decorative elements */}
-            <div className="absolute -z-10 top-4 -right-4 w-full h-full rounded-xl bg-accent/20 blur-xl" />
+            <div className="absolute -z-10 top-4 -right-4 w-full h-full rounded-xl bg-emerald-500/20 blur-xl" />
           </motion.div>
         </div>
       </div>
