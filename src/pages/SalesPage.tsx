@@ -32,7 +32,7 @@ const SalesPage = () => {
       <EarningModelsSection onBuyClick={handleBuyClick} />
       
       {/* Section 5 - FAQ */}
-      <SalesFAQ />
+      <SalesFAQ onBuyClick={handleBuyClick} />
       
       {/* Final Closing - NO FOOTER AFTER THIS */}
       <FinalClosing onBuyClick={handleBuyClick} />
