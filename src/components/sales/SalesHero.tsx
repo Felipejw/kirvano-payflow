@@ -54,7 +54,7 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
         {/* CTA Principal */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: showCTA ? 1 : 0.5, y: 0 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
           className="text-center"
         >
