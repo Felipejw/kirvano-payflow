@@ -95,8 +95,7 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
 
           {/* Description text below CTA */}
           <p className="text-base text-muted-foreground/80 max-w-2xl mx-auto mt-8">
-            O Gatteflow é um sistema completo de vendas digitais com checkout, pagamentos, afiliados, área de membros, automações e IA. 
-            Você pode usar somente para você, reduzindo custos com gateways, ou usar como plataforma para terceiros, cobrando taxas por venda.
+            O Gatteflow é uma estrutura completa para quem quer vender online sem depender de gateways caros. Você pode usar apenas para você, economizando taxas, ou transformar em uma plataforma e cobrar por cada venda feita nela.
           </p>
         </motion.div>
       </div>
