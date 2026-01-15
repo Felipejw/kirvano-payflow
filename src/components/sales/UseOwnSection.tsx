@@ -53,8 +53,7 @@ export const UseOwnSection = () => {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="text-center text-muted-foreground mb-12 max-w-3xl mx-auto"
         >
-          Se você vende produtos digitais ou serviços, sabe quanto gateways tradicionais reduzem sua margem. 
-          Com o Gatteflow, você usa sua própria estrutura de cobrança, conecta bancos e elimina intermediários desnecessários.
+          Se você vende produtos digitais ou serviços, já percebeu que boa parte do seu lucro fica com gateways de pagamento. Com o Gatteflow, você deixa de ser refém dessas taxas, cria sua própria estrutura de cobrança, conecta seus bancos e passa a controlar 100% dos seus recebimentos.
         </motion.p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
