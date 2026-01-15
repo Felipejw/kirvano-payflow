@@ -293,7 +293,7 @@ export const SystemShowcaseSection = () => {
               <div className="flex-1 text-center">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-background/50 text-xs md:text-sm text-muted-foreground">
                   <span className="hidden sm:inline">🔒</span>
-                  app.gateflow.com/{mode === "admin" ? "admin/" : ""}{activeItem.id}
+                  seudominio.com/slug
                 </div>
               </div>
               {/* Mode indicator badge */}
