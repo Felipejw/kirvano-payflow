@@ -6,23 +6,23 @@ import { Wallet, Ban, TrendingDown, Shield } from "lucide-react";
 const benefits = [
   {
     icon: Wallet,
-    title: "Controle Total",
-    description: "Gerencie seus pagamentos diretamente, sem intermediários."
+    title: "Você no controle do dinheiro",
+    description: "Gerencie seus pagamentos diretamente, sem depender de regras ou bloqueios de gateways."
   },
   {
     icon: Ban,
-    title: "Sem Taxas Abusivas",
-    description: "Elimine as taxas exorbitantes dos gateways tradicionais."
+    title: "Chega de perder dinheiro em taxas",
+    description: "Elimine taxas exorbitantes e aumente sua margem em cada venda realizada."
   },
   {
     icon: TrendingDown,
-    title: "Reduza Custos",
-    description: "Mais lucro para você em cada venda realizada."
+    title: "Mais lucro em cada venda",
+    description: "O dinheiro que antes ficava com gateways agora fica com você."
   },
   {
     icon: Shield,
-    title: "Sua Estrutura",
-    description: "Conecte seus próprios bancos e tenha autonomia total."
+    title: "Estrutura própria, sem intermediários",
+    description: "Conecte seus próprios bancos e tenha autonomia total sobre seus recebimentos."
   }
 ];
 
