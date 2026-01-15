@@ -46,7 +46,7 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.4, duration: 0.5 }}
-          className="mb-6 md:mb-8"
+          className="mb-6 md:mb-8 -mx-4 md:mx-0"
         >
           <VSLPlayer onProgress={handleVideoProgress} />
         </motion.div>

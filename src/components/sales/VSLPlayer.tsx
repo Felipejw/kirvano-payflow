@@ -30,7 +30,7 @@ export const VSLPlayer = ({
   };
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto">
+    <div className="relative w-full max-w-full md:max-w-4xl mx-auto">
       <div className="relative aspect-video rounded-xl md:rounded-2xl overflow-hidden shadow-2xl border border-border/50">
         <AnimatePresence mode="wait">
           {!isPlaying ? (

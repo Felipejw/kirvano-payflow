@@ -167,7 +167,7 @@ export const SystemShowcaseSection = () => {
   };
 
   return (
-    <section ref={ref} className="py-16 md:py-24 px-4 bg-background">
+    <section ref={ref} className="py-16 md:py-24 px-2 md:px-4 bg-background">
       <div className="container max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
@@ -279,10 +279,10 @@ export const SystemShowcaseSection = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="relative"
+          className="relative -mx-2 md:mx-0"
         >
           {/* Browser frame */}
-          <div className="bg-card rounded-xl md:rounded-2xl overflow-hidden shadow-2xl border border-border">
+          <div className="bg-card rounded-lg md:rounded-2xl overflow-hidden shadow-2xl border border-border">
             {/* Browser bar */}
             <div className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 bg-muted border-b border-border">
               <div className="flex gap-1.5">
