@@ -87,10 +87,9 @@ export const UseOwnSection = ({ onBuyClick }: UseOwnSectionProps) => {
           className="text-center"
         >
           <Button
-            variant="outline"
             size="lg"
             onClick={onBuyClick}
-            className="border-accent/50 text-accent hover:bg-accent/10 hover:border-accent"
+            className="bg-accent hover:bg-accent/90 text-accent-foreground"
           >
             Comprar Agora por R$97
           </Button>
