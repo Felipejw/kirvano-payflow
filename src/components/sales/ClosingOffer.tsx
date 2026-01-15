@@ -106,7 +106,7 @@ export const ClosingOffer = ({ onBuyClick }: ClosingOfferProps) => {
               <Button
                 onClick={onBuyClick}
                 size="xl"
-                className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold px-12 py-7 text-xl w-full md:w-auto animate-[pulse_3s_ease-in-out_infinite] hover:animate-none"
+                className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold px-12 py-7 text-xl w-full md:w-auto animate-[pulse_4s_ease-in-out_infinite] hover:animate-none"
               >
                 Comprar Agora por R$97
               </Button>
