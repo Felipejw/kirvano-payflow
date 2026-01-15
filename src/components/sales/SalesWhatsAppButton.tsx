@@ -21,7 +21,7 @@ export const SalesWhatsAppButton = () => {
       initial={{ opacity: 0, scale: 0, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ delay: 1, duration: 0.4, type: "spring", stiffness: 200 }}
-      className="fixed bottom-24 right-4 z-40 flex items-center justify-center bg-[#25D366] hover:bg-[#20BA5C] text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105"
+      className="fixed bottom-28 md:bottom-24 right-4 z-40 flex items-center justify-center bg-[#25D366] hover:bg-[#20BA5C] text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105"
     >
       <WhatsAppIcon className="w-7 h-7" />
       
