@@ -23,7 +23,7 @@ import {
   TrendingUp,
   Wallet,
   Clock,
-  LucideIcon
+  LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -138,18 +138,18 @@ export const CompleteSystemSection = ({ onBuyClick }: CompleteSystemSectionProps
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-16 md:py-24 px-4 bg-background">
+    <section ref={ref} className="py-12 md:py-16 px-4 bg-background">
       <div className="container max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-10 md:mb-14"
+          className="text-center mb-8 md:mb-12"
         >
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-3 md:mb-4 px-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-3 md:mb-4 px-2 leading-snug">
             Tudo que você precisa <span className="text-accent">em um só lugar</span>
           </h2>
-          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
             Sistema completo para vender online, sem precisar de dezenas de ferramentas.
           </p>
         </motion.div>
@@ -191,15 +191,15 @@ export const CompleteSystemSection = ({ onBuyClick }: CompleteSystemSectionProps
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.8 }}
-          className="text-center mt-10 md:mt-14"
+          className="text-center mt-8 md:mt-12"
         >
           <Button 
             onClick={onBuyClick}
-            variant="gradient"
             size="lg"
-            className="text-base md:text-lg px-6 md:px-8"
+            className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base md:text-lg px-6 md:px-8 py-4 md:py-5 h-auto hover:scale-105 transition-all"
           >
-            Quero Acesso ao Sistema Completo
+            <ShoppingCart className="w-5 h-5 mr-2" />
+            Comprar Agora por R$97
           </Button>
         </motion.div>
       </div>

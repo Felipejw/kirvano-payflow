@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const faqs = [
@@ -45,18 +45,18 @@ export const SalesFAQ = ({ onBuyClick }: SalesFAQProps) => {
   };
 
   return (
-    <section ref={ref} className="py-16 md:py-24 px-4 bg-muted/30 pb-32 md:pb-40">
+    <section ref={ref} className="py-12 md:py-16 px-4 bg-muted/30 pb-28 md:pb-32">
       <div className="container max-w-3xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-10 md:mb-12"
+          className="text-center mb-8 md:mb-10"
         >
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-3 md:mb-4 px-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-3 md:mb-4 px-2 leading-snug">
             Perguntas <span className="text-accent">Frequentes</span>
           </h2>
-          <p className="text-base md:text-lg text-muted-foreground px-2">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground px-2">
             Tire suas dúvidas antes de garantir seu acesso.
           </p>
         </motion.div>
@@ -104,17 +104,17 @@ export const SalesFAQ = ({ onBuyClick }: SalesFAQProps) => {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.5 }}
-          className="text-center mt-10 md:mt-12"
+          className="text-center mt-8 md:mt-10"
         >
-          <p className="text-base md:text-lg text-muted-foreground mb-4 md:mb-6 px-2">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground mb-4 md:mb-6 px-2">
             Ainda tem dúvidas? Entre em contato conosco ou garanta seu acesso com garantia de 7 dias.
           </p>
           <Button 
             onClick={onBuyClick}
-            variant="gradient"
             size="lg"
-            className="text-base md:text-lg px-6 md:px-8 w-full sm:w-auto"
+            className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-base md:text-lg px-6 md:px-8 py-4 md:py-5 h-auto hover:scale-105 transition-all w-full sm:w-auto"
           >
+            <ShoppingCart className="w-5 h-5 mr-2" />
             Comprar Agora por R$97
           </Button>
         </motion.div>

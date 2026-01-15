@@ -40,11 +40,10 @@ export const FixedCTA = ({ onBuyClick }: FixedCTAProps) => {
             <Button
               onClick={onBuyClick}
               size="lg"
-              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-5 sm:px-8 py-4 h-auto flex-shrink-0 hover:scale-105 transition-transform text-sm sm:text-base whitespace-nowrap"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6 md:px-8 py-4 md:py-5 h-auto flex-shrink-0 hover:scale-105 transition-transform text-base md:text-lg whitespace-nowrap"
             >
-              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
-              <span className="sm:hidden">Comprar R$97</span>
-              <span className="hidden sm:inline">Comprar Agora por R$97</span>
+              <ShoppingCart className="w-5 h-5 mr-2 flex-shrink-0" />
+              Comprar Agora por R$97
             </Button>
           </div>
         </motion.div>
