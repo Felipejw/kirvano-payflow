@@ -34,7 +34,7 @@ export const FixedCTA = ({ onBuyClick }: FixedCTAProps) => {
               <p className="text-base font-medium text-foreground">
                 Sistema completo por apenas <span className="text-accent font-bold">R$97</span>
               </p>
-              <p className="text-xs text-muted-foreground">Pagamento único • Acesso vitalício</p>
+              <p className="text-sm text-muted-foreground">Pagamento único • Acesso vitalício</p>
             </div>
             
             <Button
