@@ -2,27 +2,27 @@ import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef, useState } from "react";
 import { 
-  ShoppingCart, 
-  Building2, 
+  CreditCard, 
+  LayoutDashboard, 
   BarChart3, 
   Users, 
-  GraduationCap, 
-  HelpCircle,
-  RefreshCw,
-  Send,
+  ShoppingCart,
   Mail,
-  Sparkles,
-  Gift,
-  TrendingUp,
-  Link,
   Bell,
-  Moon,
-  Code,
-  CreditCard,
+  Shield,
+  Smartphone,
+  Globe,
+  Palette,
   Zap,
-  Layout,
-  Cpu,
-  Search,
+  FileText,
+  Settings,
+  Link,
+  BookOpen,
+  Video,
+  MessageSquare,
+  TrendingUp,
+  Wallet,
+  Clock,
   LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,108 +36,94 @@ interface Feature {
 interface FeatureCategory {
   title: string;
   icon: LucideIcon;
-  features: Feature[];
   color: string;
+  features: Feature[];
 }
 
 const featureCategories: FeatureCategory[] = [
   {
-    title: "Vendas & Pagamentos",
+    title: "Pagamentos",
     icon: CreditCard,
-    color: "text-emerald-500",
+    color: "from-green-500/20 to-emerald-500/10",
     features: [
-      { icon: ShoppingCart, label: "Checkout com sua marca", hasPreview: true },
-      { icon: Building2, label: "Conecte seus próprios bancos" },
-      { icon: Gift, label: "Order bumps integrados" },
-      { icon: TrendingUp, label: "Monitore conversões em tempo real" },
-      { icon: Link, label: "Saiba de onde vem cada venda" },
+      { icon: CreditCard, label: "Checkout PIX", hasPreview: true },
+      { icon: Wallet, label: "Múltiplos gateways" },
+      { icon: Clock, label: "Aprovação instantânea" },
+      { icon: Shield, label: "Anti-fraude" },
     ]
   },
   {
-    title: "Automação & Escala",
-    icon: Zap,
-    color: "text-amber-500",
+    title: "Gestão",
+    icon: LayoutDashboard,
+    color: "from-blue-500/20 to-indigo-500/10",
     features: [
-      { icon: RefreshCw, label: "Recupere vendas perdidas", hasPreview: true },
-      { icon: Send, label: "Fale com clientes em escala" },
-      { icon: Mail, label: "Emails automáticos" },
-      { icon: Bell, label: "Notificações em tempo real" },
+      { icon: LayoutDashboard, label: "Dashboard completo", hasPreview: true },
+      { icon: BarChart3, label: "Relatórios detalhados" },
+      { icon: Users, label: "Gestão de clientes" },
+      { icon: ShoppingCart, label: "Produtos ilimitados" },
     ]
   },
   {
-    title: "Gestão & Experiência",
-    icon: Layout,
-    color: "text-blue-500",
+    title: "Marketing",
+    icon: TrendingUp,
+    color: "from-purple-500/20 to-pink-500/10",
     features: [
-      { icon: BarChart3, label: "Veja tudo em tempo real", hasPreview: true },
-      { icon: GraduationCap, label: "Acesso liberado automaticamente", hasPreview: true },
-      { icon: Users, label: "Afiliados vendendo pra você" },
-      { icon: HelpCircle, label: "Quiz integrado" },
-      { icon: Moon, label: "Modo claro e noturno" },
+      { icon: Mail, label: "E-mail automático" },
+      { icon: Bell, label: "Notificações" },
+      { icon: MessageSquare, label: "Recuperação de vendas" },
+      { icon: Link, label: "Pixels e tracking" },
     ]
   },
   {
-    title: "Tecnologia & IA",
-    icon: Cpu,
-    color: "text-purple-500",
+    title: "Personalização",
+    icon: Palette,
+    color: "from-orange-500/20 to-amber-500/10",
     features: [
-      { icon: Sparkles, label: "Crie conteúdo com IA" },
-      { icon: Code, label: "API para integrações" },
+      { icon: Globe, label: "Domínio próprio" },
+      { icon: Palette, label: "White-label completo" },
+      { icon: Smartphone, label: "100% responsivo" },
+      { icon: Zap, label: "Carregamento rápido" },
     ]
-  }
+  },
+  {
+    title: "Conteúdo",
+    icon: BookOpen,
+    color: "from-cyan-500/20 to-teal-500/10",
+    features: [
+      { icon: BookOpen, label: "Área de membros" },
+      { icon: Video, label: "Player de vídeo" },
+      { icon: FileText, label: "Entrega automática" },
+      { icon: Settings, label: "Configurações avançadas" },
+    ]
+  },
 ];
 
 interface FeatureCardProps {
   feature: Feature;
   index: number;
   isInView: boolean;
-  categoryIndex: number;
-  categoryColor: string;
 }
 
-const FeatureCard = ({ feature, index, isInView, categoryIndex, categoryColor }: FeatureCardProps) => {
-  const [showPreview, setShowPreview] = useState(false);
+const FeatureCard = ({ feature, index, isInView }: FeatureCardProps) => {
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ 
-        duration: 0.4, 
-        delay: 0.1 + (categoryIndex * 0.1) + (index * 0.05),
-        ease: "easeOut"
-      }}
-      className="relative"
-      onMouseEnter={() => feature.hasPreview && setShowPreview(true)}
-      onMouseLeave={() => setShowPreview(false)}
+      transition={{ duration: 0.4, delay: 0.1 + index * 0.05 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="flex items-center gap-2 md:gap-3 p-2.5 md:p-3 bg-card/50 rounded-lg border border-border/50 hover:border-accent/50 hover:bg-card transition-all duration-300 cursor-default group relative"
     >
-      <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 hover:bg-muted transition-all group cursor-default hover:scale-[1.02]">
-        <div className={`flex-shrink-0 w-9 h-9 rounded-full bg-current/10 flex items-center justify-center group-hover:bg-current/20 transition-colors ${categoryColor}`}>
-          <feature.icon className="w-4 h-4" />
-        </div>
-        <span className="text-sm font-medium text-foreground">{feature.label}</span>
-        {feature.hasPreview && (
-          <span className="ml-auto text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-            Preview
-          </span>
-        )}
-      </div>
-
-      {/* Hover Preview */}
-      {showPreview && feature.hasPreview && (
-        <motion.div
-          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-          className="absolute z-50 left-0 top-full mt-2 w-64 bg-card border border-border rounded-lg shadow-xl overflow-hidden"
-        >
-          <div className="aspect-video bg-muted flex items-center justify-center">
-            <span className="text-xs text-muted-foreground">Preview em breve</span>
-          </div>
-          <div className="p-3 bg-card">
-            <p className="text-xs text-muted-foreground">Veja na prática</p>
-          </div>
-        </motion.div>
+      <feature.icon className="w-4 h-4 md:w-5 md:h-5 text-accent flex-shrink-0" />
+      <span className="text-xs md:text-sm text-foreground truncate">{feature.label}</span>
+      
+      {/* Preview indicator - hidden on mobile */}
+      {feature.hasPreview && (
+        <span className="hidden md:inline-flex ml-auto text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          Preview
+        </span>
       )}
     </motion.div>
   );
@@ -152,56 +138,47 @@ export const CompleteSystemSection = ({ onBuyClick }: CompleteSystemSectionProps
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-24 px-4 bg-background">
+    <section ref={ref} className="py-16 md:py-24 px-4 bg-background">
       <div className="container max-w-6xl mx-auto">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-10 md:mb-14"
         >
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">
-            Tudo o que você precisa para vender online{" "}
-            <span className="text-accent">em um único sistema</span>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-3 md:mb-4 px-2">
+            Tudo que você precisa <span className="text-accent">em um só lugar</span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Sem depender de várias ferramentas e sem mensalidades.
-          </p>
-          <p className="text-sm text-muted-foreground/70 mt-4 flex items-center justify-center gap-2">
-            <Search className="w-4 h-4" />
-            Veja como o sistema funciona na prática ao longo da página
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
+            Sistema completo para vender online, sem precisar de dezenas de ferramentas.
           </p>
         </motion.div>
 
-        {/* Categories */}
-        <div className="space-y-16">
-          {featureCategories.map((category, categoryIndex) => (
+        {/* Feature categories */}
+        <div className="space-y-6 md:space-y-8">
+          {featureCategories.map((category, catIndex) => (
             <motion.div
               key={category.title}
               initial={{ opacity: 0, y: 20 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: categoryIndex * 0.1 }}
+              transition={{ duration: 0.5, delay: 0.2 + catIndex * 0.1 }}
             >
-              {/* Category Header */}
-              <div className="flex items-center gap-3 mb-6">
-                <div className={`w-10 h-10 rounded-lg bg-current/10 flex items-center justify-center ${category.color}`}>
-                  <category.icon className="w-5 h-5" />
+              {/* Category header */}
+              <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-br ${category.color} flex items-center justify-center flex-shrink-0`}>
+                  <category.icon className="w-4 h-4 md:w-5 md:h-5 text-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground">{category.title}</h3>
-                <div className="flex-1 h-px bg-border/50 ml-4" />
+                <h3 className="text-base md:text-lg font-semibold text-foreground">{category.title}</h3>
               </div>
 
-              {/* Features Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {category.features.map((feature, index) => (
-                  <FeatureCard
-                    key={feature.label}
-                    feature={feature}
-                    index={index}
+              {/* Features grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+                {category.features.map((feature, featIndex) => (
+                  <FeatureCard 
+                    key={feature.label} 
+                    feature={feature} 
+                    index={catIndex * 4 + featIndex}
                     isInView={isInView}
-                    categoryIndex={categoryIndex}
-                    categoryColor={category.color}
                   />
                 ))}
               </div>
@@ -209,24 +186,20 @@ export const CompleteSystemSection = ({ onBuyClick }: CompleteSystemSectionProps
           ))}
         </div>
 
-        {/* CTA Intermediário */}
+        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="text-center mt-16 pt-12 border-t border-border/30"
+          transition={{ duration: 0.6, delay: 0.8 }}
+          className="text-center mt-10 md:mt-14"
         >
-          <p className="text-xl md:text-2xl font-semibold text-foreground mb-6">
-            Tudo isso por apenas{" "}
-            <span className="text-accent">R$97</span>{" "}
-            em pagamento único
-          </p>
           <Button 
-            size="lg" 
             onClick={onBuyClick}
-            className="bg-accent hover:bg-accent/90 text-accent-foreground px-8"
+            variant="gradient"
+            size="lg"
+            className="text-base md:text-lg px-6 md:px-8"
           >
-            Comprar Agora por R$97
+            Quero Acesso ao Sistema Completo
           </Button>
         </motion.div>
       </div>

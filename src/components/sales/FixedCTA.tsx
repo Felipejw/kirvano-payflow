@@ -29,21 +29,22 @@ export const FixedCTA = ({ onBuyClick }: FixedCTAProps) => {
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
         >
-          <div className="container max-w-5xl mx-auto px-4 py-3 flex items-center justify-center sm:justify-between gap-4">
-            <div className="hidden sm:block">
-              <p className="text-base font-medium text-foreground">
+          <div className="container max-w-5xl mx-auto px-4 py-4 pb-6 sm:py-3 sm:pb-3 flex items-center justify-center sm:justify-between gap-3 sm:gap-4">
+            <div className="hidden sm:block flex-shrink-0">
+              <p className="text-sm md:text-base font-medium text-foreground">
                 Sistema completo por apenas <span className="text-accent font-bold">R$97</span>
               </p>
-              <p className="text-sm text-muted-foreground">Pagamento único • Acesso vitalício</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Pagamento único • Acesso vitalício</p>
             </div>
             
             <Button
               onClick={onBuyClick}
               size="lg"
-              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-8 py-4 h-auto flex-shrink-0 hover:scale-105 transition-transform text-base"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-5 sm:px-8 py-4 h-auto flex-shrink-0 hover:scale-105 transition-transform text-sm sm:text-base whitespace-nowrap"
             >
-              <ShoppingCart className="w-5 h-5 mr-2" />
-              Comprar Agora por R$97
+              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
+              <span className="sm:hidden">Comprar R$97</span>
+              <span className="hidden sm:inline">Comprar Agora por R$97</span>
             </Button>
           </div>
         </motion.div>
