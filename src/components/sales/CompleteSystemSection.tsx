@@ -30,7 +30,6 @@ import { Button } from "@/components/ui/button";
 interface Feature {
   icon: LucideIcon;
   label: string;
-  hasPreview?: boolean;
 }
 
 interface FeatureCategory {
@@ -46,7 +45,7 @@ const featureCategories: FeatureCategory[] = [
     icon: CreditCard,
     color: "from-green-500/20 to-emerald-500/10",
     features: [
-      { icon: CreditCard, label: "Checkout PIX", hasPreview: true },
+      { icon: CreditCard, label: "Checkout PIX" },
       { icon: Wallet, label: "Múltiplos gateways" },
       { icon: Clock, label: "Aprovação instantânea" },
       { icon: Shield, label: "Anti-fraude" },
@@ -57,7 +56,7 @@ const featureCategories: FeatureCategory[] = [
     icon: LayoutDashboard,
     color: "from-blue-500/20 to-indigo-500/10",
     features: [
-      { icon: LayoutDashboard, label: "Dashboard completo", hasPreview: true },
+      { icon: LayoutDashboard, label: "Dashboard completo" },
       { icon: BarChart3, label: "Relatórios detalhados" },
       { icon: Users, label: "Gestão de clientes" },
       { icon: ShoppingCart, label: "Produtos ilimitados" },
@@ -117,14 +116,7 @@ const FeatureCard = ({ feature, index, isInView }: FeatureCardProps) => {
       className="flex items-center gap-2 md:gap-3 p-2.5 md:p-3 bg-card/50 rounded-lg border border-border/50 hover:border-accent/50 hover:bg-card transition-all duration-300 cursor-default group relative"
     >
       <feature.icon className="w-4 h-4 md:w-5 md:h-5 text-accent flex-shrink-0" />
-      <span className="text-xs md:text-sm text-foreground truncate">{feature.label}</span>
-      
-      {/* Preview indicator - hidden on mobile */}
-      {feature.hasPreview && (
-        <span className="hidden md:inline-flex ml-auto text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          Preview
-        </span>
-      )}
+      <span className="text-xs md:text-sm text-foreground">{feature.label}</span>
     </motion.div>
   );
 };
