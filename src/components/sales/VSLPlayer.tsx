@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Play } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -10,7 +10,7 @@ interface VSLPlayerProps {
 
 export const VSLPlayer = ({ 
   videoUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ", 
-  thumbnailUrl,
+  thumbnailUrl = "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&q=80",
   onProgress 
 }: VSLPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -23,18 +23,15 @@ export const VSLPlayer = ({
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      const currentProgress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
-      setProgress(currentProgress);
-      onProgress?.(currentProgress);
+      const percent = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+      setProgress(percent);
+      onProgress?.(percent);
     }
   };
 
-  // Default thumbnail with play button overlay
-  const defaultThumbnail = "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1280&h=720&fit=crop";
-
   return (
-    <div className="relative w-full max-w-[720px] mx-auto">
-      <div className="relative aspect-video rounded-xl overflow-hidden shadow-2xl border border-border/50">
+    <div className="relative w-full max-w-4xl mx-auto">
+      <div className="relative aspect-video rounded-xl md:rounded-2xl overflow-hidden shadow-2xl border border-border/50">
         <AnimatePresence mode="wait">
           {!isPlaying ? (
             <motion.div
@@ -45,32 +42,43 @@ export const VSLPlayer = ({
               className="absolute inset-0 cursor-pointer group"
               onClick={handlePlay}
             >
-              {/* Thumbnail */}
               <img
-                src={thumbnailUrl || defaultThumbnail}
+                src={thumbnailUrl}
                 alt="Video thumbnail"
                 className="w-full h-full object-cover"
               />
-              
-              {/* Overlay gradient */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
               
               {/* Play button */}
-              <motion.div 
+              <motion.div
                 className="absolute inset-0 flex items-center justify-center"
                 whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
               >
-                <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-accent flex items-center justify-center shadow-xl group-hover:bg-accent/90 transition-colors">
-                  <Play className="w-8 h-8 md:w-10 md:h-10 text-accent-foreground fill-current ml-1" />
-                </div>
+                <motion.div
+                  className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-accent/30"
+                  animate={{ 
+                    scale: [1, 1.1, 1],
+                    boxShadow: [
+                      "0 0 20px rgba(var(--accent), 0.3)",
+                      "0 0 40px rgba(var(--accent), 0.5)",
+                      "0 0 20px rgba(var(--accent), 0.3)"
+                    ]
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
+                  <Play className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-accent-foreground ml-1" />
+                </motion.div>
               </motion.div>
 
-              {/* Text overlay */}
-              <div className="absolute bottom-4 left-4 right-4 text-white">
-                <p className="text-sm md:text-base font-medium opacity-90">
+              {/* Watch text */}
+              <div className="absolute bottom-4 md:bottom-6 left-0 right-0 text-center">
+                <span className="text-white/90 text-xs sm:text-sm md:text-base font-medium bg-black/50 px-3 py-1.5 md:px-4 md:py-2 rounded-full">
                   Clique para assistir
-                </p>
+                </span>
               </div>
             </motion.div>
           ) : (
@@ -78,9 +86,8 @@ export const VSLPlayer = ({
               key="video"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="w-full h-full"
+              className="absolute inset-0"
             >
-              {/* For demo, using iframe. In production, use video element */}
               <iframe
                 src={`${videoUrl}?autoplay=1`}
                 className="w-full h-full"
@@ -92,14 +99,18 @@ export const VSLPlayer = ({
         </AnimatePresence>
       </div>
 
-      {/* Progress indicator (optional, for native video) */}
+      {/* Progress bar */}
       {isPlaying && progress > 0 && (
-        <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute bottom-0 left-0 right-0 h-1 bg-border/50 rounded-b-xl md:rounded-b-2xl overflow-hidden"
+        >
           <div 
             className="h-full bg-accent transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
-        </div>
+        </motion.div>
       )}
     </div>
   );
