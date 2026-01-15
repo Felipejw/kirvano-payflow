@@ -7,6 +7,8 @@ import { WhiteLabelSection } from "@/components/sales/WhiteLabelSection";
 import { EarningModelsSection } from "@/components/sales/EarningModelsSection";
 import { ClosingOffer } from "@/components/sales/ClosingOffer";
 import { SalesFAQ } from "@/components/sales/SalesFAQ";
+import { SalesTestimonials } from "@/components/sales/SalesTestimonials";
+import { SalesWhatsAppButton } from "@/components/sales/SalesWhatsAppButton";
 
 const SalesPage = () => {
   const handleBuyClick = () => {
@@ -33,11 +35,17 @@ const SalesPage = () => {
       {/* Section 5 - Earning Models */}
       <EarningModelsSection onBuyClick={handleBuyClick} />
       
-      {/* Section 6 - Closing Offer */}
+      {/* Section 6 - Testimonials */}
+      <SalesTestimonials />
+      
+      {/* Section 7 - Closing Offer */}
       <ClosingOffer onBuyClick={handleBuyClick} />
       
-      {/* Section 7 - FAQ */}
+      {/* Section 8 - FAQ */}
       <SalesFAQ onBuyClick={handleBuyClick} />
+      
+      {/* WhatsApp Floating Button */}
+      <SalesWhatsAppButton />
       
       {/* Fixed CTA Bar */}
       <FixedCTA onBuyClick={handleBuyClick} />
