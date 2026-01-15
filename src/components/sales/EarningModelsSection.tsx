@@ -11,7 +11,7 @@ interface EarningModelsSectionProps {
 const models = [
   {
     icon: Wallet,
-    title: "Economize em cada venda",
+    title: "Economize em cada venda que fizer",
     description: "Pare de entregar parte do seu faturamento para gateways e aumente sua margem usando sua própria estrutura."
   },
   {
@@ -65,7 +65,7 @@ export const EarningModelsSection = ({ onBuyClick }: EarningModelsSectionProps) 
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
               whileHover={{ y: -5 }}
-              className="bg-card p-6 rounded-xl border border-border hover:border-accent/50 transition-all duration-300 hover:shadow-lg group"
+              className="bg-card p-6 rounded-xl border border-border hover:border-accent transition-all duration-300 hover:shadow-xl hover:shadow-accent/10 group"
             >
               <motion.div 
                 className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center mb-4 group-hover:from-accent/30 group-hover:to-accent/10 transition-all"
@@ -87,12 +87,15 @@ export const EarningModelsSection = ({ onBuyClick }: EarningModelsSectionProps) 
           transition={{ duration: 0.6, delay: 0.8 }}
           className="mt-12 text-center"
         >
-          <div className="inline-flex items-center gap-2 bg-accent/10 px-5 py-3 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 bg-accent/10 px-5 py-3 rounded-full mb-2">
             <CheckCircle className="w-5 h-5 text-accent" />
             <span className="text-foreground font-medium">
               Com apenas alguns clientes ou poucas vendas, o Gatteflow já se paga.
             </span>
           </div>
+          <p className="text-sm text-muted-foreground/70 mb-6">
+            Exemplo: cobrando 5% de taxa, 20 vendas de R$100 já cobrem o valor do sistema.
+          </p>
           
           <div>
             <Button 
