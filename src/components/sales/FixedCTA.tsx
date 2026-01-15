@@ -31,7 +31,7 @@ export const FixedCTA = ({ onBuyClick }: FixedCTAProps) => {
         >
           <div className="container max-w-5xl mx-auto px-4 py-3 flex items-center justify-center sm:justify-between gap-4">
             <div className="hidden sm:block">
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-base font-medium text-foreground">
                 Sistema completo por apenas <span className="text-accent font-bold">R$97</span>
               </p>
               <p className="text-xs text-muted-foreground">Pagamento único • Acesso vitalício</p>
