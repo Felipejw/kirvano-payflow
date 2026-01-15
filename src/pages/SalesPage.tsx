@@ -9,9 +9,7 @@ import { SalesFAQ } from "@/components/sales/SalesFAQ";
 
 const SalesPage = () => {
   const handleBuyClick = () => {
-    // Scroll to checkout or open payment modal
-    // For now, redirect to auth page for registration
-    window.location.href = "/?page=auth";
+    window.open("https://gatteflow.store/?s=gatteflow", "_blank");
   };
 
   return (
