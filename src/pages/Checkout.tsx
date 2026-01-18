@@ -1995,23 +1995,23 @@ const Checkout = () => {
             <Button 
               type="submit" 
               className="w-full py-5 sm:py-6 text-base sm:text-lg font-semibold" 
-              disabled={loading || availablePaymentMethods.length === 0 || !selectedPaymentMethod}
+              disabled={loading || (!testMode && (availablePaymentMethods.length === 0 || !selectedPaymentMethod))}
               onClick={handleCreateCharge}
               style={{ 
                 backgroundColor: styles.buttonColor,
                 color: styles.buttonTextColor,
                 borderRadius: styles.borderRadius + 'px',
-                opacity: (availablePaymentMethods.length === 0 || !selectedPaymentMethod) ? 0.5 : 1,
+                opacity: (!testMode && (availablePaymentMethods.length === 0 || !selectedPaymentMethod)) ? 0.5 : 1,
               }}
             >
             {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Gerando {selectedPaymentMethod === 'pix' ? 'PIX' : selectedPaymentMethod === 'card' ? 'Cartão' : 'Boleto'}...
+                  {testMode ? 'Simulando compra...' : `Gerando ${selectedPaymentMethod === 'pix' ? 'PIX' : selectedPaymentMethod === 'card' ? 'Cartão' : 'Boleto'}...`}
                 </>
               ) : (
                 <>
-                  Comprar Agora {formatCurrency(totalPrice)}
+                  {testMode ? '🧪 TESTAR COMPRA' : `Comprar Agora ${formatCurrency(totalPrice)}`}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}
