@@ -1568,16 +1568,12 @@ async function processPaymentConfirmation(
   // create a new Admin user and Tenant for them
   // ============================================================
   try {
-    // Get the main GateFlow product ID
-    const { data: gateflowProduct } = await supabase
-      .from('gateflow_product')
-      .select('id')
-      .eq('is_main_product', true)
-      .maybeSingle();
+    // ID do produto "Sistema Gatteflow" na tabela products
+    const GATEFLOW_PRODUCT_ID = 'e5761661-ebb4-4605-a33c-65943686972c';
     
-    const GATEFLOW_PRODUCT_ID = gateflowProduct?.id;
+    console.log('Checking if this is a GateFlow product sale. charge.product_id:', charge.product_id, 'GATEFLOW_PRODUCT_ID:', GATEFLOW_PRODUCT_ID);
     
-    if (GATEFLOW_PRODUCT_ID && charge.product_id === GATEFLOW_PRODUCT_ID) {
+    if (charge.product_id === GATEFLOW_PRODUCT_ID) {
       console.log('GateFlow product sale detected! Processing auto-registration...');
       
       // Call the process-gateflow-sale edge function
