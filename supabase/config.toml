@@ -62,3 +62,6 @@ verify_jwt = true
 
 [functions.external-payment-api]
 verify_jwt = false
+
+[functions.create-tenant-admin]
+verify_jwt = false

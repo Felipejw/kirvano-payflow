@@ -18,7 +18,8 @@ import {
   Server,
   MessageSquare,
   Send,
-  Mail
+  Mail,
+  Percent
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -80,6 +81,7 @@ const adminMenuItems = [
 // Menu items for super admin (only visible to super_admin role)
 const superAdminMenuItems = [
   { icon: LayoutDashboard, label: "Tenants", page: "super-admin/tenants" },
+  { icon: Percent, label: "Comissões", page: "super-admin/commissions" },
   { icon: Package, label: "Produto GateFlow", page: "super-admin/gateflow-product" },
   { icon: ShoppingCart, label: "Vendas GateFlow", page: "super-admin/gateflow-sales" },
 ];
