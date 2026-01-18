@@ -48,6 +48,8 @@ import Quizzes from "./pages/Quizzes";
 import QuizBuilder from "./pages/QuizBuilder";
 import QuizPlayer from "./pages/QuizPlayer";
 import ApiDocs from "./pages/ApiDocs";
+import SuperAdminDashboard from "./pages/super-admin/SuperAdminDashboard";
+import SuperAdminClientes from "./pages/super-admin/SuperAdminClientes";
 import SuperAdminTenants from "./pages/super-admin/SuperAdminTenants";
 import SuperAdminGateflowProduct from "./pages/super-admin/SuperAdminGateflowProduct";
 import SuperAdminGateflowSales from "./pages/super-admin/SuperAdminGateflowSales";
@@ -165,8 +167,12 @@ function PageRouter() {
       return <AdminBroadcast />;
     case "admin/email-broadcast":
       return <AdminEmailBroadcast />;
+    case "super-admin/dashboard":
+      return <SuperAdminDashboard />;
+    case "super-admin/clientes":
+      return <SuperAdminClientes />;
     case "super-admin/tenants":
-      return <SuperAdminTenants />;
+      return <SuperAdminClientes />; // Redirect antigo para novo
     case "super-admin/commissions":
       return <SuperAdminCommissions />;
     case "super-admin/features":

@@ -80,7 +80,8 @@ const adminMenuItems = [
 
 // Menu items for super admin (only visible to super_admin role)
 const superAdminMenuItems = [
-  { icon: LayoutDashboard, label: "Tenants", page: "super-admin/tenants" },
+  { icon: LayoutDashboard, label: "Dashboard", page: "super-admin/dashboard" },
+  { icon: Users, label: "Clientes", page: "super-admin/clientes" },
   { icon: Percent, label: "Comissões", page: "super-admin/commissions" },
   { icon: Settings, label: "Funcionalidades", page: "super-admin/features" },
   { icon: Package, label: "Produto GateFlow", page: "super-admin/gateflow-product" },
