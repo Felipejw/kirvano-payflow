@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Building2, Users, Globe, Key, Loader2, Mail, Phone, User } from "lucide-react";
+import { Plus, Building2, Users, Globe, Key, Loader2, Mail, Phone, User, Trash2, Pencil, Server, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -36,6 +37,8 @@ interface Profile {
   phone: string | null;
 }
 
+const SERVER_IP = "72.60.60.102";
+
 const SuperAdminClientes = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -44,6 +47,9 @@ const SuperAdminClientes = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<(Tenant & { profile?: Profile }) | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [newTenant, setNewTenant] = useState({
     full_name: "",
     email: "",
@@ -175,6 +181,89 @@ const SuperAdminClientes = () => {
       console.error("Error resetting password:", error);
       toast.error("Erro ao enviar email de redefinição");
     }
+  };
+
+  const handleDeleteTenant = async (tenant: Tenant & { profile?: Profile }) => {
+    setIsDeleting(true);
+    try {
+      // Delete the user using edge function
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { userId: tenant.admin_user_id },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      // Delete tenant record
+      const { error: tenantError } = await supabase
+        .from("tenants")
+        .delete()
+        .eq("id", tenant.id);
+
+      if (tenantError) throw tenantError;
+
+      toast.success("Cliente excluído com sucesso!");
+      fetchTenants();
+    } catch (error: any) {
+      console.error("Error deleting tenant:", error);
+      toast.error(error.message || "Erro ao excluir cliente");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleEditTenant = (tenant: Tenant & { profile?: Profile }) => {
+    setEditingTenant(tenant);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTenant) return;
+
+    setIsSaving(true);
+    try {
+      // Update tenant
+      const { error: tenantError } = await supabase
+        .from("tenants")
+        .update({
+          brand_name: editingTenant.brand_name,
+          custom_domain: editingTenant.custom_domain,
+          reseller_commission: editingTenant.reseller_commission,
+        })
+        .eq("id", editingTenant.id);
+
+      if (tenantError) throw tenantError;
+
+      // Update profile
+      if (editingTenant.profile) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            full_name: editingTenant.profile.full_name,
+            email: editingTenant.profile.email,
+            phone: editingTenant.profile.phone,
+          })
+          .eq("user_id", editingTenant.admin_user_id);
+
+        if (profileError) throw profileError;
+      }
+
+      toast.success("Cliente atualizado com sucesso!");
+      setEditingTenant(null);
+      fetchTenants();
+    } catch (error: any) {
+      console.error("Error updating tenant:", error);
+      toast.error(error.message || "Erro ao atualizar cliente");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("IP copiado para a área de transferência!");
   };
 
   const getStatusBadge = (status: string) => {
@@ -317,6 +406,35 @@ const SuperAdminClientes = () => {
           </Dialog>
         </div>
 
+        {/* Server IP Info Card */}
+        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+              <Server className="h-5 w-5" />
+              IP do Servidor para Apontamento DNS
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <code className="text-lg font-mono bg-blue-100 dark:bg-blue-900 px-4 py-2 rounded-lg text-blue-800 dark:text-blue-200">
+                {SERVER_IP}
+              </code>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => copyToClipboard(SERVER_IP)}
+                className="border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Copiar
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Configure um registro <strong>A</strong> no DNS do domínio do cliente apontando para este IP.
+            </p>
+          </CardContent>
+        </Card>
+
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -410,7 +528,15 @@ const SuperAdminClientes = () => {
                       {format(new Date(tenant.created_at), "dd/MM/yyyy", { locale: ptBR })}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditTenant(tenant)}
+                          title="Editar cliente"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         {tenant.profile?.email && (
                           <Button
                             variant="ghost"
@@ -438,6 +564,40 @@ const SuperAdminClientes = () => {
                             Ativar
                           </Button>
                         )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              title="Excluir cliente"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir o cliente <strong>{tenant.brand_name}</strong>?
+                                Esta ação não pode ser desfeita e todos os dados serão perdidos.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteTenant(tenant)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                disabled={isDeleting}
+                              >
+                                {isDeleting ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : null}
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -453,6 +613,103 @@ const SuperAdminClientes = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Edit Dialog */}
+        <Dialog open={!!editingTenant} onOpenChange={() => setEditingTenant(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Editar Cliente</DialogTitle>
+              <DialogDescription>Atualize as informações do cliente</DialogDescription>
+            </DialogHeader>
+            {editingTenant && (
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Dados do Admin
+                  </h4>
+                  <div>
+                    <Label htmlFor="edit_full_name">Nome Completo</Label>
+                    <Input
+                      id="edit_full_name"
+                      value={editingTenant.profile?.full_name || ""}
+                      onChange={(e) => setEditingTenant({
+                        ...editingTenant,
+                        profile: { ...editingTenant.profile!, full_name: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_email">Email</Label>
+                    <Input
+                      id="edit_email"
+                      type="email"
+                      value={editingTenant.profile?.email || ""}
+                      onChange={(e) => setEditingTenant({
+                        ...editingTenant,
+                        profile: { ...editingTenant.profile!, email: e.target.value }
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_phone">WhatsApp/Telefone</Label>
+                    <Input
+                      id="edit_phone"
+                      value={editingTenant.profile?.phone || ""}
+                      onChange={(e) => setEditingTenant({
+                        ...editingTenant,
+                        profile: { ...editingTenant.profile!, phone: e.target.value }
+                      })}
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Dados da Instância
+                  </h4>
+                  <div>
+                    <Label htmlFor="edit_brand_name">Nome da Marca</Label>
+                    <Input
+                      id="edit_brand_name"
+                      value={editingTenant.brand_name}
+                      onChange={(e) => setEditingTenant({ ...editingTenant, brand_name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_custom_domain">Domínio Personalizado</Label>
+                    <Input
+                      id="edit_custom_domain"
+                      value={editingTenant.custom_domain || ""}
+                      onChange={(e) => setEditingTenant({ ...editingTenant, custom_domain: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_commission">Comissão de Revenda (%)</Label>
+                    <Input
+                      id="edit_commission"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editingTenant.reseller_commission}
+                      onChange={(e) => setEditingTenant({ ...editingTenant, reseller_commission: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingTenant(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveEdit} disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

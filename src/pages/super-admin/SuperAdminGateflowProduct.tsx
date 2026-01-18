@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Package, DollarSign, Percent, Link, Save } from "lucide-react";
+import { Package, DollarSign, Percent, Link, Save, Globe } from "lucide-react";
 
 interface GateflowProduct {
   id: string;
@@ -22,6 +22,7 @@ interface GateflowProduct {
   cover_url: string | null;
   sales_page_url: string | null;
   status: string;
+  universal_access: boolean;
 }
 
 const SuperAdminGateflowProduct = () => {
@@ -49,7 +50,7 @@ const SuperAdminGateflowProduct = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      setProduct(data);
+      setProduct(data ? { ...data, universal_access: data.universal_access ?? true } : null);
     } catch (error) {
       console.error("Error fetching product:", error);
       toast.error("Erro ao carregar produto");
@@ -74,6 +75,7 @@ const SuperAdminGateflowProduct = () => {
           cover_url: product.cover_url,
           sales_page_url: product.sales_page_url,
           status: product.status,
+          universal_access: product.universal_access,
         })
         .eq("id", product.id);
 
@@ -214,7 +216,39 @@ const SuperAdminGateflowProduct = () => {
             </CardContent>
           </Card>
 
-          <Card className="md:col-span-2">
+          {/* Universal Access Card */}
+          <Card className="border-primary/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" />
+                Acesso Universal
+              </CardTitle>
+              <CardDescription>
+                Configure se todos os Admins podem visualizar e promover este produto
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
+                <div>
+                  <Label className="text-base">Habilitar Acesso Universal</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {product.universal_access 
+                      ? "Todos os Admins podem ver e promover este produto no sistema GateFlow"
+                      : "Apenas afiliados específicos podem promover este produto"
+                    }
+                  </p>
+                </div>
+                <Switch
+                  checked={product.universal_access}
+                  onCheckedChange={(checked) => 
+                    setProduct({ ...product, universal_access: checked })
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Link className="h-5 w-5" />
