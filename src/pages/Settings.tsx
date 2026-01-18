@@ -20,15 +20,21 @@ import {
   AlertTriangle,
   Building2,
   Check,
-  Key
+  Key,
+  Globe,
+  DollarSign
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePaymentMode, updatePaymentMode, PaymentMode } from "@/hooks/usePaymentMode";
 import { cn } from "@/lib/utils";
 import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
+import { WhiteLabelSettings } from "@/components/settings/WhiteLabelSettings";
+import { GateflowAffiliateSection } from "@/components/settings/GateflowAffiliateSection";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const Settings = () => {
+  const { isAdmin } = useUserRole();
   const [profile, setProfile] = useState({
     full_name: "",
     email: "",
@@ -164,6 +170,18 @@ const Settings = () => {
               <Bell className="h-4 w-4" />
               Notificações
             </TabsTrigger>
+            {isAdmin && (
+              <>
+                <TabsTrigger value="whitelabel" className="gap-2">
+                  <Globe className="h-4 w-4" />
+                  White Label
+                </TabsTrigger>
+                <TabsTrigger value="affiliate" className="gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Revender GateFlow
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           {/* Profile Settings */}
@@ -465,6 +483,20 @@ const Settings = () => {
           <TabsContent value="api">
             <ApiKeysSection />
           </TabsContent>
+
+          {/* White Label Settings - Admin Only */}
+          {isAdmin && (
+            <TabsContent value="whitelabel">
+              <WhiteLabelSettings />
+            </TabsContent>
+          )}
+
+          {/* GateFlow Affiliate Settings - Admin Only */}
+          {isAdmin && (
+            <TabsContent value="affiliate">
+              <GateflowAffiliateSection />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>
