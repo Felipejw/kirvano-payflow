@@ -715,6 +715,53 @@ const Checkout = () => {
   const handleCreateCharge = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // MODO TESTE: Pula todas as validações e simula pagamento confirmado
+    if (testMode) {
+      console.log('[TEST MODE] Simulando compra direta...');
+      setLoading(true);
+      
+      // Chamar edge function de processo de venda GateFlow diretamente
+      try {
+        const gateflowPayload = {
+          buyer_email: buyerEmail || 'teste@gateflow.com',
+          buyer_name: buyerName || 'Usuário Teste',
+          buyer_phone: buyerPhone || '11999999999',
+          amount: product?.price || 100,
+          transaction_id: `test-${Date.now()}`,
+        };
+        
+        console.log('[TEST MODE] Calling process-gateflow-sale with:', gateflowPayload);
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-gateflow-sale`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(gateflowPayload),
+          }
+        );
+        
+        const result = await response.json();
+        console.log('[TEST MODE] process-gateflow-sale result:', result);
+        
+        setPaymentConfirmed(true);
+        toast({
+          title: "✅ TESTE: Compra Simulada!",
+          description: result.message || "Admin e Tenant criados com sucesso!",
+        });
+      } catch (err) {
+        console.error('[TEST MODE] Error:', err);
+        toast({
+          title: "Erro no teste",
+          description: String(err),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    
     // Validate required fields
     if (!buyerName.trim()) {
       toast({
