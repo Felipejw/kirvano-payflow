@@ -52,6 +52,7 @@ import SuperAdminTenants from "./pages/super-admin/SuperAdminTenants";
 import SuperAdminGateflowProduct from "./pages/super-admin/SuperAdminGateflowProduct";
 import SuperAdminGateflowSales from "./pages/super-admin/SuperAdminGateflowSales";
 import SuperAdminCommissions from "./pages/super-admin/SuperAdminCommissions";
+import SuperAdminFeatures from "./pages/super-admin/SuperAdminFeatures";
 import { getUrlParam } from "./lib/routes";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
@@ -168,6 +169,8 @@ function PageRouter() {
       return <SuperAdminTenants />;
     case "super-admin/commissions":
       return <SuperAdminCommissions />;
+    case "super-admin/features":
+      return <SuperAdminFeatures />;
     case "super-admin/gateflow-product":
       return <SuperAdminGateflowProduct />;
     case "super-admin/gateflow-sales":

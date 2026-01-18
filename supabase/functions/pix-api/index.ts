@@ -1562,6 +1562,52 @@ async function processPaymentConfirmation(
     console.error('Error triggering confirmation notification:', notifError);
   }
 
+  // ============================================================
+  // GATEFLOW PRODUCT AUTO-REGISTRATION
+  // When someone buys the GateFlow System product, automatically
+  // create a new Admin user and Tenant for them
+  // ============================================================
+  try {
+    // Get the main GateFlow product ID
+    const { data: gateflowProduct } = await supabase
+      .from('gateflow_product')
+      .select('id')
+      .eq('is_main_product', true)
+      .maybeSingle();
+    
+    const GATEFLOW_PRODUCT_ID = gateflowProduct?.id;
+    
+    if (GATEFLOW_PRODUCT_ID && charge.product_id === GATEFLOW_PRODUCT_ID) {
+      console.log('GateFlow product sale detected! Processing auto-registration...');
+      
+      // Call the process-gateflow-sale edge function
+      const gateflowPayload = {
+        buyer_email: charge.buyer_email,
+        buyer_name: charge.buyer_name,
+        buyer_phone: charge.buyer_phone,
+        amount: charge.amount,
+        transaction_id: charge.id,
+        // If there's an affiliate, pass their tenant info
+        reseller_tenant_id: charge.affiliates?.tenant_id || null,
+        reseller_user_id: charge.affiliate_id || null,
+      };
+      
+      console.log('Calling process-gateflow-sale with:', gateflowPayload);
+      
+      // Fire and forget - don't wait for response to not block webhook
+      fetch(`${supabaseUrl}/functions/v1/process-gateflow-sale`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(gateflowPayload),
+      }).catch(err => console.error('GateFlow auto-registration error (non-blocking):', err));
+    }
+  } catch (gateflowError) {
+    console.error('Error checking GateFlow product:', gateflowError);
+    // Don't fail the payment confirmation due to GateFlow processing error
+  }
+
   console.log('Payment confirmed:', charge.external_id);
 }
 

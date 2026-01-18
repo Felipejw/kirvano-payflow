@@ -548,6 +548,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          is_main_product: boolean | null
           name: string | null
           price: number
           reseller_commission: number | null
@@ -561,6 +562,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_main_product?: boolean | null
           name?: string | null
           price?: number
           reseller_commission?: number | null
@@ -574,6 +576,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_main_product?: boolean | null
           name?: string | null
           price?: number
           reseller_commission?: number | null
@@ -978,6 +981,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      platform_features: {
+        Row: {
+          category: string | null
+          description: string | null
+          display_order: number | null
+          feature_key: string
+          feature_name: string
+          icon: string | null
+          id: string
+          is_enabled: boolean | null
+          menu_page: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          category?: string | null
+          description?: string | null
+          display_order?: number | null
+          feature_key: string
+          feature_name: string
+          icon?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          menu_page?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string | null
+          description?: string | null
+          display_order?: number | null
+          feature_key?: string
+          feature_name?: string
+          icon?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          menu_page?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       platform_gateway_logs: {
         Row: {

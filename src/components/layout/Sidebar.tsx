@@ -82,6 +82,7 @@ const adminMenuItems = [
 const superAdminMenuItems = [
   { icon: LayoutDashboard, label: "Tenants", page: "super-admin/tenants" },
   { icon: Percent, label: "Comissões", page: "super-admin/commissions" },
+  { icon: Settings, label: "Funcionalidades", page: "super-admin/features" },
   { icon: Package, label: "Produto GateFlow", page: "super-admin/gateflow-product" },
   { icon: ShoppingCart, label: "Vendas GateFlow", page: "super-admin/gateflow-sales" },
 ];
