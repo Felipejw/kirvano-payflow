@@ -6,6 +6,7 @@ type AppRole = "super_admin" | "admin" | "seller" | "affiliate" | "member";
 
 interface UserRoleState {
   role: AppRole | null;
+  roles: AppRole[];
   isSuperAdmin: boolean;
   isAdmin: boolean;
   isSeller: boolean;
@@ -16,7 +17,7 @@ interface UserRoleState {
 
 export const useUserRole = (): UserRoleState => {
   const { user, loading: authLoading } = useAuth();
-  const [role, setRole] = useState<AppRole | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [roleLoading, setRoleLoading] = useState(true);
   const cachedUserId = useRef<string | null>(null);
 
@@ -26,55 +27,74 @@ export const useUserRole = (): UserRoleState => {
       return;
     }
 
-    const fetchRole = async () => {
+    const fetchRoles = async () => {
       if (!user) {
-        setRole(null);
+        setRoles([]);
         cachedUserId.current = null;
         setRoleLoading(false);
         return;
       }
 
-      // Skip fetch if we already have the role for this user
-      if (cachedUserId.current === user.id && role !== null) {
+      // Skip fetch if we already have the roles for this user
+      if (cachedUserId.current === user.id && roles.length > 0) {
         setRoleLoading(false);
         return;
       }
 
       try {
+        // Fetch ALL roles for the user (not just one)
         const { data, error } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", user.id)
-          .single();
+          .eq("user_id", user.id);
 
         if (error) {
-          console.error("Error fetching user role:", error);
-          setRole("seller");
+          console.error("Error fetching user roles:", error);
+          setRoles(["seller"]);
         } else {
-          setRole(data?.role as AppRole || "seller");
+          const userRoles = data?.map(r => r.role as AppRole) || [];
+          setRoles(userRoles.length > 0 ? userRoles : ["seller"]);
         }
         cachedUserId.current = user.id;
       } catch (error) {
-        console.error("Error fetching user role:", error);
-        setRole("seller");
+        console.error("Error fetching user roles:", error);
+        setRoles(["seller"]);
       } finally {
         setRoleLoading(false);
       }
     };
 
-    fetchRole();
+    fetchRoles();
   }, [user, authLoading]);
 
   // Loading is true if auth is loading OR role is loading
   const isLoading = authLoading || roleLoading;
 
+  // Calculate flags based on all roles
+  const hasSuperAdmin = roles.includes("super_admin");
+  const hasAdmin = roles.includes("admin");
+  const hasSeller = roles.includes("seller");
+  const hasAffiliate = roles.includes("affiliate");
+  const hasMember = roles.includes("member");
+
+  // Determine primary role based on hierarchy: super_admin > admin > seller > affiliate > member
+  const getPrimaryRole = (): AppRole | null => {
+    if (hasSuperAdmin) return "super_admin";
+    if (hasAdmin) return "admin";
+    if (hasSeller) return "seller";
+    if (hasAffiliate) return "affiliate";
+    if (hasMember) return "member";
+    return roles[0] || null;
+  };
+
   return {
-    role,
-    isSuperAdmin: role === "super_admin",
-    isAdmin: role === "admin" || role === "super_admin", // super_admin tem acesso admin
-    isSeller: role === "seller",
-    isAffiliate: role === "affiliate",
-    isMember: role === "member",
+    role: getPrimaryRole(),
+    roles,
+    isSuperAdmin: hasSuperAdmin,
+    isAdmin: hasAdmin || hasSuperAdmin, // super_admin tem acesso admin
+    isSeller: hasSeller || roles.length === 0,
+    isAffiliate: hasAffiliate,
+    isMember: hasMember,
     loading: isLoading,
   };
 };
