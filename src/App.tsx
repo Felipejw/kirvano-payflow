@@ -51,6 +51,7 @@ import ApiDocs from "./pages/ApiDocs";
 import SuperAdminTenants from "./pages/super-admin/SuperAdminTenants";
 import SuperAdminGateflowProduct from "./pages/super-admin/SuperAdminGateflowProduct";
 import SuperAdminGateflowSales from "./pages/super-admin/SuperAdminGateflowSales";
+import SuperAdminCommissions from "./pages/super-admin/SuperAdminCommissions";
 import { getUrlParam } from "./lib/routes";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
@@ -165,6 +166,8 @@ function PageRouter() {
       return <AdminEmailBroadcast />;
     case "super-admin/tenants":
       return <SuperAdminTenants />;
+    case "super-admin/commissions":
+      return <SuperAdminCommissions />;
     case "super-admin/gateflow-product":
       return <SuperAdminGateflowProduct />;
     case "super-admin/gateflow-sales":
