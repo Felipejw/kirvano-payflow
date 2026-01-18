@@ -64,6 +64,7 @@ const adminMenuItems = [
   { icon: Wallet, label: "Receita/Lucro", page: "admin/receita" },
   { icon: TrendingUp, label: "Métricas Vendas", page: "admin/vendas" },
   { icon: Trophy, label: "Rankings", page: "admin/rankings" },
+  { icon: Percent, label: "Minhas Vendas", page: "admin/minhas-vendas" },
   { icon: Users, label: "Usuários", page: "admin/users" },
   { icon: Package, label: "Produtos", page: "admin/products" },
   { icon: ShoppingCart, label: "Transações", page: "admin/transactions" },

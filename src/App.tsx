@@ -35,6 +35,7 @@ import AdminInstagramPosts from "./pages/admin/AdminInstagramPosts";
 import AdminGatewayLogs from "./pages/admin/AdminGatewayLogs";
 import AdminBroadcast from "./pages/admin/AdminBroadcast";
 import AdminEmailBroadcast from "./pages/admin/AdminEmailBroadcast";
+import AdminMinhasVendas from "./pages/admin/AdminMinhasVendas";
 import MembersArea from "./pages/members/MembersArea";
 import Recovery from "./pages/Recovery";
 import MembersLogin from "./pages/members/MembersLogin";
@@ -167,6 +168,8 @@ function PageRouter() {
       return <AdminBroadcast />;
     case "admin/email-broadcast":
       return <AdminEmailBroadcast />;
+    case "admin/minhas-vendas":
+      return <AdminMinhasVendas />;
     case "super-admin/dashboard":
       return <SuperAdminDashboard />;
     case "super-admin/clientes":

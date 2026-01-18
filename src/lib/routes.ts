@@ -35,6 +35,7 @@ export const PAGES = {
   adminInvoices: "admin/invoices",
   adminGateways: "admin/gateways",
   adminAnalytics: "admin/analytics",
+  adminMinhasVendas: "admin/minhas-vendas",
   
   adminSettings: "admin/settings",
   adminRecovery: "admin/recovery",

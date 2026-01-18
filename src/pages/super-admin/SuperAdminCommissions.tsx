@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { 
@@ -20,7 +20,9 @@ import {
   Search,
   Download,
   Edit,
-  Loader2
+  Loader2,
+  CircleDollarSign,
+  AlertCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -40,8 +42,12 @@ interface TenantCommission {
     total_amount: number;
     pending_commission: number;
     paid_commission: number;
+    paid_sales_count: number;
+    unpaid_sales_count: number;
   };
 }
+
+type PaymentStatus = "paid" | "partial" | "pending" | "none";
 
 const SuperAdminCommissions = () => {
   const navigate = useNavigate();
@@ -52,6 +58,9 @@ const SuperAdminCommissions = () => {
   const [editingTenant, setEditingTenant] = useState<TenantCommission | null>(null);
   const [newCommission, setNewCommission] = useState(50);
   const [saving, setSaving] = useState(false);
+  const [payingTenant, setPayingTenant] = useState<TenantCommission | null>(null);
+  const [partialAmount, setPartialAmount] = useState("");
+  const [isPaying, setIsPaying] = useState(false);
 
   useEffect(() => {
     if (!roleLoading && !isSuperAdmin) {
@@ -90,11 +99,17 @@ const SuperAdminCommissions = () => {
             .select("amount, commission_amount, status, commission_paid_at")
             .eq("reseller_tenant_id", tenant.id);
 
+          const paidSales = sales?.filter(s => s.status === "paid") || [];
+          const paidCommissions = paidSales.filter(s => s.commission_paid_at);
+          const unpaidCommissions = paidSales.filter(s => !s.commission_paid_at);
+
           const stats = {
-            total_sales: sales?.filter(s => s.status === "paid").length || 0,
-            total_amount: sales?.filter(s => s.status === "paid").reduce((sum, s) => sum + s.amount, 0) || 0,
-            pending_commission: sales?.filter(s => s.status === "paid" && !s.commission_paid_at).reduce((sum, s) => sum + s.commission_amount, 0) || 0,
-            paid_commission: sales?.filter(s => s.commission_paid_at).reduce((sum, s) => sum + s.commission_amount, 0) || 0,
+            total_sales: paidSales.length,
+            total_amount: paidSales.reduce((sum, s) => sum + s.amount, 0),
+            pending_commission: unpaidCommissions.reduce((sum, s) => sum + s.commission_amount, 0),
+            paid_commission: paidCommissions.reduce((sum, s) => sum + s.commission_amount, 0),
+            paid_sales_count: paidCommissions.length,
+            unpaid_sales_count: unpaidCommissions.length,
           };
 
           return {
@@ -111,6 +126,47 @@ const SuperAdminCommissions = () => {
       toast.error("Erro ao carregar dados de comissões");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getPaymentStatus = (tenant: TenantCommission): PaymentStatus => {
+    const { paid_sales_count, unpaid_sales_count, total_sales } = tenant.stats;
+    
+    if (total_sales === 0) return "none";
+    if (unpaid_sales_count === 0 && paid_sales_count > 0) return "paid";
+    if (paid_sales_count > 0 && unpaid_sales_count > 0) return "partial";
+    return "pending";
+  };
+
+  const getPaymentStatusBadge = (status: PaymentStatus) => {
+    switch (status) {
+      case "paid":
+        return (
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Pago Total
+          </Badge>
+        );
+      case "partial":
+        return (
+          <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+            <CircleDollarSign className="h-3 w-3 mr-1" />
+            Pago Parcial
+          </Badge>
+        );
+      case "pending":
+        return (
+          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Pendente
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="secondary">
+            Sem vendas
+          </Badge>
+        );
     }
   };
 
@@ -142,28 +198,100 @@ const SuperAdminCommissions = () => {
     }
   };
 
-  const handleMarkAsPaid = async (tenantId: string) => {
+  const handleOpenPayDialog = (tenant: TenantCommission) => {
+    setPayingTenant(tenant);
+    setPartialAmount("");
+  };
+
+  const handlePayFull = async () => {
+    if (!payingTenant) return;
+
+    setIsPaying(true);
     try {
       // Mark all pending commissions as paid for this tenant
       const { error } = await supabase
         .from("gateflow_sales")
         .update({ commission_paid_at: new Date().toISOString() })
-        .eq("reseller_tenant_id", tenantId)
+        .eq("reseller_tenant_id", payingTenant.id)
         .eq("status", "paid")
         .is("commission_paid_at", null);
 
       if (error) throw error;
 
-      toast.success("Comissões marcadas como pagas!");
+      toast.success("Todas as comissões foram marcadas como pagas!");
+      setPayingTenant(null);
       fetchTenantsWithCommissions();
     } catch (error) {
       console.error("Error marking as paid:", error);
       toast.error("Erro ao marcar como pago");
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  const handlePayPartial = async () => {
+    if (!payingTenant || !partialAmount) return;
+
+    const amount = parseFloat(partialAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Valor inválido");
+      return;
+    }
+
+    setIsPaying(true);
+    try {
+      // Get unpaid sales sorted by date
+      const { data: unpaidSales, error: fetchError } = await supabase
+        .from("gateflow_sales")
+        .select("id, commission_amount")
+        .eq("reseller_tenant_id", payingTenant.id)
+        .eq("status", "paid")
+        .is("commission_paid_at", null)
+        .order("created_at", { ascending: true });
+
+      if (fetchError) throw fetchError;
+
+      // Mark sales as paid until we reach the amount
+      let remainingAmount = amount;
+      const salesToMark: string[] = [];
+
+      for (const sale of unpaidSales || []) {
+        if (remainingAmount >= sale.commission_amount) {
+          salesToMark.push(sale.id);
+          remainingAmount -= sale.commission_amount;
+        } else {
+          break;
+        }
+      }
+
+      if (salesToMark.length === 0) {
+        toast.error("Valor insuficiente para pagar alguma comissão");
+        setIsPaying(false);
+        return;
+      }
+
+      // Mark selected sales as paid
+      const { error } = await supabase
+        .from("gateflow_sales")
+        .update({ commission_paid_at: new Date().toISOString() })
+        .in("id", salesToMark);
+
+      if (error) throw error;
+
+      const paidAmount = amount - remainingAmount;
+      toast.success(`${formatCurrency(paidAmount)} em comissões foram marcados como pagos!`);
+      setPayingTenant(null);
+      fetchTenantsWithCommissions();
+    } catch (error) {
+      console.error("Error marking partial as paid:", error);
+      toast.error("Erro ao marcar como pago parcialmente");
+    } finally {
+      setIsPaying(false);
     }
   };
 
   const exportToCSV = () => {
-    const headers = ["Afiliado", "Email", "Vendas", "Valor Total", "Comissão %", "Pendente", "Pago"];
+    const headers = ["Afiliado", "Email", "Vendas", "Valor Total", "Comissão %", "Pendente", "Pago", "Status"];
     const rows = filteredTenants.map(t => [
       t.profile?.full_name || t.brand_name,
       t.profile?.email || "",
@@ -172,6 +300,7 @@ const SuperAdminCommissions = () => {
       t.reseller_commission,
       t.stats.pending_commission.toFixed(2),
       t.stats.paid_commission.toFixed(2),
+      getPaymentStatus(t),
     ]);
 
     const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
@@ -291,70 +420,77 @@ const SuperAdminCommissions = () => {
                   <TableHead>Afiliado</TableHead>
                   <TableHead className="text-center">Vendas</TableHead>
                   <TableHead className="text-center">Comissão %</TableHead>
+                  <TableHead className="text-center">Status Pagamento</TableHead>
                   <TableHead className="text-right">Pendente</TableHead>
                   <TableHead className="text-right">Pago</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTenants.map((tenant) => (
-                  <TableRow key={tenant.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{tenant.profile?.full_name || tenant.brand_name}</p>
-                        <p className="text-sm text-muted-foreground">{tenant.profile?.email || "—"}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">{tenant.stats.total_sales}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline">{tenant.reseller_commission}%</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {tenant.stats.pending_commission > 0 ? (
-                        <span className="text-amber-600 font-medium">
-                          {formatCurrency(tenant.stats.pending_commission)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {tenant.stats.paid_commission > 0 ? (
-                        <span className="text-green-600 font-medium">
-                          {formatCurrency(tenant.stats.paid_commission)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditCommission(tenant)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        {tenant.stats.pending_commission > 0 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleMarkAsPaid(tenant.id)}
-                          >
-                            <CheckCircle2 className="mr-1 h-4 w-4" />
-                            Pagar
-                          </Button>
+                {filteredTenants.map((tenant) => {
+                  const paymentStatus = getPaymentStatus(tenant);
+                  return (
+                    <TableRow key={tenant.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{tenant.profile?.full_name || tenant.brand_name}</p>
+                          <p className="text-sm text-muted-foreground">{tenant.profile?.email || "—"}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary">{tenant.stats.total_sales}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline">{tenant.reseller_commission}%</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {getPaymentStatusBadge(paymentStatus)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {tenant.stats.pending_commission > 0 ? (
+                          <span className="text-amber-600 font-medium">
+                            {formatCurrency(tenant.stats.pending_commission)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {tenant.stats.paid_commission > 0 ? (
+                          <span className="text-green-600 font-medium">
+                            {formatCurrency(tenant.stats.paid_commission)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditCommission(tenant)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          {tenant.stats.pending_commission > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenPayDialog(tenant)}
+                            >
+                              <CheckCircle2 className="mr-1 h-4 w-4" />
+                              Pagar
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {filteredTenants.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       {searchTerm ? "Nenhum afiliado encontrado" : "Nenhum afiliado cadastrado"}
                     </TableCell>
                   </TableRow>
@@ -398,6 +534,92 @@ const SuperAdminCommissions = () => {
               <Button onClick={handleSaveCommission} disabled={saving}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Pay Commission Dialog */}
+        <Dialog open={!!payingTenant} onOpenChange={() => setPayingTenant(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Pagar Comissão</DialogTitle>
+              <DialogDescription>
+                Escolha pagar o valor total ou um valor parcial
+              </DialogDescription>
+            </DialogHeader>
+            {payingTenant && (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="font-medium">{payingTenant.profile?.full_name || payingTenant.brand_name}</p>
+                  <p className="text-sm text-muted-foreground">{payingTenant.profile?.email}</p>
+                  <div className="mt-2">
+                    <p className="text-lg font-bold text-amber-600">
+                      Pendente: {formatCurrency(payingTenant.stats.pending_commission)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {payingTenant.stats.unpaid_sales_count} venda(s) sem pagamento
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Button 
+                    className="w-full" 
+                    onClick={handlePayFull}
+                    disabled={isPaying}
+                  >
+                    {isPaying ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                    )}
+                    Pagar Total ({formatCurrency(payingTenant.stats.pending_commission)})
+                  </Button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">ou</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="partial_amount">Valor Parcial (R$)</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        id="partial_amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0,00"
+                        value={partialAmount}
+                        onChange={(e) => setPartialAmount(e.target.value)}
+                      />
+                      <Button 
+                        variant="outline" 
+                        onClick={handlePayPartial}
+                        disabled={isPaying || !partialAmount}
+                      >
+                        {isPaying ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Pagar"
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Será pago até atingir o valor informado (por ordem de venda mais antiga)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPayingTenant(null)}>
+                Cancelar
               </Button>
             </DialogFooter>
           </DialogContent>
