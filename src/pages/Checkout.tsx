@@ -138,6 +138,9 @@ const Checkout = () => {
   const productId = routeProductId || searchParams.get("product");
   const affiliateCode = searchParams.get("ref");
   
+  // Modo de teste: ativa com ?test=1 na URL - simula pagamento instantâneo
+  const testMode = searchParams.get("test") === "1";
+  
   // Detect custom domain via hostname
   const customDomain = useMemo(() => {
     const hostname = window.location.hostname;
@@ -990,12 +993,50 @@ const Checkout = () => {
         // PIX or Boleto - show charge data
         setCharge(data);
         const methodLabel = selectedPaymentMethod === 'pix' ? 'PIX' : 'boleto';
-        toast({
-          title: `Cobrança ${methodLabel.toUpperCase()} criada!`,
-          description: selectedPaymentMethod === 'pix' 
-            ? "Escaneie o QR Code ou copie o código para pagar."
-            : `Siga as instruções para pagar via ${methodLabel}.`,
-        });
+        
+        // MODO DE TESTE: Simular pagamento automaticamente
+        if (testMode && data.external_id) {
+          console.log('🧪 MODO DE TESTE: Simulando pagamento automático...');
+          toast({
+            title: "🧪 Modo de Teste Ativo",
+            description: "Simulando confirmação de pagamento...",
+          });
+          
+          // Aguardar um pouco e então confirmar
+          setTimeout(async () => {
+            try {
+              const confirmResponse = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pix-api/charges/${data.external_id}/confirm`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                  },
+                }
+              );
+
+              if (confirmResponse.ok) {
+                setPaymentConfirmed(true);
+                toast({
+                  title: "✅ Pagamento Simulado!",
+                  description: "Pagamento confirmado no modo de teste.",
+                });
+              } else {
+                console.error('Erro ao simular pagamento:', await confirmResponse.text());
+              }
+            } catch (err) {
+              console.error('Erro ao simular pagamento:', err);
+            }
+          }, 1500);
+        } else {
+          toast({
+            title: `Cobrança ${methodLabel.toUpperCase()} criada!`,
+            description: selectedPaymentMethod === 'pix' 
+              ? "Escaneie o QR Code ou copie o código para pagar."
+              : `Siga as instruções para pagar via ${methodLabel}.`,
+          });
+        }
       }
     } catch (error: any) {
       setCardPaymentStatus('idle');
@@ -1453,6 +1494,21 @@ const Checkout = () => {
               alt="Logo" 
               className="h-8 sm:h-10 mx-auto object-contain"
             />
+          </div>
+        )}
+
+        {/* TEST MODE Banner */}
+        {testMode && (
+          <div 
+            className="p-3 sm:p-4 rounded-lg flex items-center justify-center gap-2 border-2 border-dashed"
+            style={{ 
+              backgroundColor: '#f59e0b20',
+              borderColor: '#f59e0b',
+            }}
+          >
+            <span className="text-lg">🧪</span>
+            <span className="font-bold text-amber-500">MODO DE TESTE ATIVO</span>
+            <span className="text-amber-500 text-sm">- Pagamento será simulado automaticamente</span>
           </div>
         )}
 
