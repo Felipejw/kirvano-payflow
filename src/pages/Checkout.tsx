@@ -560,6 +560,16 @@ const Checkout = () => {
 
   const fetchPaymentMethods = async (sellerId: string) => {
     setLoadingPaymentMethods(true);
+    
+    // Em modo teste, sempre habilita PIX e pula a verificação de gateway
+    if (testMode) {
+      console.log('[TEST MODE] Bypassing payment method check - enabling PIX');
+      setAvailablePaymentMethods(['pix']);
+      setSelectedPaymentMethod('pix');
+      setLoadingPaymentMethods(false);
+      return;
+    }
+    
     try {
       const { data, error } = await supabase.functions.invoke('pix-api', {
         body: {},
