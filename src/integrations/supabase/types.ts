@@ -541,6 +541,104 @@ export type Database = {
           },
         ]
       }
+      gateflow_product: {
+        Row: {
+          checkout_url: string | null
+          cover_url: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string | null
+          price: number
+          reseller_commission: number | null
+          sales_page_url: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          checkout_url?: string | null
+          cover_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string | null
+          price?: number
+          reseller_commission?: number | null
+          sales_page_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          checkout_url?: string | null
+          cover_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string | null
+          price?: number
+          reseller_commission?: number | null
+          sales_page_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      gateflow_sales: {
+        Row: {
+          amount: number
+          buyer_email: string
+          buyer_name: string | null
+          buyer_phone: string | null
+          commission_amount: number
+          commission_paid_at: string | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          reseller_tenant_id: string | null
+          reseller_user_id: string | null
+          status: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          buyer_email: string
+          buyer_name?: string | null
+          buyer_phone?: string | null
+          commission_amount: number
+          commission_paid_at?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          reseller_tenant_id?: string | null
+          reseller_user_id?: string | null
+          status?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          buyer_email?: string
+          buyer_name?: string | null
+          buyer_phone?: string | null
+          commission_amount?: number
+          commission_paid_at?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          reseller_tenant_id?: string | null
+          reseller_user_id?: string | null
+          status?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gateflow_sales_reseller_tenant_id_fkey"
+            columns: ["reseller_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_email_logs: {
         Row: {
           created_at: string
@@ -1242,6 +1340,7 @@ export type Database = {
           phone: string | null
           pix_key: string | null
           sales_niche: string | null
+          tenant_id: string | null
           terms_accepted_at: string | null
           updated_at: string
           user_id: string
@@ -1260,6 +1359,7 @@ export type Database = {
           phone?: string | null
           pix_key?: string | null
           sales_niche?: string | null
+          tenant_id?: string | null
           terms_accepted_at?: string | null
           updated_at?: string
           user_id: string
@@ -1278,11 +1378,20 @@ export type Database = {
           phone?: string | null
           pix_key?: string | null
           sales_niche?: string | null
+          tenant_id?: string | null
           terms_accepted_at?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quiz_connections: {
         Row: {
@@ -1852,6 +1961,84 @@ export type Database = {
         }
         Relationships: []
       }
+      tenants: {
+        Row: {
+          accent_color: string | null
+          admin_user_id: string
+          brand_name: string
+          created_at: string | null
+          custom_domain: string | null
+          domain_verified: boolean | null
+          favicon_url: string | null
+          id: string
+          is_reseller: boolean | null
+          logo_url: string | null
+          max_products: number | null
+          max_sellers: number | null
+          primary_color: string | null
+          privacy_url: string | null
+          reseller_commission: number | null
+          secondary_color: string | null
+          status: string | null
+          support_email: string | null
+          support_phone: string | null
+          terms_url: string | null
+          trial_ends_at: string | null
+          updated_at: string | null
+          whatsapp_url: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          admin_user_id: string
+          brand_name: string
+          created_at?: string | null
+          custom_domain?: string | null
+          domain_verified?: boolean | null
+          favicon_url?: string | null
+          id?: string
+          is_reseller?: boolean | null
+          logo_url?: string | null
+          max_products?: number | null
+          max_sellers?: number | null
+          primary_color?: string | null
+          privacy_url?: string | null
+          reseller_commission?: number | null
+          secondary_color?: string | null
+          status?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          terms_url?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+          whatsapp_url?: string | null
+        }
+        Update: {
+          accent_color?: string | null
+          admin_user_id?: string
+          brand_name?: string
+          created_at?: string | null
+          custom_domain?: string | null
+          domain_verified?: boolean | null
+          favicon_url?: string | null
+          id?: string
+          is_reseller?: boolean | null
+          logo_url?: string | null
+          max_products?: number | null
+          max_sellers?: number | null
+          primary_color?: string | null
+          privacy_url?: string | null
+          reseller_commission?: number | null
+          secondary_color?: string | null
+          status?: string | null
+          support_email?: string | null
+          support_phone?: string | null
+          terms_url?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+          whatsapp_url?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           affiliate_amount: number
@@ -2273,7 +2460,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "seller" | "affiliate" | "member"
+      app_role: "admin" | "seller" | "affiliate" | "member" | "super_admin"
       invoice_status: "pending" | "paid" | "overdue" | "blocked"
       transaction_status: "pending" | "paid" | "expired" | "cancelled"
     }
@@ -2403,7 +2590,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "seller", "affiliate", "member"],
+      app_role: ["admin", "seller", "affiliate", "member", "super_admin"],
       invoice_status: ["pending", "paid", "overdue", "blocked"],
       transaction_status: ["pending", "paid", "expired", "cancelled"],
     },

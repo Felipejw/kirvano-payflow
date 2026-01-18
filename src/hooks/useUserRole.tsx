@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
-type AppRole = "admin" | "seller" | "affiliate" | "member";
+type AppRole = "super_admin" | "admin" | "seller" | "affiliate" | "member";
 
 interface UserRoleState {
   role: AppRole | null;
+  isSuperAdmin: boolean;
   isAdmin: boolean;
   isSeller: boolean;
   isAffiliate: boolean;
@@ -69,7 +70,8 @@ export const useUserRole = (): UserRoleState => {
 
   return {
     role,
-    isAdmin: role === "admin",
+    isSuperAdmin: role === "super_admin",
+    isAdmin: role === "admin" || role === "super_admin", // super_admin tem acesso admin
     isSeller: role === "seller",
     isAffiliate: role === "affiliate",
     isMember: role === "member",

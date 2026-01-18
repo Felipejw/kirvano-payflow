@@ -74,8 +74,14 @@ const adminMenuItems = [
   { icon: Send, label: "Disparo WhatsApp", page: "admin/broadcast" },
   { icon: Mail, label: "Disparo Email", page: "admin/email-broadcast" },
   { icon: Instagram, label: "Posts Instagram", page: "admin/instagram-posts" },
-  
   { icon: Settings, label: "Configurações", page: "admin/settings" },
+];
+
+// Menu items for super admin (only visible to super_admin role)
+const superAdminMenuItems = [
+  { icon: LayoutDashboard, label: "Tenants", page: "super-admin/tenants" },
+  { icon: Package, label: "Produto GateFlow", page: "super-admin/gateflow-product" },
+  { icon: ShoppingCart, label: "Vendas GateFlow", page: "super-admin/gateflow-sales" },
 ];
 
 const bottomMenuItems = [
@@ -86,15 +92,18 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { collapsed, toggle, isMobile } = useSidebar();
   const currentPage = useCurrentPage();
   const navigate = useAppNavigate();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdmin, isSuperAdmin, loading: roleLoading } = useUserRole();
   const { signOut } = useAuth();
   const { paymentMode, loading: modeLoading } = usePaymentMode();
 
   const isOnAdminRoute = currentPage.startsWith("admin");
+  const isOnSuperAdminRoute = currentPage.startsWith("super-admin");
   
   // Select menu items based on context
   let menuItems;
-  if (isOnAdminRoute) {
+  if (isOnSuperAdminRoute) {
+    menuItems = superAdminMenuItems;
+  } else if (isOnAdminRoute) {
     menuItems = adminMenuItems;
   } else {
     // For sellers, show menu based on their payment mode
@@ -107,10 +116,21 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   };
 
   const toggleView = () => {
-    if (isOnAdminRoute) {
+    if (isOnSuperAdminRoute) {
+      navigate("admin");
+    } else if (isOnAdminRoute) {
       navigate("dashboard");
     } else {
       navigate("admin");
+    }
+    onNavigate?.();
+  };
+
+  const toggleSuperAdmin = () => {
+    if (isOnSuperAdminRoute) {
+      navigate("admin");
+    } else {
+      navigate("super-admin/tenants");
     }
     onNavigate?.();
   };
@@ -146,8 +166,44 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         )}
       </div>
 
-      {/* Admin/Seller Toggle - only for admins */}
-      {isAdmin && !roleLoading && (
+      {/* Super Admin Toggle - only for super_admin */}
+      {isSuperAdmin && !roleLoading && (
+        <div className="px-3 py-2 border-b border-sidebar-border space-y-2">
+          <Button
+            variant={isOnSuperAdminRoute ? "default" : "outline"}
+            size="sm"
+            onClick={toggleSuperAdmin}
+            className={cn(
+              "w-full justify-start gap-2",
+              showCollapsed && "justify-center px-2"
+            )}
+          >
+            <Shield className="h-4 w-4" />
+            {!showCollapsed && (
+              <span>{isOnSuperAdminRoute ? "Sair Super Admin" : "Super Admin"}</span>
+            )}
+          </Button>
+          {!isOnSuperAdminRoute && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleView}
+              className={cn(
+                "w-full justify-start gap-2",
+                showCollapsed && "justify-center px-2"
+              )}
+            >
+              <Shield className="h-4 w-4" />
+              {!showCollapsed && (
+                <span>{isOnAdminRoute ? "Modo Vendedor" : "Modo Admin"}</span>
+              )}
+            </Button>
+          )}
+        </div>
+      )}
+      
+      {/* Admin/Seller Toggle - only for admins (non super_admin) */}
+      {isAdmin && !isSuperAdmin && !roleLoading && (
         <div className="px-3 py-2 border-b border-sidebar-border">
           <Button
             variant="outline"

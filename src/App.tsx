@@ -48,6 +48,9 @@ import Quizzes from "./pages/Quizzes";
 import QuizBuilder from "./pages/QuizBuilder";
 import QuizPlayer from "./pages/QuizPlayer";
 import ApiDocs from "./pages/ApiDocs";
+import SuperAdminTenants from "./pages/super-admin/SuperAdminTenants";
+import SuperAdminGateflowProduct from "./pages/super-admin/SuperAdminGateflowProduct";
+import SuperAdminGateflowSales from "./pages/super-admin/SuperAdminGateflowSales";
 import { getUrlParam } from "./lib/routes";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
@@ -160,6 +163,12 @@ function PageRouter() {
       return <AdminBroadcast />;
     case "admin/email-broadcast":
       return <AdminEmailBroadcast />;
+    case "super-admin/tenants":
+      return <SuperAdminTenants />;
+    case "super-admin/gateflow-product":
+      return <SuperAdminGateflowProduct />;
+    case "super-admin/gateflow-sales":
+      return <SuperAdminGateflowSales />;
     case "members":
       return <MembersArea />;
     case "members/login":
