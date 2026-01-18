@@ -19,7 +19,7 @@ export const useUserRole = (): UserRoleState => {
   const { user, loading: authLoading } = useAuth();
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [roleLoading, setRoleLoading] = useState(true);
-  const cachedUserId = useRef<string | null>(null);
+  const fetchedForUserId = useRef<string | null>(null);
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -27,21 +27,30 @@ export const useUserRole = (): UserRoleState => {
       return;
     }
 
+    // If user logged out, reset everything
+    if (!user) {
+      setRoles([]);
+      fetchedForUserId.current = null;
+      setRoleLoading(false);
+      return;
+    }
+
+    // If user changed, reset the fetched flag
+    if (fetchedForUserId.current !== user.id) {
+      fetchedForUserId.current = null;
+    }
+
+    // Skip fetch if we already fetched for this exact user
+    if (fetchedForUserId.current === user.id) {
+      return;
+    }
+
     const fetchRoles = async () => {
-      if (!user) {
-        setRoles([]);
-        cachedUserId.current = null;
-        setRoleLoading(false);
-        return;
-      }
-
-      // Skip fetch if we already have the roles for this user
-      if (cachedUserId.current === user.id && roles.length > 0) {
-        setRoleLoading(false);
-        return;
-      }
-
+      setRoleLoading(true);
+      
       try {
+        console.log("[useUserRole] Fetching roles for user:", user.id, user.email);
+        
         // Fetch ALL roles for the user (not just one)
         const { data, error } = await supabase
           .from("user_roles")
@@ -49,15 +58,16 @@ export const useUserRole = (): UserRoleState => {
           .eq("user_id", user.id);
 
         if (error) {
-          console.error("Error fetching user roles:", error);
+          console.error("[useUserRole] Error fetching user roles:", error);
           setRoles(["seller"]);
         } else {
           const userRoles = data?.map(r => r.role as AppRole) || [];
+          console.log("[useUserRole] Roles found:", userRoles);
           setRoles(userRoles.length > 0 ? userRoles : ["seller"]);
         }
-        cachedUserId.current = user.id;
+        fetchedForUserId.current = user.id;
       } catch (error) {
-        console.error("Error fetching user roles:", error);
+        console.error("[useUserRole] Error fetching user roles:", error);
         setRoles(["seller"]);
       } finally {
         setRoleLoading(false);
