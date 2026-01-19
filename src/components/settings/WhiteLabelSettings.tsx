@@ -14,7 +14,8 @@ import {
   CheckCircle,
   AlertTriangle,
   ExternalLink,
-  Copy
+  Copy,
+  Server
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -338,21 +339,40 @@ export const WhiteLabelSettings = () => {
             />
           </div>
 
+          {/* Server IP Info */}
+          <div className="p-4 rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Server className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <span className="font-medium text-blue-700 dark:text-blue-400">IP do Servidor para Apontamento DNS</span>
+            </div>
+            <div className="flex items-center gap-3 mb-2">
+              <code className="text-lg font-mono bg-blue-100 dark:bg-blue-900 px-4 py-2 rounded-lg text-blue-800 dark:text-blue-200">
+                72.60.60.102
+              </code>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  navigator.clipboard.writeText("72.60.60.102");
+                  toast.success("IP copiado!");
+                }}
+                className="border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Copiar
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Configure um registro <strong>A</strong> no DNS do seu domínio apontando para este IP.
+            </p>
+          </div>
+
           {formData.custom_domain && (
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-2">
-                  <p>Para ativar seu domínio, adicione o seguinte registro DNS:</p>
-                  <div className="flex items-center gap-2 p-2 bg-secondary/50 rounded font-mono text-sm">
-                    <span>CNAME {formData.custom_domain} → gatteflow.store</span>
-                    <Button variant="ghost" size="icon" onClick={copyDNSRecord}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Após configurar, entre em contato para validação do domínio.
-                  </p>
+                  <p>Após configurar o registro A, entre em contato para validação do domínio.</p>
                 </div>
               </AlertDescription>
             </Alert>
