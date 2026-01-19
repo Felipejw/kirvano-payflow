@@ -52,7 +52,9 @@ Deno.serve(async (req) => {
       .select('role')
       .eq('user_id', callingUser.id);
 
-    const hasAdminAccess = callerRoles?.some(r => r.role === 'admin' || r.role === 'super_admin');
+    const isSuperAdmin = callerRoles?.some(r => r.role === 'super_admin');
+    const isAdmin = callerRoles?.some(r => r.role === 'admin');
+    const hasAdminAccess = isSuperAdmin || isAdmin;
 
     if (callerRoleError || !hasAdminAccess) {
       console.error('Caller is not admin or super_admin:', callerRoleError);
@@ -72,24 +74,45 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Prevent self-deletion
+    if (userId === callingUser.id) {
+      console.error('User attempted to delete themselves');
+      return new Response(
+        JSON.stringify({ error: 'Você não pode excluir sua própria conta' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('Attempting to delete user:', userId);
 
-    // Check if target user is admin - cannot delete admins
-    const { data: targetRole, error: targetRoleError } = await supabaseAdmin
+    // Check if target user is admin or super_admin
+    const { data: targetRoles, error: targetRoleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId)
-      .single();
+      .eq('user_id', userId);
 
     if (targetRoleError) {
       console.error('Error checking target user role:', targetRoleError);
       // If no role found, proceed with deletion (user might not have a role)
     }
 
-    if (targetRole?.role === 'admin') {
-      console.error('Attempted to delete admin user');
+    const targetIsAdmin = targetRoles?.some(r => r.role === 'admin');
+    const targetIsSuperAdmin = targetRoles?.some(r => r.role === 'super_admin');
+
+    // Super admins cannot be deleted by anyone
+    if (targetIsSuperAdmin) {
+      console.error('Attempted to delete super_admin user');
       return new Response(
-        JSON.stringify({ error: 'Não é permitido excluir usuários administradores' }),
+        JSON.stringify({ error: 'Não é permitido excluir super administradores' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Only super_admin can delete admin users
+    if (targetIsAdmin && !isSuperAdmin) {
+      console.error('Admin attempted to delete another admin user');
+      return new Response(
+        JSON.stringify({ error: 'Apenas super administradores podem excluir administradores' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
