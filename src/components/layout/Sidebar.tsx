@@ -172,22 +172,25 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* Super Admin Toggle - only for super_admin */}
-      {false && isSuperAdmin && !roleLoading && (
+      {isSuperAdmin && !roleLoading && (
         <div className="px-3 py-2 border-b border-sidebar-border space-y-2">
-          <Button
-            variant={isOnSuperAdminRoute ? "default" : "outline"}
-            size="sm"
-            onClick={toggleSuperAdmin}
-            className={cn(
-              "w-full justify-start gap-2",
-              showCollapsed && "justify-center px-2"
-            )}
-          >
-            <Shield className="h-4 w-4" />
-            {!showCollapsed && (
-              <span>{isOnSuperAdminRoute ? "Sair Super Admin" : "Super Admin"}</span>
-            )}
-          </Button>
+          {/* Botão Super Admin temporariamente oculto */}
+          {false && (
+            <Button
+              variant={isOnSuperAdminRoute ? "default" : "outline"}
+              size="sm"
+              onClick={toggleSuperAdmin}
+              className={cn(
+                "w-full justify-start gap-2",
+                showCollapsed && "justify-center px-2"
+              )}
+            >
+              <Shield className="h-4 w-4" />
+              {!showCollapsed && (
+                <span>{isOnSuperAdminRoute ? "Sair Super Admin" : "Super Admin"}</span>
+              )}
+            </Button>
+          )}
           {!isOnSuperAdminRoute && (
             <Button
               variant="outline"
