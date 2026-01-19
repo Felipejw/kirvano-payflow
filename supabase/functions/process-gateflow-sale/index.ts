@@ -202,28 +202,32 @@ Deno.serve(async (req) => {
       console.error("Error recording sale:", saleError);
     }
 
-    // Adicionar produto Gateflow padrão para revenda
-    const { data: gateflowProduct } = await supabaseAdmin
-      .from("gateflow_product")
+    // Adicionar produto Gateflow padrão para revenda (copiar do produto principal)
+    const GATEFLOW_PRODUCT_ID = "e5761661-ebb4-4605-a33c-65943686972c";
+    
+    const { data: sourceProduct } = await supabaseAdmin
+      .from("products")
       .select("*")
-      .eq("is_main_product", true)
+      .eq("id", GATEFLOW_PRODUCT_ID)
       .single();
 
-    if (gateflowProduct) {
+    if (sourceProduct) {
       const { error: productError } = await supabaseAdmin
         .from("products")
         .insert({
           seller_id: userId,
-          name: gateflowProduct.name || "Sistema Gateflow",
-          description: gateflowProduct.description,
-          price: gateflowProduct.price || 297,
-          cover_url: gateflowProduct.cover_url,
-          type: "digital",
+          name: sourceProduct.name,
+          description: sourceProduct.description,
+          price: sourceProduct.price,
+          cover_url: sourceProduct.cover_url,
+          type: sourceProduct.type,
           status: "active",
-          commission_rate: gateflowProduct.reseller_commission || 50,
+          commission_rate: 50, // 50% commission for affiliates
           allow_affiliates: true,
-          checkout_theme: "dark",
+          checkout_theme: sourceProduct.checkout_theme,
           custom_slug: `gateflow-${Date.now()}`,
+          deliverable_type: sourceProduct.deliverable_type,
+          deliverable_url: sourceProduct.deliverable_url,
         });
       
       if (productError) {
@@ -231,6 +235,8 @@ Deno.serve(async (req) => {
       } else {
         console.log("Default Gateflow product added for new tenant");
       }
+    } else {
+      console.log("Source Gateflow product not found");
     }
 
     // Enviar email de boas-vindas com credenciais
