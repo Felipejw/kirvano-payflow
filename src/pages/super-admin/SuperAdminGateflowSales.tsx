@@ -8,7 +8,24 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { DollarSign, TrendingUp, Users, CheckCircle } from "lucide-react";
+import { DollarSign, TrendingUp, Users, CheckCircle, MoreHorizontal, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -34,6 +51,8 @@ const SuperAdminGateflowSales = () => {
   const { isSuperAdmin, loading: roleLoading } = useUserRole();
   const [sales, setSales] = useState<GateflowSale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [stats, setStats] = useState({
     totalSales: 0,
     totalRevenue: 0,
@@ -101,6 +120,29 @@ const SuperAdminGateflowSales = () => {
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Erro ao atualizar status");
+    }
+  };
+
+  const handleDeleteSale = async () => {
+    if (!deletingSaleId) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("gateflow_sales")
+        .delete()
+        .eq("id", deletingSaleId);
+
+      if (error) throw error;
+
+      toast.success("Venda excluída com sucesso!");
+      setDeletingSaleId(null);
+      fetchSales();
+    } catch (error) {
+      console.error("Error deleting sale:", error);
+      toast.error("Erro ao excluir venda");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -221,35 +263,37 @@ const SuperAdminGateflowSales = () => {
                     <TableCell>{formatCurrency(sale.commission_amount)}</TableCell>
                     <TableCell>{getStatusBadge(sale.status)}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {sale.status === "pending" && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleUpdateStatus(sale.id, "approved")}
-                            >
-                              Aprovar
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleUpdateStatus(sale.id, "cancelled")}
-                            >
-                              Cancelar
-                            </Button>
-                          </>
-                        )}
-                        {sale.status === "approved" && !sale.commission_paid_at && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleUpdateStatus(sale.id, "paid")}
-                          >
-                            Marcar Pago
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        )}
-                      </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {sale.status === "pending" && (
+                            <>
+                              <DropdownMenuItem onClick={() => handleUpdateStatus(sale.id, "approved")}>
+                                <CheckCircle className="mr-2 h-4 w-4" /> Aprovar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleUpdateStatus(sale.id, "cancelled")}>
+                                Cancelar
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {sale.status === "approved" && !sale.commission_paid_at && (
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(sale.id, "paid")}>
+                              <CheckCircle className="mr-2 h-4 w-4" /> Marcar Pago
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => setDeletingSaleId(sale.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -264,6 +308,28 @@ const SuperAdminGateflowSales = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deletingSaleId} onOpenChange={(open) => !open && setDeletingSaleId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Venda</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteSale}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Excluindo..." : "Excluir"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
