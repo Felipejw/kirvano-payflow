@@ -9,7 +9,7 @@ interface VSLPlayerProps {
 }
 
 export const VSLPlayer = ({ 
-  videoUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ", 
+  videoUrl = "https://www.youtube.com/embed/XNTSK5Coja4", 
   thumbnailUrl = "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&q=80",
   onProgress 
 }: VSLPlayerProps) => {
