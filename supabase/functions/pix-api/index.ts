@@ -1702,16 +1702,33 @@ serve(async (req) => {
       
       // Get seller_id from product or authenticated user
       let sellerId: string | null = null;
+      let originalSellerId: string | null = null;
       
       if (body.product_id) {
         const { data: productData } = await supabase
           .from('products')
-          .select('seller_id')
+          .select('seller_id, parent_product_id')
           .eq('id', body.product_id)
           .single();
         
         if (productData) {
+          originalSellerId = productData.seller_id;
           sellerId = productData.seller_id;
+          
+          // If product has parent_product_id, use parent's seller_id for payment credentials
+          if (productData.parent_product_id) {
+            console.log('Product has parent_product_id:', productData.parent_product_id);
+            const { data: parentProduct } = await supabase
+              .from('products')
+              .select('seller_id')
+              .eq('id', productData.parent_product_id)
+              .single();
+            
+            if (parentProduct?.seller_id) {
+              console.log('Using parent seller_id for payment:', parentProduct.seller_id);
+              sellerId = parentProduct.seller_id;
+            }
+          }
         }
       }
       
@@ -1723,6 +1740,7 @@ serve(async (req) => {
           const { data: { user }, error: userError } = await supabase.auth.getUser(token);
           if (user && !userError) {
             sellerId = user.id;
+            originalSellerId = user.id;
             console.log('Using authenticated user as seller:', sellerId);
           }
         }
@@ -1735,6 +1753,10 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      
+      // Use originalSellerId for recording the transaction owner (the reseller)
+      // Use sellerId for fetching payment credentials (may be parent's seller_id)
+      const transactionOwnerId = originalSellerId || sellerId;
 
       // Check seller's payment_mode to determine which gateway to use
       const { data: sellerProfile } = await supabase
@@ -2750,7 +2772,34 @@ serve(async (req) => {
 
     // GET /payment-methods/:sellerId - Get seller's available payment methods and public key
     if (req.method === 'GET' && path.startsWith('/payment-methods/')) {
-      const sellerId = path.replace('/payment-methods/', '');
+      let sellerId = path.replace('/payment-methods/', '');
+      
+      console.log('Original seller for payment methods:', sellerId);
+      
+      // Check if this seller has a Gateflow product with parent_product_id
+      // If so, use the parent product's seller_id for payment credentials
+      const { data: childProduct } = await supabase
+        .from('products')
+        .select('parent_product_id')
+        .eq('seller_id', sellerId)
+        .not('parent_product_id', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      
+      if (childProduct?.parent_product_id) {
+        console.log('Found child product with parent_product_id:', childProduct.parent_product_id);
+        
+        const { data: parentProduct } = await supabase
+          .from('products')
+          .select('seller_id')
+          .eq('id', childProduct.parent_product_id)
+          .single();
+        
+        if (parentProduct?.seller_id) {
+          console.log('Using parent seller_id for payment credentials:', parentProduct.seller_id);
+          sellerId = parentProduct.seller_id;
+        }
+      }
       
       console.log('Fetching payment methods for seller:', sellerId);
       
