@@ -9,9 +9,13 @@ import { ClosingOffer } from "@/components/sales/ClosingOffer";
 import { SalesFAQ } from "@/components/sales/SalesFAQ";
 import { SalesTestimonials } from "@/components/sales/SalesTestimonials";
 import { SalesWhatsAppButton } from "@/components/sales/SalesWhatsAppButton";
+import { useMetaPixel } from "@/hooks/useMetaPixel";
 
 const SalesPage = () => {
+  const { trackAddToCart } = useMetaPixel('2873946036127913');
+
   const handleBuyClick = () => {
+    trackAddToCart();
     window.open("https://gatteflow.store/?s=gatteflow", "_blank");
   };
 
