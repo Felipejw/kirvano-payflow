@@ -166,6 +166,37 @@ Deno.serve(async (req) => {
 
     console.log(`Tenant created: ${tenant.id}`);
 
+    // 6. Add default Gateflow product for reselling
+    const { data: gateflowProduct } = await supabase
+      .from("gateflow_product")
+      .select("*")
+      .eq("is_main_product", true)
+      .single();
+
+    if (gateflowProduct) {
+      const { error: productError } = await supabase
+        .from("products")
+        .insert({
+          seller_id: userId,
+          name: gateflowProduct.name || "Sistema Gateflow",
+          description: gateflowProduct.description,
+          price: gateflowProduct.price || 297,
+          cover_url: gateflowProduct.cover_url,
+          type: "digital",
+          status: "active",
+          commission_rate: gateflowProduct.reseller_commission || 50,
+          allow_affiliates: true,
+          checkout_theme: "dark",
+          custom_slug: `gateflow-${Date.now()}`,
+        });
+      
+      if (productError) {
+        console.error("Error adding default product:", productError);
+      } else {
+        console.log("Default Gateflow product added for new tenant");
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
