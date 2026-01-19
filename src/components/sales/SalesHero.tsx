@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { VSLPlayer } from "./VSLPlayer";
 import { ShoppingCart, Zap, CheckCircle, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import vslBanner from "@/assets/vsl-banner.png";
 
 interface SalesHeroProps {
   onBuyClick: () => void;
@@ -48,7 +49,7 @@ export const SalesHero = ({ onBuyClick }: SalesHeroProps) => {
           transition={{ delay: 0.4, duration: 0.5 }}
           className="mb-6 md:mb-8 -mx-4 md:mx-0"
         >
-          <VSLPlayer onProgress={handleVideoProgress} />
+          <VSLPlayer onProgress={handleVideoProgress} thumbnailUrl={vslBanner} />
         </motion.div>
 
         {/* CTA Principal */}
