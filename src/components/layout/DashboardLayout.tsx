@@ -47,8 +47,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     fetchProfile();
   }, [user]);
 
-  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Usuário';
-  const displayEmail = profile?.email || user?.email || '';
+  const displayName = 'Admin';
+  const displayEmail = 'admin@admin.com';
 
   return (
     <div className="min-h-screen bg-background">

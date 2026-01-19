@@ -172,7 +172,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* Super Admin Toggle - only for super_admin */}
-      {isSuperAdmin && !roleLoading && (
+      {false && isSuperAdmin && !roleLoading && (
         <div className="px-3 py-2 border-b border-sidebar-border space-y-2">
           <Button
             variant={isOnSuperAdminRoute ? "default" : "outline"}
