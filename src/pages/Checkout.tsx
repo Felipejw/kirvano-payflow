@@ -48,6 +48,7 @@ interface Product {
   checkout_theme: string | null;
   seller_id: string;
   type: string; // 'digital' | 'physical' | 'service'
+  parent_product_id: string | null;
 }
 
 interface CheckoutTemplate {
@@ -483,11 +484,33 @@ const Checkout = () => {
   }, [customDomain, effectiveProductId, slug]);
 
   // Fetch payment methods when product is loaded
+  // Use parent's seller_id for payment if product has parent_product_id
   useEffect(() => {
-    if (product?.seller_id) {
-      fetchPaymentMethods(product.seller_id);
-    }
-  }, [product?.seller_id]);
+    const fetchPaymentWithParent = async () => {
+      if (!product?.seller_id) return;
+      
+      let sellerIdForPayment = product.seller_id;
+      
+      // If product has a parent, use parent's seller_id for payment credentials
+      if (product.parent_product_id) {
+        console.log('Product has parent_product_id, fetching parent seller_id for payment...');
+        const { data: parentProduct } = await supabase
+          .from('products')
+          .select('seller_id')
+          .eq('id', product.parent_product_id)
+          .single();
+        
+        if (parentProduct?.seller_id) {
+          sellerIdForPayment = parentProduct.seller_id;
+          console.log('Using parent seller_id for payment:', sellerIdForPayment);
+        }
+      }
+      
+      fetchPaymentMethods(sellerIdForPayment);
+    };
+    
+    fetchPaymentWithParent();
+  }, [product?.seller_id, product?.parent_product_id]);
 
   useEffect(() => {
     if (charge && charge.status === 'pending' && !paymentConfirmed) {
@@ -683,6 +706,23 @@ const Checkout = () => {
     }
 
     const productData = data[0];
+    
+    // If this is a child product (has parent_product_id), fetch parent's order_bumps
+    let effectiveOrderBumps = productData.order_bumps;
+    if (productData.parent_product_id) {
+      console.log('Product has parent_product_id, fetching parent order_bumps...');
+      const { data: parentProduct } = await supabase
+        .from('products')
+        .select('order_bumps')
+        .eq('id', productData.parent_product_id)
+        .single();
+      
+      if (parentProduct?.order_bumps && parentProduct.order_bumps.length > 0) {
+        effectiveOrderBumps = parentProduct.order_bumps;
+        console.log('Using parent order_bumps:', effectiveOrderBumps);
+      }
+    }
+    
     setProduct(productData);
 
     // Fetch checkout template if assigned
@@ -698,12 +738,12 @@ const Checkout = () => {
       }
     }
 
-    // Fetch order bumps if they exist
-    if (productData.order_bumps && productData.order_bumps.length > 0) {
+    // Fetch order bumps using effective order bumps (from parent if applicable)
+    if (effectiveOrderBumps && effectiveOrderBumps.length > 0) {
       const { data: bumpsData } = await supabase
         .from('products')
         .select('id, name, description, price, cover_url')
-        .in('id', productData.order_bumps)
+        .in('id', effectiveOrderBumps)
         .eq('status', 'active');
 
       if (bumpsData) {

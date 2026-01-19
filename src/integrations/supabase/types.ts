@@ -1302,6 +1302,7 @@ export type Database = {
           id: string
           name: string
           order_bumps: string[] | null
+          parent_product_id: string | null
           price: number
           seller_id: string
           status: string
@@ -1329,6 +1330,7 @@ export type Database = {
           id?: string
           name: string
           order_bumps?: string[] | null
+          parent_product_id?: string | null
           price?: number
           seller_id: string
           status?: string
@@ -1356,6 +1358,7 @@ export type Database = {
           id?: string
           name?: string
           order_bumps?: string[] | null
+          parent_product_id?: string | null
           price?: number
           seller_id?: string
           status?: string
@@ -1369,6 +1372,13 @@ export type Database = {
             columns: ["checkout_template_id"]
             isOneToOne: false
             referencedRelation: "checkout_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_parent_product_id_fkey"
+            columns: ["parent_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]

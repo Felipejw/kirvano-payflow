@@ -228,12 +228,14 @@ Deno.serve(async (req) => {
           custom_slug: `gateflow-${Date.now()}`,
           deliverable_type: sourceProduct.deliverable_type,
           deliverable_url: sourceProduct.deliverable_url,
+          parent_product_id: GATEFLOW_PRODUCT_ID, // Link to original for order_bumps and payment
+          order_bumps: sourceProduct.order_bumps, // Copy order bumps from original
         });
       
       if (productError) {
         console.error("Error adding default product:", productError);
       } else {
-        console.log("Default Gateflow product added for new tenant");
+        console.log("Default Gateflow product added for new tenant with parent link");
       }
     } else {
       console.log("Source Gateflow product not found");
