@@ -46,15 +46,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Verify calling user is admin
-    const { data: callerRole, error: callerRoleError } = await supabaseAdmin
+    // Verify calling user is admin or super_admin
+    const { data: callerRoles, error: callerRoleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
-      .eq('user_id', callingUser.id)
-      .single();
+      .eq('user_id', callingUser.id);
 
-    if (callerRoleError || callerRole?.role !== 'admin') {
-      console.error('Caller is not admin:', callerRoleError);
+    const hasAdminAccess = callerRoles?.some(r => r.role === 'admin' || r.role === 'super_admin');
+
+    if (callerRoleError || !hasAdminAccess) {
+      console.error('Caller is not admin or super_admin:', callerRoleError);
       return new Response(
         JSON.stringify({ error: 'Apenas administradores podem excluir usuários' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
