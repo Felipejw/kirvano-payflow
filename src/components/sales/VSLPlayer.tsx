@@ -55,7 +55,7 @@ export const VSLPlayer = ({
                 whileHover={{ scale: 1.05 }}
               >
                 <motion.div
-                  className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-accent/30"
+                  className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-accent flex items-center justify-center shadow-lg shadow-accent/30"
                   animate={{ 
                     scale: [1, 1.1, 1],
                     boxShadow: [
@@ -70,16 +70,9 @@ export const VSLPlayer = ({
                     ease: "easeInOut"
                   }}
                 >
-                  <Play className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 text-accent-foreground ml-1" />
+                  <Play className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-accent-foreground ml-0.5" />
                 </motion.div>
               </motion.div>
-
-              {/* Watch text */}
-              <div className="absolute bottom-4 md:bottom-6 left-0 right-0 text-center">
-                <span className="text-white/90 text-xs sm:text-sm md:text-base font-medium bg-black/50 px-3 py-1.5 md:px-4 md:py-2 rounded-full">
-                  Clique para assistir
-                </span>
-              </div>
             </motion.div>
           ) : (
             <motion.div
