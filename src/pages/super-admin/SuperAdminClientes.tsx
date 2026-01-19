@@ -13,7 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Building2, Users, Globe, Key, Loader2, Mail, Phone, User, Trash2, Pencil, Server, Copy } from "lucide-react";
+import { Plus, Building2, Users, Globe, Key, Loader2, Mail, Phone, User, Trash2, Pencil, Server, Copy, MoreHorizontal, CheckCircle, XCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -478,7 +485,6 @@ const SuperAdminClientes = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Marca</TableHead>
                   <TableHead>Admin</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>Domínio</TableHead>
@@ -491,7 +497,6 @@ const SuperAdminClientes = () => {
               <TableBody>
                 {tenants.map((tenant) => (
                   <TableRow key={tenant.id}>
-                    <TableCell className="font-medium">{tenant.brand_name}</TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{tenant.profile?.full_name || "—"}</p>
@@ -528,77 +533,72 @@ const SuperAdminClientes = () => {
                       {format(new Date(tenant.created_at), "dd/MM/yyyy", { locale: ptBR })}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditTenant(tenant)}
-                          title="Editar cliente"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {tenant.profile?.email && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleResetPassword(tenant.profile!.email!)}
-                            title="Resetar senha"
-                          >
-                            <Key className="h-4 w-4" />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        )}
-                        {tenant.status === "active" ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleUpdateStatus(tenant.id, "suspended")}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditTenant(tenant)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar Cliente
+                          </DropdownMenuItem>
+                          {tenant.profile?.email && (
+                            <DropdownMenuItem onClick={() => handleResetPassword(tenant.profile!.email!)}>
+                              <Key className="mr-2 h-4 w-4" /> Resetar Senha
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem 
+                            onClick={() => handleUpdateStatus(
+                              tenant.id, 
+                              tenant.status === "active" ? "suspended" : "active"
+                            )}
                           >
-                            Suspender
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleUpdateStatus(tenant.id, "active")}
-                          >
-                            Ativar
-                          </Button>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              title="Excluir cliente"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tem certeza que deseja excluir o cliente <strong>{tenant.brand_name}</strong>?
-                                Esta ação não pode ser desfeita e todos os dados serão perdidos.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteTenant(tenant)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                disabled={isDeleting}
+                            {tenant.status === "active" ? (
+                              <>
+                                <XCircle className="mr-2 h-4 w-4" /> Suspender
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="mr-2 h-4 w-4" /> Ativar
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem 
+                                onSelect={(e) => e.preventDefault()}
+                                className="text-destructive focus:text-destructive"
                               >
-                                {isDeleting ? (
-                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : null}
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir o cliente <strong>{tenant.brand_name}</strong>?
+                                  Esta ação não pode ser desfeita e todos os dados serão perdidos.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteTenant(tenant)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  disabled={isDeleting}
+                                >
+                                  {isDeleting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : null}
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

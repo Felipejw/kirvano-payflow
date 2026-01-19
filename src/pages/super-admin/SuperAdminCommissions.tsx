@@ -22,8 +22,16 @@ import {
   Edit,
   Loader2,
   CircleDollarSign,
-  AlertCircle
+  AlertCircle,
+  MoreHorizontal
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -203,8 +211,9 @@ const SuperAdminCommissions = () => {
     setPartialAmount("");
   };
 
-  const handlePayFull = async () => {
-    if (!payingTenant) return;
+  const handlePayFull = async (tenant?: TenantCommission) => {
+    const targetTenant = tenant || payingTenant;
+    if (!targetTenant) return;
 
     setIsPaying(true);
     try {
@@ -212,7 +221,7 @@ const SuperAdminCommissions = () => {
       const { error } = await supabase
         .from("gateflow_sales")
         .update({ commission_paid_at: new Date().toISOString() })
-        .eq("reseller_tenant_id", payingTenant.id)
+        .eq("reseller_tenant_id", targetTenant.id)
         .eq("status", "paid")
         .is("commission_paid_at", null);
 
@@ -465,25 +474,29 @@ const SuperAdminCommissions = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditCommission(tenant)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {tenant.stats.pending_commission > 0 && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenPayDialog(tenant)}
-                            >
-                              <CheckCircle2 className="mr-1 h-4 w-4" />
-                              Pagar
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                          )}
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditCommission(tenant)}>
+                              <Percent className="mr-2 h-4 w-4" /> Editar Comissão
+                            </DropdownMenuItem>
+                            {tenant.stats.pending_commission > 0 && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handlePayFull()}>
+                                  <CheckCircle2 className="mr-2 h-4 w-4" /> Pagar Total
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenPayDialog(tenant)}>
+                                  <CircleDollarSign className="mr-2 h-4 w-4" /> Informar Valor Pago
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
@@ -566,7 +579,7 @@ const SuperAdminCommissions = () => {
                 <div className="space-y-3">
                   <Button 
                     className="w-full" 
-                    onClick={handlePayFull}
+                    onClick={() => handlePayFull()}
                     disabled={isPaying}
                   >
                     {isPaying ? (
