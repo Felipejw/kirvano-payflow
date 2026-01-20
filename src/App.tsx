@@ -41,6 +41,7 @@ import Recovery from "./pages/Recovery";
 import MembersLogin from "./pages/members/MembersLogin";
 import MemberProduct from "./pages/members/MemberProduct";
 import Clients from "./pages/Clients";
+import Affiliates from "./pages/Affiliates";
 
 import Members from "./pages/Members";
 import MembersConfig from "./pages/members/MembersConfig";
@@ -56,6 +57,7 @@ import SuperAdminGateflowProduct from "./pages/super-admin/SuperAdminGateflowPro
 import SuperAdminGateflowSales from "./pages/super-admin/SuperAdminGateflowSales";
 import SuperAdminCommissions from "./pages/super-admin/SuperAdminCommissions";
 import SuperAdminFeatures from "./pages/super-admin/SuperAdminFeatures";
+import AdminAffiliates from "./pages/admin/AdminAffiliates";
 import { getUrlParam } from "./lib/routes";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
@@ -128,6 +130,8 @@ function PageRouter() {
       return <Recovery />;
     case "dashboard/withdrawals":
       return <Withdrawals />;
+    case "dashboard/affiliates":
+      return <Affiliates />;
     case "dashboard/quizzes":
       return <Quizzes />;
     case "dashboard/quizzes/builder":
@@ -170,6 +174,8 @@ function PageRouter() {
       return <AdminEmailBroadcast />;
     case "admin/minhas-vendas":
       return <AdminMinhasVendas />;
+    case "admin/affiliates":
+      return <AdminAffiliates />;
     case "super-admin/dashboard":
       return <SuperAdminDashboard />;
     case "super-admin/clientes":

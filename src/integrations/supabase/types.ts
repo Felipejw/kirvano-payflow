@@ -14,12 +14,111 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_commissions: {
+        Row: {
+          affiliate_id: string
+          amount: number
+          available_at: string | null
+          created_at: string
+          id: string
+          status: string
+          transaction_id: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount: number
+          available_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          transaction_id: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount?: number
+          available_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_withdrawals: {
+        Row: {
+          affiliate_id: string
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          pix_key: string
+          pix_key_type: string
+          processed_at: string | null
+          processed_by: string | null
+          requested_at: string
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pix_key: string
+          pix_key_type: string
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pix_key?: string
+          pix_key_type?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_withdrawals_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliates: {
         Row: {
           affiliate_code: string
+          available_balance: number
           commission_rate: number | null
           created_at: string
           id: string
+          pending_balance: number
+          pix_key: string | null
+          pix_key_type: string | null
           product_id: string
           status: string
           total_earnings: number
@@ -28,9 +127,13 @@ export type Database = {
         }
         Insert: {
           affiliate_code: string
+          available_balance?: number
           commission_rate?: number | null
           created_at?: string
           id?: string
+          pending_balance?: number
+          pix_key?: string | null
+          pix_key_type?: string | null
           product_id: string
           status?: string
           total_earnings?: number
@@ -39,9 +142,13 @@ export type Database = {
         }
         Update: {
           affiliate_code?: string
+          available_balance?: number
           commission_rate?: number | null
           created_at?: string
           id?: string
+          pending_balance?: number
+          pix_key?: string | null
+          pix_key_type?: string | null
           product_id?: string
           status?: string
           total_earnings?: number

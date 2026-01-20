@@ -17,6 +17,7 @@ export const PAGES = {
   clients: "dashboard/clients",
   members: "dashboard/members",
   membersConfig: "dashboard/members/config",
+  affiliates: "dashboard/affiliates",
   recovery: "dashboard/recovery",
   withdrawals: "dashboard/withdrawals",
   paymentMethods: "dashboard/payment-methods",
@@ -36,6 +37,7 @@ export const PAGES = {
   adminGateways: "admin/gateways",
   adminAnalytics: "admin/analytics",
   adminMinhasVendas: "admin/minhas-vendas",
+  adminAffiliates: "admin/affiliates",
   
   adminSettings: "admin/settings",
   adminRecovery: "admin/recovery",
