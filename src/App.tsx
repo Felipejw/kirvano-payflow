@@ -42,6 +42,7 @@ import MembersLogin from "./pages/members/MembersLogin";
 import MemberProduct from "./pages/members/MemberProduct";
 import Clients from "./pages/Clients";
 import Affiliates from "./pages/Affiliates";
+import AffiliateStore from "./pages/AffiliateStore";
 
 import Members from "./pages/Members";
 import MembersConfig from "./pages/members/MembersConfig";
@@ -196,6 +197,8 @@ function PageRouter() {
       return <MembersLogin />;
     case "members/product":
       return <MemberProduct />;
+    case "affiliate-store":
+      return <AffiliateStore />;
     default:
       // If no page param, show landing page (DomainRouter)
       if (!page) {
