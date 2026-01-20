@@ -85,6 +85,7 @@ interface Member {
   };
   user_email?: string;
   buyer_name?: string;
+  is_manual_access?: boolean;
 }
 
 interface EmailLog {
@@ -172,10 +173,12 @@ const Members = () => {
       if (membersError) throw membersError;
 
       // Get buyer info from pix_charges via transaction_id -> transactions -> charge_id
+      // Or fallback to profiles table when no transaction exists
       const membersWithBuyerInfo = await Promise.all(
         (membersData || []).map(async (member) => {
           let buyerEmail = "Email não disponível";
           let buyerName: string | null = null;
+          let isManualAccess = false;
 
           if (member.transaction_id) {
             // Buscar através de transactions → pix_charges
@@ -197,13 +200,27 @@ const Members = () => {
                 buyerName = chargeData.buyer_name || null;
               }
             }
+          } else {
+            // Fallback: buscar email do user_id via profiles
+            isManualAccess = true;
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("email, full_name")
+              .eq("user_id", member.user_id)
+              .maybeSingle();
+
+            if (profileData) {
+              buyerEmail = profileData.email || buyerEmail;
+              buyerName = profileData.full_name || null;
+            }
           }
 
           return {
             ...member,
             product: member.product as Member["product"],
             user_email: buyerEmail,
-            buyer_name: buyerName
+            buyer_name: buyerName,
+            is_manual_access: isManualAccess
           };
         })
       );
@@ -603,9 +620,16 @@ const Members = () => {
                           <div className="flex items-center gap-3">
                             <Mail className="h-4 w-4 text-muted-foreground" />
                             <div className="flex flex-col">
-                              <span className="font-medium">
-                                {member.buyer_name || member.user_email?.split("@")[0] || "Não identificado"}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">
+                                  {member.buyer_name || member.user_email?.split("@")[0] || "Não identificado"}
+                                </span>
+                                {member.is_manual_access && (
+                                  <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
+                                    Manual
+                                  </Badge>
+                                )}
+                              </div>
                               <span className="text-xs text-muted-foreground">
                                 {member.user_email}
                               </span>
