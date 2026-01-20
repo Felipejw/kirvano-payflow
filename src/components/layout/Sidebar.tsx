@@ -41,6 +41,7 @@ const ownGatewayMenuItems = [
   { icon: Users, label: "Clientes", page: "dashboard/clients" },
   { icon: UserCheck, label: "Área de Membros", page: "dashboard/members" },
   { icon: MessageSquare, label: "Quizzes", page: "dashboard/quizzes" },
+  { icon: Percent, label: "Afiliados", page: "dashboard/affiliates" },
   { icon: RefreshCw, label: "Recuperação", page: "dashboard/recovery" },
   { icon: Wallet, label: "Formas de Pagamento", page: "dashboard/payment-methods" },
   { icon: CreditCard, label: "Financeiro", page: "dashboard/finance" },
@@ -55,6 +56,7 @@ const platformGatewayMenuItems = [
   { icon: Users, label: "Clientes", page: "dashboard/clients" },
   { icon: UserCheck, label: "Área de Membros", page: "dashboard/members" },
   { icon: MessageSquare, label: "Quizzes", page: "dashboard/quizzes" },
+  { icon: Percent, label: "Afiliados", page: "dashboard/affiliates" },
   { icon: RefreshCw, label: "Recuperação", page: "dashboard/recovery" },
   { icon: Wallet, label: "Saques", page: "dashboard/withdrawals" },
 ];
