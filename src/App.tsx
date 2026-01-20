@@ -51,6 +51,7 @@ import Quizzes from "./pages/Quizzes";
 import QuizBuilder from "./pages/QuizBuilder";
 import QuizPlayer from "./pages/QuizPlayer";
 import ApiDocs from "./pages/ApiDocs";
+import Coupons from "./pages/Coupons";
 import SuperAdminDashboard from "./pages/super-admin/SuperAdminDashboard";
 import SuperAdminClientes from "./pages/super-admin/SuperAdminClientes";
 import SuperAdminTenants from "./pages/super-admin/SuperAdminTenants";
@@ -137,6 +138,8 @@ function PageRouter() {
       return <Quizzes />;
     case "dashboard/quizzes/builder":
       return <QuizBuilder />;
+    case "dashboard/coupons":
+      return <Coupons />;
     case "quiz":
       return <QuizPlayer />;
     case "admin":
