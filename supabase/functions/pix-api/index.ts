@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // SECURITY: Use service role client for database operations
 // This is required since RLS now restricts pix_charges updates to service role only
@@ -8,6 +9,161 @@ const createServiceClient = () => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   return createClient(supabaseUrl, supabaseServiceKey);
 };
+
+// ============================================================
+// SECURITY: Input Validation Schemas
+// ============================================================
+
+// Brazilian CPF validation (basic format + checksum)
+const cpfSchema = z.string().optional().transform((val) => {
+  if (!val) return undefined;
+  return val.replace(/\D/g, '');
+}).refine((val) => {
+  if (!val) return true;
+  if (val.length !== 11) return false;
+  // Check for known invalid patterns
+  if (/^(\d)\1+$/.test(val)) return false;
+  // Validate checksum
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(val[i]) * (10 - i);
+  let check = 11 - (sum % 11);
+  if (check >= 10) check = 0;
+  if (check !== parseInt(val[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(val[i]) * (11 - i);
+  check = 11 - (sum % 11);
+  if (check >= 10) check = 0;
+  return check === parseInt(val[10]);
+}, { message: "CPF inválido" });
+
+// Brazilian phone validation
+const phoneSchema = z.string().optional().transform((val) => {
+  if (!val) return undefined;
+  return val.replace(/\D/g, '');
+}).refine((val) => {
+  if (!val) return true;
+  // Valid formats: 10 or 11 digits (with or without area code 9)
+  return val.length >= 10 && val.length <= 11;
+}, { message: "Telefone inválido" });
+
+// Email validation
+const emailSchema = z.string().email({ message: "Email inválido" }).max(255);
+
+// Amount validation (security: max R$50.000 per transaction)
+const amountSchema = z.number()
+  .positive({ message: "Valor deve ser positivo" })
+  .max(50000, { message: "Valor máximo permitido é R$50.000" });
+
+// Full charge request validation schema
+const chargeRequestSchema = z.object({
+  amount: amountSchema,
+  buyer_email: emailSchema,
+  buyer_name: z.string().max(200).optional(),
+  buyer_document: cpfSchema,
+  buyer_phone: phoneSchema,
+  product_id: z.string().uuid().optional(),
+  affiliate_code: z.string().max(50).optional(),
+  expires_in_minutes: z.number().min(5).max(1440).optional(),
+  webhook_url: z.string().url().optional(),
+  description: z.string().max(500).optional(),
+  order_bumps: z.array(z.string().uuid()).optional(),
+  payment_method: z.enum(['pix', 'card', 'boleto']).optional(),
+  card_token: z.string().optional(),
+  installments: z.number().min(1).max(12).optional(),
+  utm_source: z.string().max(100).optional(),
+  utm_medium: z.string().max(100).optional(),
+  utm_campaign: z.string().max(100).optional(),
+  utm_content: z.string().max(100).optional(),
+  utm_term: z.string().max(100).optional(),
+  card_data: z.object({
+    holderName: z.string(),
+    number: z.string(),
+    expiryMonth: z.string(),
+    expiryYear: z.string(),
+    ccv: z.string(),
+  }).optional(),
+  card_holder_info: z.object({
+    name: z.string(),
+    email: z.string().email(),
+    cpfCnpj: z.string(),
+    postalCode: z.string(),
+    addressNumber: z.string(),
+    phone: z.string().optional(),
+  }).optional(),
+  remote_ip: z.string().optional(),
+});
+
+// ============================================================
+// SECURITY: Price Validation Function
+// ============================================================
+async function validateAndGetExpectedPrice(
+  supabase: any,
+  productId: string,
+  orderBumps?: string[]
+): Promise<{ expectedAmount: number; productName: string; sellerId: string; parentProductId: string | null }> {
+  // Fetch the product price from database
+  const { data: product, error: productError } = await supabase
+    .from('products')
+    .select('price, name, seller_id, parent_product_id, order_bumps')
+    .eq('id', productId)
+    .single();
+
+  if (productError || !product) {
+    throw new Error('Produto não encontrado');
+  }
+
+  let expectedAmount = product.price;
+
+  // Add order bumps prices if any
+  if (orderBumps && orderBumps.length > 0) {
+    const { data: bumpProducts, error: bumpError } = await supabase
+      .from('products')
+      .select('id, price')
+      .in('id', orderBumps);
+
+    if (!bumpError && bumpProducts) {
+      for (const bump of bumpProducts) {
+        expectedAmount += bump.price;
+      }
+    }
+  }
+
+  return {
+    expectedAmount,
+    productName: product.name,
+    sellerId: product.seller_id,
+    parentProductId: product.parent_product_id,
+  };
+}
+
+// ============================================================
+// SECURITY: Log Security Events
+// ============================================================
+async function logSecurityEvent(
+  supabase: any,
+  eventType: string,
+  details: Record<string, any>,
+  ipAddress?: string | null,
+  userAgent?: string | null
+) {
+  try {
+    await supabase.from('platform_gateway_logs').insert({
+      seller_id: details.seller_id || '00000000-0000-0000-0000-000000000000',
+      action: `SECURITY:${eventType}`,
+      amount: details.received_amount || 0,
+      product_id: details.product_id || null,
+      buyer_email: details.buyer_email || null,
+      buyer_name: details.buyer_name || null,
+      external_id: `SEC-${Date.now()}`,
+      error_message: JSON.stringify(details),
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
+    console.error(`SECURITY EVENT [${eventType}]:`, JSON.stringify(details));
+  } catch (logError) {
+    console.error('Failed to log security event:', logError);
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1682,46 +1838,96 @@ serve(async (req) => {
 
     // POST /charges - Create a new PIX charge using seller's gateway credentials
     if (req.method === 'POST' && (path === '/charges' || path === '' || path === '/')) {
-      const body: CreateChargeRequest = await req.json();
+      const rawBody = await req.json();
       
-      if (!body.amount || body.amount <= 0) {
-        return new Response(JSON.stringify({ error: 'Invalid amount' }), {
+      // ============================================================
+      // SECURITY: Validate all input fields with Zod schema
+      // ============================================================
+      const validationResult = chargeRequestSchema.safeParse(rawBody);
+      
+      if (!validationResult.success) {
+        const errors = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+        console.error('SECURITY: Input validation failed:', errors);
+        
+        await logSecurityEvent(supabase, 'INPUT_VALIDATION_FAILED', {
+          errors,
+          buyer_email: rawBody.buyer_email,
+          product_id: rawBody.product_id,
+          received_amount: rawBody.amount,
+        }, req.headers.get('x-forwarded-for'), req.headers.get('user-agent'));
+        
+        return new Response(JSON.stringify({ error: `Dados inválidos: ${errors}` }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
-      if (!body.buyer_email) {
-        return new Response(JSON.stringify({ error: 'buyer_email is required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+      
+      const body: CreateChargeRequest = {
+        ...rawBody,
+        buyer_document: validationResult.data.buyer_document,
+        buyer_phone: validationResult.data.buyer_phone,
+      };
 
       const paymentMethod = body.payment_method || 'pix';
       
       // Get seller_id from product or authenticated user
       let sellerId: string | null = null;
       let originalSellerId: string | null = null;
+      let validatedAmount: number = body.amount;
       
+      // ============================================================
+      // SECURITY: Validate price against database
+      // ============================================================
       if (body.product_id) {
-        const { data: productData } = await supabase
-          .from('products')
-          .select('seller_id, parent_product_id')
-          .eq('id', body.product_id)
-          .single();
-        
-        if (productData) {
-          originalSellerId = productData.seller_id;
-          sellerId = productData.seller_id;
+        try {
+          const priceData = await validateAndGetExpectedPrice(supabase, body.product_id, body.order_bumps);
+          
+          // CRITICAL: Check if received amount matches expected amount
+          const priceTolerance = 0.05; // R$ 0.05 tolerance for rounding
+          const priceDifference = Math.abs(body.amount - priceData.expectedAmount);
+          
+          if (priceDifference > priceTolerance) {
+            // SECURITY ALERT: Price manipulation detected!
+            console.error('SECURITY ALERT: Price manipulation detected!', {
+              received_amount: body.amount,
+              expected_amount: priceData.expectedAmount,
+              difference: priceDifference,
+              product_id: body.product_id,
+              product_name: priceData.productName,
+              buyer_email: body.buyer_email,
+            });
+            
+            await logSecurityEvent(supabase, 'PRICE_MANIPULATION', {
+              received_amount: body.amount,
+              expected_amount: priceData.expectedAmount,
+              difference: priceDifference,
+              product_id: body.product_id,
+              product_name: priceData.productName,
+              buyer_email: body.buyer_email,
+              buyer_name: body.buyer_name,
+              seller_id: priceData.sellerId,
+            }, req.headers.get('x-forwarded-for'), req.headers.get('user-agent'));
+            
+            return new Response(JSON.stringify({ 
+              error: 'Valor do pedido inválido. Por favor, atualize a página e tente novamente.' 
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          // Use the validated amount from database (not client-provided)
+          validatedAmount = priceData.expectedAmount;
+          originalSellerId = priceData.sellerId;
+          sellerId = priceData.sellerId;
           
           // If product has parent_product_id, use parent's seller_id for payment credentials
-          if (productData.parent_product_id) {
-            console.log('Product has parent_product_id:', productData.parent_product_id);
+          if (priceData.parentProductId) {
+            console.log('Product has parent_product_id:', priceData.parentProductId);
             const { data: parentProduct } = await supabase
               .from('products')
               .select('seller_id')
-              .eq('id', productData.parent_product_id)
+              .eq('id', priceData.parentProductId)
               .single();
             
             if (parentProduct?.seller_id) {
@@ -1729,6 +1935,21 @@ serve(async (req) => {
               sellerId = parentProduct.seller_id;
             }
           }
+          
+          console.log('Price validated successfully:', { 
+            received: body.amount, 
+            expected: priceData.expectedAmount, 
+            using: validatedAmount 
+          });
+          
+        } catch (priceError) {
+          console.error('Error validating product price:', priceError);
+          return new Response(JSON.stringify({ 
+            error: priceError instanceof Error ? priceError.message : 'Erro ao validar produto' 
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
       }
       
@@ -1903,7 +2124,7 @@ serve(async (req) => {
             
             const cardResult = await createMercadoPagoCardPayment(
               accessToken,
-              body.amount,
+              validatedAmount,
               externalId,
               {
                 email: body.buyer_email,
@@ -1949,7 +2170,7 @@ serve(async (req) => {
             const cardResult = await createAsaasCardPayment(
               accessToken,
               customerId,
-              body.amount,
+              validatedAmount,
               externalId,
               body.card_data,
               body.card_holder_info,
@@ -1984,7 +2205,7 @@ serve(async (req) => {
             const cardResult = await createGhostpayCardPayment(
               secretKey,
               companyId,
-              body.amount,
+              validatedAmount,
               externalId,
               {
                 name: body.buyer_name || body.card_holder_info.name,
@@ -2034,7 +2255,7 @@ serve(async (req) => {
           const token = await getBspayToken(clientId, clientSecret);
           const bspayResult = await createBspayQRCode(
             token,
-            body.amount,
+            validatedAmount,
             externalId,
             {
               name: body.buyer_name,
@@ -2063,7 +2284,7 @@ serve(async (req) => {
           const token = await getPixupToken(clientId, clientSecret);
           const pixupResult = await createPixupQRCode(
             token,
-            body.amount,
+            validatedAmount,
             externalId,
             {
               name: body.buyer_name,
@@ -2103,7 +2324,7 @@ serve(async (req) => {
           
           const mpResult = await createMercadoPagoPixPayment(
             accessToken,
-            body.amount,
+            validatedAmount,
             externalId,
             {
               email: body.buyer_email,
@@ -2152,7 +2373,7 @@ serve(async (req) => {
           const asaasResult = await createAsaasPixPayment(
             accessToken,
             customerId,
-            body.amount,
+            validatedAmount,
             externalId,
             description
           );
@@ -2188,7 +2409,7 @@ serve(async (req) => {
           const ghostpayResult = await createGhostpayPixPayment(
             secretKey,
             companyId,
-            body.amount,
+            validatedAmount,
             externalId,
             {
               name: body.buyer_name || 'Cliente',
@@ -2258,7 +2479,7 @@ serve(async (req) => {
           buyer_name: body.buyer_name || null,
           buyer_cpf: body.buyer_document || null,
           buyer_phone: body.buyer_phone || null,
-          amount: body.amount,
+          amount: validatedAmount,
           status: initialStatus,
           qr_code: pixCode,
           qr_code_base64: qrCodeBase64,
@@ -2284,7 +2505,7 @@ serve(async (req) => {
           await supabase.from('platform_gateway_logs').insert({
             seller_id: sellerId,
             action: 'error',
-            amount: body.amount,
+            amount: validatedAmount,
             product_id: body.product_id || null,
             buyer_email: body.buyer_email,
             buyer_name: body.buyer_name || null,
@@ -2308,7 +2529,7 @@ serve(async (req) => {
           seller_id: sellerId,
           charge_id: charge.id,
           action: 'pix_created',
-          amount: body.amount,
+          amount: validatedAmount,
           product_id: body.product_id || null,
           buyer_email: body.buyer_email,
           buyer_name: body.buyer_name || null,
@@ -2354,7 +2575,7 @@ serve(async (req) => {
             buyer_email: body.buyer_email,
             buyer_phone: body.buyer_phone,
             product_name: productName,
-            amount: body.amount,
+            amount: validatedAmount,
             pix_code: pixCode,
             expires_at: expiresAt.toISOString(),
             send_email: true,
