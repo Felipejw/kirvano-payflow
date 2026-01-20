@@ -21,7 +21,8 @@ import {
   Copy,
   Check,
   Loader2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Trash2
 } from "lucide-react";
 import {
   Dialog,
@@ -120,11 +121,38 @@ export default function AffiliateStore() {
       // Get unique seller IDs
       const sellerIds = [...new Set(productsData.map(p => p.seller_id))];
 
-      // Fetch profiles for all sellers
+      // Fetch profiles for all sellers (including payment_mode)
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('user_id, full_name, avatar_url, company_name')
+        .select('user_id, full_name, avatar_url, company_name, payment_mode')
         .in('user_id', sellerIds);
+
+      // Separate sellers by payment mode
+      const platformGatewaySellers = profilesData
+        ?.filter(p => p.payment_mode === 'platform_gateway')
+        .map(p => p.user_id) || [];
+      
+      const ownGatewaySellers = profilesData
+        ?.filter(p => p.payment_mode === 'own_gateway' || !p.payment_mode)
+        .map(p => p.user_id) || [];
+
+      // Check which own_gateway sellers have active credentials
+      let validOwnGatewaySellers: string[] = [];
+      if (ownGatewaySellers.length > 0) {
+        const { data: credentialsData } = await supabase
+          .from('seller_gateway_credentials')
+          .select('user_id')
+          .eq('is_active', true)
+          .in('user_id', ownGatewaySellers);
+        
+        validOwnGatewaySellers = [...new Set(credentialsData?.map(c => c.user_id) || [])];
+      }
+
+      // Combine valid sellers (platform_gateway + own_gateway with credentials)
+      const validSellerIds = [...platformGatewaySellers, ...validOwnGatewaySellers];
+
+      // Filter products to only show those from sellers with valid payment setup
+      const validProducts = productsData.filter(p => validSellerIds.includes(p.seller_id));
 
       // Create a map of seller_id to profile
       const profilesMap: Record<string, SellerProfile> = {};
@@ -148,7 +176,7 @@ export default function AffiliateStore() {
       });
 
       // Combine products with profiles and counts
-      const productsWithProfiles = productsData.map(p => ({
+      const productsWithProfiles = validProducts.map(p => ({
         ...p,
         profiles: profilesMap[p.seller_id] || null,
         affiliate_count: countMap[p.id] || 0
@@ -236,6 +264,34 @@ export default function AffiliateStore() {
       }
     } finally {
       setAffiliatingProductId(null);
+    }
+  };
+
+  const handleUnaffiliate = async (productId: string, productName: string) => {
+    if (!user) return;
+    
+    const confirmed = window.confirm(
+      `Tem certeza que deseja se desafiliar de "${productName}"?\n\nIsso removerá seu link de afiliado e você não receberá mais comissões deste produto.`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase
+        .from('affiliates')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('product_id', productId);
+
+      if (error) throw error;
+
+      // Update local state
+      setUserAffiliations(prev => prev.filter(a => a.product_id !== productId));
+      setSuccessDialog(prev => ({ ...prev, open: false }));
+      toast.success('Desafiliado com sucesso');
+    } catch (error) {
+      console.error('Error unaffiliating:', error);
+      toast.error('Erro ao desafiliar');
     }
   };
 
@@ -579,23 +635,33 @@ export default function AffiliateStore() {
                         Seu produto
                       </Button>
                     ) : isAffiliated ? (
-                      <Button 
-                        variant="secondary" 
-                        className="w-full"
-                        onClick={() => {
-                          const affiliation = userAffiliations.find(a => a.product_id === product.id);
-                          if (affiliation) {
-                            setSuccessDialog({
-                              open: true,
-                              code: affiliation.affiliate_code,
-                              productName: product.name
-                            });
-                          }
-                        }}
-                      >
-                        <Check className="mr-2 h-4 w-4" />
-                        Ver meu link
-                      </Button>
+                      <div className="flex gap-2 w-full">
+                        <Button 
+                          variant="secondary" 
+                          className="flex-1"
+                          onClick={() => {
+                            const affiliation = userAffiliations.find(a => a.product_id === product.id);
+                            if (affiliation) {
+                              setSuccessDialog({
+                                open: true,
+                                code: affiliation.affiliate_code,
+                                productName: product.name
+                              });
+                            }
+                          }}
+                        >
+                          <Check className="mr-2 h-4 w-4" />
+                          Ver link
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleUnaffiliate(product.id, product.name)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ) : (
                       <Button 
                         className="w-full"
@@ -656,6 +722,22 @@ export default function AffiliateStore() {
                   Copiar Link de Afiliado
                 </>
               )}
+            </Button>
+
+            <Button 
+              variant="destructive" 
+              className="w-full"
+              onClick={() => {
+                const product = products.find(p => 
+                  userAffiliations.some(a => a.product_id === p.id && a.affiliate_code === successDialog.code)
+                );
+                if (product) {
+                  handleUnaffiliate(product.id, product.name);
+                }
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Desafiliar
             </Button>
             
             <Button 
