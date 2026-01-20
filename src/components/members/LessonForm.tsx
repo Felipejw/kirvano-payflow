@@ -183,7 +183,13 @@ export function LessonForm({ open, onOpenChange, lesson, onSave }: LessonFormPro
                 <TabsContent value="upload" className="mt-2">
                   <FileUpload
                     onUploadComplete={handleFileUpload}
-                    accept={contentType === "pdf" ? "application/pdf" : "video/mp4,video/webm,application/pdf"}
+                    accept={
+                      contentType === "pdf" 
+                        ? "application/pdf" 
+                        : contentType === "file"
+                        ? "application/pdf,application/zip,application/x-zip-compressed,.zip"
+                        : "video/mp4,video/webm"
+                    }
                   />
                   {contentUrl && (
                     <p className="text-sm text-muted-foreground mt-2 truncate">

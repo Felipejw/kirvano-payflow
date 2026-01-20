@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, X, FileVideo, FileText, File } from "lucide-react";
+import { Upload, X, FileVideo, FileText, File, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ interface FileUploadProps {
 
 export function FileUpload({
   onUploadComplete,
-  accept = "video/mp4,video/webm,application/pdf",
+  accept = "video/mp4,video/webm,application/pdf,application/zip,application/x-zip-compressed,.zip",
   maxSizeMB = 100,
   className,
 }: FileUploadProps) {
@@ -27,6 +27,7 @@ export function FileUpload({
   const getFileIcon = (type: string) => {
     if (type.startsWith("video/")) return <FileVideo className="h-8 w-8" />;
     if (type === "application/pdf") return <FileText className="h-8 w-8" />;
+    if (type.includes("zip") || type === "application/x-zip-compressed") return <Archive className="h-8 w-8" />;
     return <File className="h-8 w-8" />;
   };
 
@@ -132,7 +133,7 @@ export function FileUpload({
               </button>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Vídeos (MP4, WebM) ou PDFs até {maxSizeMB}MB
+              Vídeos (MP4, WebM), PDFs ou arquivos ZIP até {maxSizeMB}MB
             </p>
           </div>
         </div>
