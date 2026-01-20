@@ -44,7 +44,7 @@ export default function Clients() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   // Fetch all charges for seller by seller_id
-  const { data: chargesData, isLoading } = useQuery({
+  const { data: chargesData, isLoading, refetch } = useQuery({
     queryKey: ["seller-clients", user?.id],
     queryFn: async () => {
       if (!user?.id) return { charges: [], products: [] };
@@ -234,6 +234,7 @@ export default function Clients() {
           client={selectedClient}
           open={detailDialogOpen}
           onOpenChange={setDetailDialogOpen}
+          onClientUpdated={() => refetch()}
         />
       </div>
     </DashboardLayout>
