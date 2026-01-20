@@ -19,7 +19,8 @@ import {
   MessageSquare,
   Send,
   Mail,
-  Percent
+  Percent,
+  Store
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -42,6 +43,7 @@ const ownGatewayMenuItems = [
   { icon: UserCheck, label: "Área de Membros", page: "dashboard/members" },
   { icon: MessageSquare, label: "Quizzes", page: "dashboard/quizzes" },
   { icon: Percent, label: "Afiliados", page: "dashboard/affiliates" },
+  { icon: Store, label: "Loja de Afiliados", page: "affiliate-store" },
   { icon: RefreshCw, label: "Recuperação", page: "dashboard/recovery" },
   { icon: Wallet, label: "Formas de Pagamento", page: "dashboard/payment-methods" },
   { icon: CreditCard, label: "Financeiro", page: "dashboard/finance" },
@@ -57,6 +59,7 @@ const platformGatewayMenuItems = [
   { icon: UserCheck, label: "Área de Membros", page: "dashboard/members" },
   { icon: MessageSquare, label: "Quizzes", page: "dashboard/quizzes" },
   { icon: Percent, label: "Afiliados", page: "dashboard/affiliates" },
+  { icon: Store, label: "Loja de Afiliados", page: "affiliate-store" },
   { icon: RefreshCw, label: "Recuperação", page: "dashboard/recovery" },
   { icon: Wallet, label: "Saques", page: "dashboard/withdrawals" },
 ];
