@@ -174,8 +174,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Super Admin Toggle - only for super_admin */}
       {isSuperAdmin && !roleLoading && (
         <div className="px-3 py-2 border-b border-sidebar-border space-y-2">
-          {/* Botão Super Admin temporariamente oculto */}
-          {false && (
+          {(
             <Button
               variant={isOnSuperAdminRoute ? "default" : "outline"}
               size="sm"
