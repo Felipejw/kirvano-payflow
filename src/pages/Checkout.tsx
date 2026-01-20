@@ -583,6 +583,7 @@ const Checkout = () => {
 
   const fetchPaymentMethods = async (sellerId: string) => {
     setLoadingPaymentMethods(true);
+    console.log('[fetchPaymentMethods] Starting for seller:', sellerId);
     
     // Em modo teste, sempre habilita PIX e pula a verificação de gateway
     if (testMode) {
@@ -594,24 +595,21 @@ const Checkout = () => {
     }
     
     try {
-      const { data, error } = await supabase.functions.invoke('pix-api', {
-        body: {},
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pix-api/payment-methods/${sellerId}`;
+      console.log('[fetchPaymentMethods] Calling API:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
-      // Fallback: fetch directly via GET request
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pix-api/payment-methods/${sellerId}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      console.log('[fetchPaymentMethods] Response status:', response.status);
       
       if (response.ok) {
         const result = await response.json();
+        console.log('[fetchPaymentMethods] Result:', result);
         const methods = result.methods as PaymentMethod[];
         setAvailablePaymentMethods(methods);
         
@@ -630,11 +628,12 @@ const Checkout = () => {
           setSelectedPaymentMethod(methods[0]);
         }
       } else {
-        console.error('Error fetching payment methods:', await response.text());
+        const errorText = await response.text();
+        console.error('[fetchPaymentMethods] Error response:', errorText);
         setAvailablePaymentMethods([]);
       }
     } catch (error) {
-      console.error('Error fetching payment methods:', error);
+      console.error('[fetchPaymentMethods] Exception:', error);
       setAvailablePaymentMethods([]);
     } finally {
       setLoadingPaymentMethods(false);
@@ -2000,13 +1999,7 @@ const Checkout = () => {
           </div>
         )}
 
-        {affiliateCode && (
-          <div className="p-3 rounded-lg" style={{ backgroundColor: styles.accentColor + '10' }}>
-            <p className="text-sm" style={{ color: styles.accentColor }}>
-              🎁 Indicado por afiliado: {affiliateCode}
-            </p>
-          </div>
-        )}
+        {/* Affiliate code is tracked internally but not shown to buyer */}
 
         {/* 4. Purchase Button and Badges */}
         {!charge && (
