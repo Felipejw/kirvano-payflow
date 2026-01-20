@@ -2997,6 +2997,59 @@ serve(async (req) => {
       
       console.log('Original seller for payment methods:', sellerId);
       
+      // First, check if this seller uses platform_gateway mode
+      const { data: sellerProfile } = await supabase
+        .from('profiles')
+        .select('payment_mode')
+        .eq('user_id', sellerId)
+        .maybeSingle();
+      
+      console.log('Seller payment_mode:', sellerProfile?.payment_mode);
+      
+      // If seller uses platform_gateway, return PIX as available (platform gateway only supports PIX)
+      if (sellerProfile?.payment_mode === 'platform_gateway') {
+        // Verify platform gateway is configured
+        const { data: platformSettings } = await supabase
+          .from('platform_settings')
+          .select('platform_gateway_type')
+          .single();
+        
+        const platformGatewayType = platformSettings?.platform_gateway_type || 'bspay';
+        
+        let hasCredentials = false;
+        if (platformGatewayType === 'pixup') {
+          hasCredentials = !!(Deno.env.get('PIXUP_CLIENT_ID') && Deno.env.get('PIXUP_CLIENT_SECRET'));
+        } else if (platformGatewayType === 'ghostpay') {
+          hasCredentials = !!(Deno.env.get('GHOSTPAY_COMPANY_ID') && Deno.env.get('GHOSTPAY_SECRET_KEY'));
+        } else {
+          hasCredentials = !!(Deno.env.get('BSPAY_CLIENT_ID') && Deno.env.get('BSPAY_CLIENT_SECRET'));
+        }
+        
+        if (hasCredentials) {
+          console.log('Seller uses platform_gateway, returning PIX as available method');
+          return new Response(JSON.stringify({ 
+            methods: ['pix'], 
+            publicKey: null, 
+            cardGateway: null,
+            usingPlatformGateway: true 
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } else {
+          console.error('Platform gateway credentials not configured for:', platformGatewayType);
+          return new Response(JSON.stringify({ 
+            methods: [], 
+            publicKey: null, 
+            cardGateway: null,
+            error: 'Gateway da plataforma não está configurado'
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+      
       // Check if this seller has a Gateflow product with parent_product_id
       // If so, use the parent product's seller_id for payment credentials
       const { data: childProduct } = await supabase
