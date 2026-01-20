@@ -282,7 +282,18 @@ const MemberProduct = () => {
     }
   };
 
-  const handleAccessContent = (lesson: Lesson) => {
+  // Extrair o path de uma URL pública do Supabase Storage
+  const extractStoragePath = (url: string): string | null => {
+    const match = url.match(/\/lesson-content\/(.+)$/);
+    return match ? match[1] : null;
+  };
+
+  // Verificar se é um path de storage ou URL externa
+  const isStoragePath = (url: string): boolean => {
+    return url.startsWith('lessons/') || url.includes('supabase.co/storage');
+  };
+
+  const handleAccessContent = async (lesson: Lesson) => {
     if (!lesson.content_url) {
       toast({
         title: "Conteúdo não disponível",
@@ -292,11 +303,46 @@ const MemberProduct = () => {
       return;
     }
 
-    if (lesson.content_type === "video") {
-      setCurrentVideo({ url: lesson.content_url, title: lesson.name });
-      setVideoPlayerOpen(true);
+    // Verificar se é um path do storage ou URL pública antiga
+    if (isStoragePath(lesson.content_url)) {
+      // Extrair o path se for uma URL pública antiga
+      let contentPath = lesson.content_url;
+      if (lesson.content_url.includes('supabase.co/storage')) {
+        const extractedPath = extractStoragePath(lesson.content_url);
+        if (extractedPath) {
+          contentPath = extractedPath;
+        }
+      }
+
+      // Gerar signed URL para acesso temporário (1 hora)
+      const { data, error } = await supabase.storage
+        .from("lesson-content")
+        .createSignedUrl(contentPath, 3600);
+
+      if (error || !data?.signedUrl) {
+        console.error("Error creating signed URL:", error);
+        toast({
+          title: "Erro ao acessar conteúdo",
+          description: "Não foi possível gerar o link de acesso. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (lesson.content_type === "video") {
+        setCurrentVideo({ url: data.signedUrl, title: lesson.name });
+        setVideoPlayerOpen(true);
+      } else {
+        window.open(data.signedUrl, "_blank");
+      }
     } else {
-      window.open(lesson.content_url, "_blank");
+      // URL externa (links do YouTube, Google Drive, etc)
+      if (lesson.content_type === "video") {
+        setCurrentVideo({ url: lesson.content_url, title: lesson.name });
+        setVideoPlayerOpen(true);
+      } else {
+        window.open(lesson.content_url, "_blank");
+      }
     }
   };
 

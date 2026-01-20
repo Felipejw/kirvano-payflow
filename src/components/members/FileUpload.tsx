@@ -58,13 +58,10 @@ export function FileUpload({
 
       if (error) throw error;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("lesson-content")
-        .getPublicUrl(filePath);
-
       setProgress(100);
-      onUploadComplete(urlData.publicUrl);
+      // Para buckets privados, salvar apenas o path (não a URL pública)
+      // A URL assinada será gerada no momento do acesso
+      onUploadComplete(filePath);
       toast.success("Arquivo enviado com sucesso!");
     } catch (error: any) {
       console.error("Error uploading file:", error);
