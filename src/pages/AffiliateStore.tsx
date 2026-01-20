@@ -93,7 +93,8 @@ export default function AffiliateStore() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch products that allow affiliates
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select(`
           id,
@@ -103,17 +104,37 @@ export default function AffiliateStore() {
           cover_url,
           commission_rate,
           seller_id,
-          created_at,
-          profiles!inner (
-            full_name,
-            avatar_url,
-            company_name
-          )
+          created_at
         `)
         .eq('status', 'active')
         .eq('allow_affiliates', true);
 
-      if (error) throw error;
+      if (productsError) throw productsError;
+
+      if (!productsData || productsData.length === 0) {
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique seller IDs
+      const sellerIds = [...new Set(productsData.map(p => p.seller_id))];
+
+      // Fetch profiles for all sellers
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url, company_name')
+        .in('user_id', sellerIds);
+
+      // Create a map of seller_id to profile
+      const profilesMap: Record<string, SellerProfile> = {};
+      profilesData?.forEach(profile => {
+        profilesMap[profile.user_id] = {
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url,
+          company_name: profile.company_name
+        };
+      });
 
       // Get affiliate counts
       const { data: affiliateCounts } = await supabase
@@ -126,13 +147,14 @@ export default function AffiliateStore() {
         countMap[a.product_id] = (countMap[a.product_id] || 0) + 1;
       });
 
-      const productsWithCounts = (data || []).map(p => ({
+      // Combine products with profiles and counts
+      const productsWithProfiles = productsData.map(p => ({
         ...p,
-        profiles: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
+        profiles: profilesMap[p.seller_id] || null,
         affiliate_count: countMap[p.id] || 0
       }));
 
-      setProducts(productsWithCounts);
+      setProducts(productsWithProfiles);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Erro ao carregar produtos');
