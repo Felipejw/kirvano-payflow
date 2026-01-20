@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Mail, User, Calendar, ShoppingBag, CreditCard, Clock, Phone } from "lucide-react";
+import { Mail, User, Calendar, ShoppingBag, CreditCard, Clock, Phone, Pencil, Check, X, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,16 +11,77 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import type { ClientData } from "@/pages/Clients";
 
 interface ClientDetailDialogProps {
   client: ClientData | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onClientUpdated?: () => void;
 }
 
-export function ClientDetailDialog({ client, open, onOpenChange }: ClientDetailDialogProps) {
+export function ClientDetailDialog({ client, open, onOpenChange, onClientUpdated }: ClientDetailDialogProps) {
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
   if (!client) return null;
+
+  const handleEditEmail = () => {
+    setNewEmail(client.buyer_email);
+    setIsEditingEmail(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingEmail(false);
+    setNewEmail("");
+  };
+
+  const handleSaveEmail = async () => {
+    if (!newEmail || newEmail === client.buyer_email) {
+      handleCancelEdit();
+      return;
+    }
+
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      toast.error("Email inválido");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      // Atualizar todos os pix_charges com o email antigo para o novo email
+      const { error } = await supabase
+        .from("pix_charges")
+        .update({ buyer_email: newEmail })
+        .eq("buyer_email", client.buyer_email);
+
+      if (error) throw error;
+
+      toast.success("Email atualizado com sucesso!");
+      setIsEditingEmail(false);
+      setNewEmail("");
+      
+      // Notificar o componente pai para atualizar os dados
+      if (onClientUpdated) {
+        onClientUpdated();
+      }
+      
+      // Fechar o dialog para forçar atualização
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Erro ao atualizar email:", error);
+      toast.error("Erro ao atualizar email: " + error.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -37,19 +99,68 @@ export function ClientDetailDialog({ client, open, onOpenChange }: ClientDetailD
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(open) => {
+      if (!open) {
+        handleCancelEdit();
+      }
+      onOpenChange(open);
+    }}>
       <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
               <User className="h-5 w-5 text-primary" />
             </div>
-            <div>
+            <div className="flex-1">
               <p>{client.buyer_name || "Nome não informado"}</p>
-              <p className="text-sm font-normal text-muted-foreground flex items-center gap-1">
-                <Mail className="h-3 w-3" />
-                {client.buyer_email}
-              </p>
+              {isEditingEmail ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="h-7 text-sm"
+                    placeholder="novo@email.com"
+                    autoFocus
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    onClick={handleSaveEmail}
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4 text-emerald-500" />
+                    )}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    onClick={handleCancelEdit}
+                    disabled={isUpdating}
+                  >
+                    <X className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm font-normal text-muted-foreground flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  {client.buyer_email}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 ml-1"
+                    onClick={handleEditEmail}
+                    title="Editar email"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                </p>
+              )}
             </div>
           </DialogTitle>
         </DialogHeader>
