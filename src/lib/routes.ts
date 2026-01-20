@@ -50,6 +50,9 @@ export const PAGES = {
   membersArea: "members",
   membersLogin: "members/login",
   memberProduct: "members/product",
+  
+  // Affiliate Store (public)
+  affiliateStore: "affiliate-store",
 } as const;
 
 export type PageKey = keyof typeof PAGES;

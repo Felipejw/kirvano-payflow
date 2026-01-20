@@ -17,7 +17,8 @@ import {
   Wallet,
   Clock,
   ArrowUpRight,
-  History
+  History,
+  Store
 } from "lucide-react";
 import {
   Dialog,
@@ -39,6 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useAppNavigate } from "@/lib/routes";
 
 interface Affiliate {
   id: string;
@@ -90,6 +92,7 @@ interface Withdrawal {
 }
 
 const Affiliates = () => {
+  const navigate = useAppNavigate();
   const [affiliations, setAffiliations] = useState<Affiliate[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -369,7 +372,11 @@ const Affiliates = () => {
             <h1 className="text-3xl font-bold gradient-text">Afiliados</h1>
             <p className="text-muted-foreground">Gerencie suas afiliações, comissões e saques</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => navigate("affiliate-store")}>
+              <Store className="mr-2 h-4 w-4" />
+              Explorar Produtos
+            </Button>
             <Dialog open={withdrawalDialogOpen} onOpenChange={setWithdrawalDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" disabled={totalAvailableBalance < 50}>
