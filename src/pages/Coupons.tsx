@@ -418,7 +418,7 @@ const Coupons = () => {
 
         {/* Create/Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingCoupon ? "Editar Cupom" : "Novo Cupom"}
@@ -462,7 +462,7 @@ const Coupons = () => {
               </div>
 
               {/* Discount Type & Value */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tipo de Desconto</Label>
                   <Select
@@ -529,7 +529,7 @@ const Coupons = () => {
               </div>
 
               {/* Validity Dates */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Válido a partir de</Label>
                   <Input

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,7 +26,9 @@ import {
   Loader2,
   History,
   MailOpen,
-  XCircle
+  XCircle,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -103,6 +105,8 @@ interface Product {
   name: string;
 }
 
+const PRODUCTS_PER_PAGE = 10;
+
 const Members = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -112,6 +116,10 @@ const Members = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<string>("all");
   const { toast } = useToast();
+  
+  // Products section state
+  const [productSearch, setProductSearch] = useState("");
+  const [productPage, setProductPage] = useState(1);
   
   // Dialog states
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
@@ -431,6 +439,39 @@ const Members = () => {
     return matchesSearch && matchesProduct;
   });
 
+  // Products filtering and pagination
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => 
+      p.name.toLowerCase().includes(productSearch.toLowerCase())
+    );
+  }, [products, productSearch]);
+
+  const totalProductPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = useMemo(() => {
+    const start = (productPage - 1) * PRODUCTS_PER_PAGE;
+    return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [filteredProducts, productPage]);
+
+  // Count members per product
+  const membersByProduct = useMemo(() => {
+    const counts: Record<string, { active: number; total: number }> = {};
+    members.forEach(m => {
+      if (!counts[m.product_id]) {
+        counts[m.product_id] = { active: 0, total: 0 };
+      }
+      counts[m.product_id].total += 1;
+      if (m.status === 'active' && !isExpired(m.expires_at)) {
+        counts[m.product_id].active += 1;
+      }
+    });
+    return counts;
+  }, [members]);
+
+  // Reset product page when search changes
+  useEffect(() => {
+    setProductPage(1);
+  }, [productSearch]);
+
   const activeCount = members.filter(m => m.status === 'active' && !isExpired(m.expires_at)).length;
   const expiredCount = members.filter(m => isExpired(m.expires_at)).length;
   const revokedCount = members.filter(m => m.status === 'revoked').length;
@@ -464,36 +505,116 @@ const Members = () => {
         </div>
       </div>
 
-      {/* Products with Configure Button */}
+      {/* Products with Configure Button - Now as Table */}
       {products.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Seus Produtos
-            </CardTitle>
-            <CardDescription>
-              Configure a área de membros e o conteúdo de cada produto
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Seus Produtos ({products.length})
+                </CardTitle>
+                <CardDescription>
+                  Configure a área de membros e o conteúdo de cada produto
+                </CardDescription>
+              </div>
+              {products.length > 5 && (
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar produto..."
+                    className="pl-10"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {products.map(product => (
-                <Card key={product.id} className="bg-muted/50">
-                  <CardContent className="p-4 flex items-center justify-between gap-4">
-                    <span className="font-medium truncate">{product.name}</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/?page=dashboard/members/config&productId=${product.id}`)}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Configurar
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhum produto encontrado
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produto</TableHead>
+                        <TableHead className="text-center">Membros Ativos</TableHead>
+                        <TableHead className="text-center">Total</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedProducts.map(product => {
+                        const counts = membersByProduct[product.id] || { active: 0, total: 0 };
+                        return (
+                          <TableRow key={product.id}>
+                            <TableCell>
+                              <span className="font-medium">{product.name}</span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20">
+                                {counts.active}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline">
+                                {counts.total}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/?page=dashboard/members/config&productId=${product.id}`)}
+                              >
+                                <Settings className="h-4 w-4 mr-2" />
+                                Configurar
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Pagination */}
+                {totalProductPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Mostrando {((productPage - 1) * PRODUCTS_PER_PAGE) + 1}-{Math.min(productPage * PRODUCTS_PER_PAGE, filteredProducts.length)} de {filteredProducts.length} produtos
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                        disabled={productPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm font-medium">
+                        {productPage} / {totalProductPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setProductPage(p => Math.min(totalProductPages, p + 1))}
+                        disabled={productPage === totalProductPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
       )}
