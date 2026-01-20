@@ -506,6 +506,65 @@ export type Database = {
         }
         Relationships: []
       }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          is_active: boolean | null
+          max_uses: number | null
+          min_purchase_amount: number | null
+          product_id: string
+          seller_id: string
+          updated_at: string | null
+          used_count: number | null
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          discount_type: string
+          discount_value: number
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          min_purchase_amount?: number | null
+          product_id: string
+          seller_id: string
+          updated_at?: string | null
+          used_count?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          min_purchase_amount?: number | null
+          product_id?: string
+          seller_id?: string
+          updated_at?: string | null
+          used_count?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_broadcast_recipients: {
         Row: {
           broadcast_id: string
@@ -1404,6 +1463,7 @@ export type Database = {
           deliverable_url: string | null
           description: string | null
           domain_verified: boolean | null
+          enable_coupons: boolean | null
           facebook_pixel: string | null
           google_analytics: string | null
           id: string
@@ -1432,6 +1492,7 @@ export type Database = {
           deliverable_url?: string | null
           description?: string | null
           domain_verified?: boolean | null
+          enable_coupons?: boolean | null
           facebook_pixel?: string | null
           google_analytics?: string | null
           id?: string
@@ -1460,6 +1521,7 @@ export type Database = {
           deliverable_url?: string | null
           description?: string | null
           domain_verified?: boolean | null
+          enable_coupons?: boolean | null
           facebook_pixel?: string | null
           google_analytics?: string | null
           id?: string
@@ -2622,6 +2684,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_coupon_usage: {
+        Args: { p_coupon_id: string }
+        Returns: undefined
       }
     }
     Enums: {

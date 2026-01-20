@@ -20,7 +20,8 @@ import {
   Send,
   Mail,
   Percent,
-  Store
+  Store,
+  Ticket
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
@@ -37,6 +38,7 @@ import { usePaymentMode } from "@/hooks/usePaymentMode";
 const ownGatewayMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", page: "dashboard" },
   { icon: Package, label: "Produtos", page: "dashboard/products" },
+  { icon: Ticket, label: "Cupons", page: "dashboard/coupons" },
   { icon: ShoppingCart, label: "Vendas", page: "dashboard/sales" },
   { icon: CreditCard, label: "Transações", page: "dashboard/transactions" },
   { icon: Users, label: "Clientes", page: "dashboard/clients" },
@@ -53,6 +55,7 @@ const ownGatewayMenuItems = [
 const platformGatewayMenuItems = [
   { icon: LayoutDashboard, label: "Dashboard", page: "dashboard" },
   { icon: Package, label: "Produtos", page: "dashboard/products" },
+  { icon: Ticket, label: "Cupons", page: "dashboard/coupons" },
   { icon: ShoppingCart, label: "Vendas", page: "dashboard/sales" },
   { icon: CreditCard, label: "Transações", page: "dashboard/transactions" },
   { icon: Users, label: "Clientes", page: "dashboard/clients" },

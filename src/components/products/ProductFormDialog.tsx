@@ -36,6 +36,7 @@ interface Product {
   custom_domain?: string | null;
   domain_verified?: boolean;
   auto_send_access_email?: boolean;
+  enable_coupons?: boolean;
 }
 
 interface ProductFormDialogProps {
@@ -88,6 +89,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
     custom_domain: "",
     domain_verified: false,
     auto_send_access_email: true,
+    enable_coupons: false,
   });
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -193,6 +195,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         custom_domain: product.custom_domain || "",
         domain_verified: product.domain_verified || false,
         auto_send_access_email: product.auto_send_access_email ?? true,
+        enable_coupons: product.enable_coupons || false,
       });
       setSlugError(null);
       if (product.custom_domain) {
@@ -223,6 +226,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         custom_domain: "",
         domain_verified: false,
         auto_send_access_email: true,
+        enable_coupons: false,
       });
       setSlugError(null);
       setDomainShared(false);
@@ -463,6 +467,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
         custom_domain: formData.custom_domain || null,
         domain_verified: formData.domain_verified || false,
         auto_send_access_email: formData.auto_send_access_email ?? true,
+        enable_coupons: formData.enable_coupons || false,
       };
 
       if (product?.id) {
@@ -737,6 +742,20 @@ export function ProductFormDialog({ open, onOpenChange, product, onSuccess }: Pr
           <Switch
             checked={formData.auto_send_access_email ?? true}
             onCheckedChange={(checked) => setFormData({ ...formData, auto_send_access_email: checked })}
+          />
+        </div>
+      </div>
+
+      {/* Cupons de Desconto */}
+      <div className="p-4 rounded-lg bg-secondary/30 border border-border">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-base">🎟️ Cupons de Desconto</Label>
+            <p className="text-sm text-muted-foreground">Permitir cupons de desconto no checkout</p>
+          </div>
+          <Switch
+            checked={formData.enable_coupons}
+            onCheckedChange={(checked) => setFormData({ ...formData, enable_coupons: checked })}
           />
         </div>
       </div>

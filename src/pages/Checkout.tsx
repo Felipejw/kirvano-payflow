@@ -49,6 +49,15 @@ interface Product {
   seller_id: string;
   type: string; // 'digital' | 'physical' | 'service'
   parent_product_id: string | null;
+  enable_coupons?: boolean;
+}
+
+interface AppliedCoupon {
+  id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  discount_amount: number;
 }
 
 interface CheckoutTemplate {
@@ -236,6 +245,12 @@ const Checkout = () => {
   const [isOrderSummaryOpen, setIsOrderSummaryOpen] = useState(false);
   const [productNotFound, setProductNotFound] = useState(false);
   
+  // Coupon states
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  
   // Payment method states
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
@@ -270,7 +285,98 @@ const Checkout = () => {
     const bump = orderBumps.find(b => b.id === id);
     return sum + (bump?.price || 0);
   }, 0);
-  const totalPrice = basePrice + bumpsTotal + (upsellAccepted ? upsellOffer.price : 0);
+  const couponDiscount = appliedCoupon?.discount_amount || 0;
+  const totalPrice = Math.max(0, basePrice + bumpsTotal + (upsellAccepted ? upsellOffer.price : 0) - couponDiscount);
+
+  // Validate coupon function
+  const validateCoupon = async () => {
+    if (!couponCode.trim() || !product) return;
+    
+    setValidatingCoupon(true);
+    setCouponError(null);
+    
+    try {
+      const { data: coupon, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('product_id', product.id)
+        .ilike('code', couponCode.trim())
+        .eq('is_active', true)
+        .single();
+      
+      if (error || !coupon) {
+        setCouponError("Cupom inválido ou expirado");
+        setAppliedCoupon(null);
+        setValidatingCoupon(false);
+        return;
+      }
+      
+      // Verify validity dates
+      const now = new Date();
+      if (coupon.valid_from && new Date(coupon.valid_from) > now) {
+        setCouponError("Este cupom ainda não está válido");
+        setAppliedCoupon(null);
+        setValidatingCoupon(false);
+        return;
+      }
+      
+      if (coupon.valid_until && new Date(coupon.valid_until) < now) {
+        setCouponError("Este cupom expirou");
+        setAppliedCoupon(null);
+        setValidatingCoupon(false);
+        return;
+      }
+      
+      // Verify usage limit
+      if (coupon.max_uses !== null && coupon.used_count >= coupon.max_uses) {
+        setCouponError("Este cupom atingiu o limite de utilizações");
+        setAppliedCoupon(null);
+        setValidatingCoupon(false);
+        return;
+      }
+      
+      // Verify minimum purchase
+      const subtotal = basePrice + bumpsTotal;
+      if (coupon.min_purchase_amount && subtotal < coupon.min_purchase_amount) {
+        setCouponError(`Valor mínimo de ${formatCurrency(coupon.min_purchase_amount)} para usar este cupom`);
+        setAppliedCoupon(null);
+        setValidatingCoupon(false);
+        return;
+      }
+      
+      // Calculate discount
+      let discountAmount = 0;
+      if (coupon.discount_type === 'percentage') {
+        discountAmount = (subtotal * coupon.discount_value) / 100;
+      } else {
+        discountAmount = Math.min(coupon.discount_value, subtotal);
+      }
+      
+      setAppliedCoupon({
+        id: coupon.id,
+        code: coupon.code,
+        discount_type: coupon.discount_type as 'percentage' | 'fixed',
+        discount_value: coupon.discount_value,
+        discount_amount: discountAmount
+      });
+      
+      toast({
+        title: "Cupom aplicado!",
+        description: `Desconto de ${formatCurrency(discountAmount)}`,
+      });
+    } catch (err) {
+      console.error('Error validating coupon:', err);
+      setCouponError("Erro ao validar cupom");
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError(null);
+  };
 
   // Helper function to track events on all pixels (Facebook, TikTok, Google Analytics)
   const trackAllPixels = (eventName: string, params: Record<string, any>) => {
@@ -1844,6 +1950,67 @@ const Checkout = () => {
                         color: styles.textColor,
                       }}
                     />
+                  </div>
+                )}
+
+                {/* Coupon Field - Only if product has coupons enabled */}
+                {product?.enable_coupons && (
+                  <div className="space-y-2">
+                    <Label htmlFor="coupon" className="text-sm flex items-center gap-1.5" style={{ color: styles.textColor }}>
+                      🎟️ Cupom de desconto
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="coupon"
+                        placeholder="Digite seu cupom"
+                        value={couponCode}
+                        onChange={(e) => {
+                          setCouponCode(e.target.value.toUpperCase());
+                          setCouponError(null);
+                        }}
+                        disabled={!!appliedCoupon}
+                        className="flex-1 text-sm"
+                        style={{ 
+                          borderRadius: styles.borderRadius + 'px',
+                          backgroundColor: isLightTheme ? '#f9fafb' : 'transparent',
+                          borderColor: appliedCoupon ? '#22c55e' : couponError ? '#ef4444' : styles.cardBorder,
+                          color: styles.textColor,
+                        }}
+                      />
+                      {appliedCoupon ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={removeCoupon}
+                          className="shrink-0"
+                          style={{ borderRadius: styles.borderRadius + 'px' }}
+                        >
+                          Remover
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={validateCoupon}
+                          disabled={validatingCoupon || !couponCode.trim()}
+                          className="shrink-0"
+                          style={{ 
+                            backgroundColor: styles.accentColor,
+                            borderRadius: styles.borderRadius + 'px',
+                          }}
+                        >
+                          {validatingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aplicar"}
+                        </Button>
+                      )}
+                    </div>
+                    {couponError && (
+                      <p className="text-sm text-red-500">{couponError}</p>
+                    )}
+                    {appliedCoupon && (
+                      <p className="text-sm text-green-500 flex items-center gap-1">
+                        <Check className="h-4 w-4" />
+                        Cupom aplicado: -{formatCurrency(appliedCoupon.discount_amount)}
+                      </p>
+                    )}
                   </div>
                 )}
 
