@@ -155,7 +155,7 @@ const Checkout = () => {
   const customDomain = useMemo(() => {
     const hostname = window.location.hostname;
     // Ignore Lovable/Gateflow domains
-    const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
+    const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', 'gateflow.store', '127.0.0.1', 'lovableproject.com'];
     const isCustomDomain = !ignoredDomains.some(d => hostname.includes(d));
     return isCustomDomain ? hostname : null;
   }, []);
