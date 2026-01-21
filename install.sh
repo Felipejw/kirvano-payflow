@@ -60,6 +60,7 @@ cat > .env <<ENVEOF
 VITE_SUPABASE_PROJECT_ID="gfjsvuoqaheiaddvfrwb"
 VITE_SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmanN2dW9xYWhlaWFkZHZmcndiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODYyNTIsImV4cCI6MjA4MDc2MjI1Mn0.20nFxYFWynuRr1jMH6AoqK5JmLT-7_ylwVHwg-rEm0w"
 VITE_SUPABASE_URL="https://gfjsvuoqaheiaddvfrwb.supabase.co"
+VITE_PLATFORM_DOMAINS="$DOMAIN,www.$DOMAIN"
 ENVEOF
 
 echo ">>> Instalando dependências do projeto..."
