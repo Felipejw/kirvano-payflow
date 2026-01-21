@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
     if (existingProfile) {
       return new Response(
         JSON.stringify({ error: "Já existe um usuário com este email" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

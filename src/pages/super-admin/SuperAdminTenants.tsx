@@ -54,6 +54,20 @@ const SuperAdminTenants = () => {
     reseller_commission: 50,
   });
 
+  const getInvokeErrorMessage = (err: unknown) => {
+    const anyErr = err as any;
+    const body = anyErr?.context?.body;
+    if (typeof body === "string" && body.trim()) {
+      try {
+        const parsed = JSON.parse(body);
+        return parsed?.error || parsed?.message || anyErr?.message;
+      } catch {
+        return body;
+      }
+    }
+    return anyErr?.message || "Erro ao criar tenant";
+  };
+
   useEffect(() => {
     if (!roleLoading && !isSuperAdmin) {
       navigate("/dashboard");
@@ -100,6 +114,13 @@ const SuperAdminTenants = () => {
       return;
     }
 
+    if (newTenant.email.trim().toLowerCase() === "admin@admin.com") {
+      toast.error(
+        "O email admin@admin.com é reservado para o admin global. Use Admin → Usuários → Bootstrap do Admin Padrão para criar/resetar esse login."
+      );
+      return;
+    }
+
     if (newTenant.password.length < 6) {
       toast.error("A senha deve ter pelo menos 6 caracteres");
       return;
@@ -139,7 +160,7 @@ const SuperAdminTenants = () => {
       fetchTenants();
     } catch (error: any) {
       console.error("Error creating tenant:", error);
-      toast.error(error.message || "Erro ao criar tenant");
+      toast.error(getInvokeErrorMessage(error));
     } finally {
       setIsCreating(false);
     }
