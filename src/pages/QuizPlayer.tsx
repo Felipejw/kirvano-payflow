@@ -156,26 +156,24 @@ export default function QuizPlayer() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
 
-      const { data, error } = await supabase
-        .from("quiz_leads")
-        .insert({
+      // SECURITY: lead PII is not writable/readable from the browser; use backend function
+      const { data, error } = await supabase.functions.invoke('quiz-public', {
+        body: {
+          // route
+          __path: '/leads',
           quiz_id: quizId,
           session_id: sessionId,
-          status: "started",
-          ip_address: null,
           user_agent: navigator.userAgent,
+          ip_address: null,
           utm_source: urlParams.get("utm_source"),
           utm_medium: urlParams.get("utm_medium"),
           utm_campaign: urlParams.get("utm_campaign"),
           utm_content: urlParams.get("utm_content"),
           utm_term: urlParams.get("utm_term"),
-        })
-        .select()
-        .single();
+        },
+      });
 
-      if (!error && data) {
-        setLeadId(data.id);
-      }
+      if (!error && data?.lead_id) setLeadId(data.lead_id);
     } catch (err) {
       console.error("Error creating lead:", err);
     }
@@ -187,27 +185,33 @@ export default function QuizPlayer() {
       if (!leadId) return;
 
       try {
-        await supabase.from("quiz_lead_responses").insert({
-          lead_id: leadId,
-          step_id: stepId,
-          element_id: elementId,
-          response,
+        await supabase.functions.invoke('quiz-public', {
+          body: {
+            __path: '/responses',
+            lead_id: leadId,
+            session_id: sessionId,
+            step_id: stepId,
+            element_id: elementId,
+            response,
+          },
         });
 
         // Update lead interaction count
-        await supabase
-          .from("quiz_leads")
-          .update({
+        await supabase.functions.invoke('quiz-public', {
+          body: {
+            __path: '/leads/update',
+            lead_id: leadId,
+            session_id: sessionId,
             current_step_id: stepId,
             last_interaction_at: new Date().toISOString(),
             interaction_count: (responses[stepId] ? Object.keys(responses).length : Object.keys(responses).length + 1),
-          })
-          .eq("id", leadId);
+          },
+        });
       } catch (err) {
         console.error("Error saving response:", err);
       }
     },
-    [leadId, responses]
+    [leadId, responses, sessionId]
   );
 
   // Update lead info (name, email, phone)
@@ -216,12 +220,19 @@ export default function QuizPlayer() {
       if (!leadId) return;
 
       try {
-        await supabase.from("quiz_leads").update(info).eq("id", leadId);
+        await supabase.functions.invoke('quiz-public', {
+          body: {
+            __path: '/leads/update',
+            lead_id: leadId,
+            session_id: sessionId,
+            ...info,
+          },
+        });
       } catch (err) {
         console.error("Error updating lead info:", err);
       }
     },
-    [leadId]
+    [leadId, sessionId]
   );
 
   // Handle response and navigation
@@ -327,13 +338,15 @@ export default function QuizPlayer() {
     if (!leadId) return;
 
     try {
-      await supabase
-        .from("quiz_leads")
-        .update({
-          status: "completed",
+      await supabase.functions.invoke('quiz-public', {
+        body: {
+          __path: '/leads/update',
+          lead_id: leadId,
+          session_id: sessionId,
+          status: 'completed',
           completed_at: new Date().toISOString(),
-        })
-        .eq("id", leadId);
+        },
+      });
     } catch (err) {
       console.error("Error completing quiz:", err);
     }
