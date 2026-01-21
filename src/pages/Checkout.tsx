@@ -630,16 +630,20 @@ const Checkout = () => {
         }
       }, 1000);
 
-      // Polling para verificar status a cada 5 segundos (fallback)
+      // SECURITY: Consultar status apenas via backend function (não ler tabela no navegador)
       const pollPaymentStatus = async () => {
         try {
-          const { data, error } = await supabase
-            .from('pix_charges')
-            .select('status')
-            .eq('id', charge.id)
-            .single();
-          
-          if (!error && data?.status === 'paid') {
+          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pix-api/charges/${charge.id}`;
+          const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) return;
+          const result = await response.json();
+          if (result?.status === 'paid') {
             setPaymentConfirmed(true);
             toast({
               title: "Pagamento confirmado!",
@@ -647,39 +651,15 @@ const Checkout = () => {
             });
           }
         } catch (error) {
-          console.error('Error polling payment status:', error);
+          console.error('Error polling payment status (secure):', error);
         }
       };
-      
-      const pollInterval = setInterval(pollPaymentStatus, 5000);
 
-      // Realtime como canal principal (mais rápido)
-      const channel = supabase
-        .channel(`charge-${charge.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'pix_charges',
-            filter: `id=eq.${charge.id}`,
-          },
-          (payload) => {
-            if (payload.new.status === 'paid') {
-              setPaymentConfirmed(true);
-              toast({
-                title: "Pagamento confirmado!",
-                description: "Seu pagamento foi recebido com sucesso.",
-              });
-            }
-          }
-        )
-        .subscribe();
+      const pollInterval = setInterval(pollPaymentStatus, 5000);
 
       return () => {
         clearInterval(timerInterval);
         clearInterval(pollInterval);
-        supabase.removeChannel(channel);
       };
     }
   }, [charge, paymentConfirmed, toast]);

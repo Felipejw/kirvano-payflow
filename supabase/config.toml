@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.process-gateflow-sale]
 verify_jwt = false
+
+[functions.quiz-public]
+verify_jwt = false
