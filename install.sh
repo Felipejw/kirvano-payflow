@@ -16,7 +16,7 @@ echo ">>> Atualizando servidor..."
 apt update -y && apt upgrade -y
 
 echo ">>> Instalando dependências..."
-apt install -y nginx curl unzip certbot python3-certbot-nginx
+apt install -y nginx curl unzip certbot python3-certbot-nginx rsync
 
 echo ">>> Instalando Node.js (NVM)..."
 if [ ! -d "$HOME/.nvm" ]; then
@@ -35,18 +35,23 @@ if [ ! -f "$ZIP_PATH" ]; then
   exit 1
 fi
 
-echo ">>> Criando pasta do projeto..."
+echo ">>> Preparando pasta do projeto..."
+rm -rf "$APP_PATH"
 mkdir -p "$APP_PATH"
 
 echo ">>> Extraindo ZIP..."
-unzip -o "$ZIP_PATH" -d "$APP_PATH"
+unzip -q "$ZIP_PATH" -d "$APP_PATH"
 
-# Corrige ZIP do GitHub (repo-main)
+echo ">>> Ajustando estrutura do projeto..."
 SUBDIR=$(find "$APP_PATH" -mindepth 1 -maxdepth 1 -type d | head -n 1)
-if [ -f "$SUBDIR/package.json" ]; then
-  mv "$SUBDIR"/* "$APP_PATH"/
-  rmdir "$SUBDIR"
+
+if [ ! -f "$SUBDIR/package.json" ]; then
+  echo "❌ package.json não encontrado após extração"
+  exit 1
 fi
+
+rsync -a "$SUBDIR"/ "$APP_PATH"/
+rm -rf "$SUBDIR"
 
 cd "$APP_PATH"
 
