@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 echo "=============================="
@@ -8,8 +7,9 @@ echo "=============================="
 
 read -p "Domínio (ex: meusite.com): " DOMAIN
 read -p "Nome da pasta do projeto (ex: app): " APP_FOLDER
-read -p "Nome do arquivo ZIP (ex: projeto.zip): " ZIP_FILE
+read -p "Nome do arquivo ZIP (ex: gatteflow.zip): " ZIP_FILE
 
+ZIP_PATH="/home/administrator/$ZIP_FILE"
 APP_PATH="/var/www/$APP_FOLDER"
 
 echo ">>> Atualizando servidor..."
@@ -29,20 +29,26 @@ source "$NVM_DIR/nvm.sh"
 nvm install 18
 nvm use 18
 
-echo ">>> Criando pasta do projeto..."
-mkdir -p $APP_PATH
-
-echo ">>> Extraindo ZIP..."
-unzip -o $ZIP_FILE -d $APP_PATH
-
-# Corrige ZIP do GitHub (repo-main)
-SUBDIR=$(find $APP_PATH -mindepth 1 -maxdepth 1 -type d | head -n 1)
-if [ -f "$SUBDIR/package.json" ]; then
-  mv $SUBDIR/* $APP_PATH/
-  rmdir $SUBDIR
+echo ">>> Verificando ZIP..."
+if [ ! -f "$ZIP_PATH" ]; then
+  echo "❌ ZIP não encontrado em $ZIP_PATH"
+  exit 1
 fi
 
-cd $APP_PATH
+echo ">>> Criando pasta do projeto..."
+mkdir -p "$APP_PATH"
+
+echo ">>> Extraindo ZIP..."
+unzip -o "$ZIP_PATH" -d "$APP_PATH"
+
+# Corrige ZIP do GitHub (repo-main)
+SUBDIR=$(find "$APP_PATH" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+if [ -f "$SUBDIR/package.json" ]; then
+  mv "$SUBDIR"/* "$APP_PATH"/
+  rmdir "$SUBDIR"
+fi
+
+cd "$APP_PATH"
 
 echo ">>> Instalando dependências do projeto..."
 npm install
