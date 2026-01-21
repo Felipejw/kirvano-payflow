@@ -61,12 +61,11 @@ import SuperAdminCommissions from "./pages/super-admin/SuperAdminCommissions";
 import SuperAdminFeatures from "./pages/super-admin/SuperAdminFeatures";
 import AdminAffiliates from "./pages/admin/AdminAffiliates";
 import { getUrlParam } from "./lib/routes";
+import { isCustomDomainHostname } from "@/lib/domain";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
 const isCustomDomain = (() => {
-  const hostname = window.location.hostname;
-  const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', 'gateflow.store', '127.0.0.1', 'lovableproject.com'];
-  return !ignoredDomains.some(d => hostname.includes(d));
+  return isCustomDomainHostname(window.location.hostname);
 })();
 
 const queryClient = new QueryClient({

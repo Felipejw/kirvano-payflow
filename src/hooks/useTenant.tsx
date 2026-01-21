@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useUserRole } from "./useUserRole";
+import { isCustomDomainHostname } from "@/lib/domain";
 
 interface Tenant {
   id: string;
@@ -44,9 +45,7 @@ export const useTenant = (): TenantState => {
   const [error, setError] = useState<string | null>(null);
 
   const isCustomDomain = useMemo(() => {
-    const hostname = window.location.hostname;
-    const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
-    return !ignoredDomains.some(d => hostname.includes(d));
+    return isCustomDomainHostname(window.location.hostname);
   }, []);
 
   useEffect(() => {
