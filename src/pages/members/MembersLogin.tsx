@@ -49,7 +49,8 @@ const MembersLogin = () => {
         description: "Bem-vindo à área de membros.",
       });
       
-      navigate("/members");
+      // App uses query-param routing
+      navigate("/?page=members");
     } catch (error) {
       console.error("Login error:", error);
       toast({
@@ -68,7 +69,8 @@ const MembersLogin = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/members`,
+        // Keep reset flow inside the app's query-param routing
+        redirectTo: `${window.location.origin}/?page=members`,
       });
 
       if (error) {

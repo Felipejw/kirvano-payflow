@@ -6,6 +6,10 @@ const DEFAULT_PLATFORM_DOMAINS = [
   "127.0.0.1",
   "lovable.app",
   "lovableproject.com",
+  // Platform domains (fallback): keep members/admin/landing working on primary domains.
+  // If you change your primary domain, also update VITE_PLATFORM_DOMAINS.
+  "gatteflow.store",
+  "gateflow.store",
 ];
 
 const normalize = (value: string) => value.trim().toLowerCase();
