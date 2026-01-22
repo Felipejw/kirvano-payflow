@@ -206,7 +206,7 @@ function PageRouter() {
       // Preserve checkout links that rely on ?s= or ?id= without explicitly setting ?page=checkout.
       if (!page) {
         if (productId || slug) return <Checkout />;
-        return <Index />;
+        return <Auth />;
       }
       // Unknown page, show 404
       return <NotFound />;
