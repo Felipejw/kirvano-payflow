@@ -1548,15 +1548,50 @@ async function processPaymentConfirmation(
     .update({ status: 'paid', paid_at: new Date().toISOString() })
     .eq('id', charge.id);
 
+  const amount = Number(charge.amount);
+  // Get seller_id from product or use null
+  const sellerId = charge.products?.seller_id || charge.seller_id || null;
+
+  // Determine fee settings: per-seller override (own_gateway) or platform settings
   const { data: platformSettings } = await supabase
     .from('platform_settings')
-    .select('platform_fee')
+    .select('platform_fee, platform_gateway_fee_percentage, platform_gateway_fee_fixed, own_gateway_fee_percentage, own_gateway_fee_fixed')
     .single();
-  
-  const platformFeeRate = platformSettings?.platform_fee ?? 5;
 
-  const amount = Number(charge.amount);
-  const platformFee = amount * (platformFeeRate / 100);
+  let feePercentage = Number(platformSettings?.platform_fee ?? 5);
+  let feeFixed = 0;
+
+  if (sellerId) {
+    const { data: sellerProfile } = await supabase
+      .from('profiles')
+      .select('payment_mode')
+      .eq('user_id', sellerId)
+      .maybeSingle();
+
+    const paymentMode = sellerProfile?.payment_mode || 'own_gateway';
+
+    if (paymentMode === 'platform_gateway') {
+      feePercentage = Number(platformSettings?.platform_gateway_fee_percentage ?? feePercentage);
+      feeFixed = Number(platformSettings?.platform_gateway_fee_fixed ?? 0);
+    } else {
+      // own_gateway: try seller-specific fee settings (PIX)
+      const { data: sellerFees } = await supabase
+        .from('seller_fee_settings')
+        .select('pix_fee_percentage, pix_fee_fixed')
+        .eq('user_id', sellerId)
+        .maybeSingle();
+
+      if (sellerFees) {
+        feePercentage = Number(sellerFees.pix_fee_percentage ?? (platformSettings?.own_gateway_fee_percentage ?? feePercentage));
+        feeFixed = Number(sellerFees.pix_fee_fixed ?? (platformSettings?.own_gateway_fee_fixed ?? 0));
+      } else {
+        feePercentage = Number(platformSettings?.own_gateway_fee_percentage ?? feePercentage);
+        feeFixed = Number(platformSettings?.own_gateway_fee_fixed ?? 0);
+      }
+    }
+  }
+
+  const platformFee = (amount * (feePercentage / 100)) + feeFixed;
   let affiliateAmount = 0;
   let sellerAmount = amount - platformFee;
 
@@ -1574,9 +1609,6 @@ async function processPaymentConfirmation(
       .eq('id', charge.affiliate_id);
   }
 
-  // Get seller_id from product or use null
-  const sellerId = charge.products?.seller_id || charge.seller_id || null;
-  
   if (!sellerId) {
     console.warn('Transaction created without seller_id - product_id was:', charge.product_id);
   }

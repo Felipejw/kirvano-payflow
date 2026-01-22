@@ -2105,6 +2105,51 @@ export type Database = {
           },
         ]
       }
+      seller_fee_settings: {
+        Row: {
+          boleto_fee_fixed: number
+          boleto_fee_percentage: number
+          card_fee_fixed: number
+          card_fee_percentage: number
+          created_at: string
+          default_affiliate_commission_rate: number | null
+          id: string
+          pix_fee_fixed: number
+          pix_fee_percentage: number
+          updated_at: string
+          user_id: string
+          withdrawal_fee: number
+        }
+        Insert: {
+          boleto_fee_fixed?: number
+          boleto_fee_percentage?: number
+          card_fee_fixed?: number
+          card_fee_percentage?: number
+          created_at?: string
+          default_affiliate_commission_rate?: number | null
+          id?: string
+          pix_fee_fixed?: number
+          pix_fee_percentage?: number
+          updated_at?: string
+          user_id: string
+          withdrawal_fee?: number
+        }
+        Update: {
+          boleto_fee_fixed?: number
+          boleto_fee_percentage?: number
+          card_fee_fixed?: number
+          card_fee_percentage?: number
+          created_at?: string
+          default_affiliate_commission_rate?: number | null
+          id?: string
+          pix_fee_fixed?: number
+          pix_fee_percentage?: number
+          updated_at?: string
+          user_id?: string
+          withdrawal_fee?: number
+        }
+        Relationships: []
+      }
       seller_gateway_credentials: {
         Row: {
           created_at: string | null
