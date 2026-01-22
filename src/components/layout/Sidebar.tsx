@@ -143,7 +143,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     if (isOnSuperAdminRoute) {
       navigate("admin");
     } else {
-      navigate("super-admin/tenants");
+      navigate("super-admin/dashboard");
     }
     onNavigate?.();
   };
@@ -182,7 +182,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Super Admin Toggle - only for super_admin */}
       {isSuperAdmin && !roleLoading && (
         <div className="px-3 py-2 border-b border-sidebar-border space-y-2">
-          {/* Botão Super Admin OCULTO - manter código para uso futuro
           <Button
             variant={isOnSuperAdminRoute ? "default" : "outline"}
             size="sm"
@@ -197,7 +196,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               <span>{isOnSuperAdminRoute ? "Sair Super Admin" : "Super Admin"}</span>
             )}
           </Button>
-          */}
           {!isOnSuperAdminRoute && (
             <Button
               variant="outline"

@@ -51,6 +51,7 @@ import QuizBuilder from "./pages/QuizBuilder";
 import QuizPlayer from "./pages/QuizPlayer";
 import ApiDocs from "./pages/ApiDocs";
 import Coupons from "./pages/Coupons";
+import Index from "./pages/Index";
 import SuperAdminDashboard from "./pages/super-admin/SuperAdminDashboard";
 import SuperAdminClientes from "./pages/super-admin/SuperAdminClientes";
 import SuperAdminTenants from "./pages/super-admin/SuperAdminTenants";
@@ -201,11 +202,11 @@ function PageRouter() {
     case "affiliate-store":
       return <AffiliateStore />;
     default:
-      // If no page param, show Login as the default home.
+      // If no page param, show Landing Page as the default home.
       // Preserve checkout links that rely on ?s= or ?id= without explicitly setting ?page=checkout.
       if (!page) {
         if (productId || slug) return <Checkout />;
-        return <Auth />;
+        return <Index />;
       }
       // Unknown page, show 404
       return <NotFound />;
