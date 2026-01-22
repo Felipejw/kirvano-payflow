@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/contexts/SidebarContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
@@ -86,6 +87,7 @@ const queryClient = new QueryClient({
 function PageRouter() {
   const [searchParams] = useSearchParams();
   const location = window.location;
+  const { isSuperAdmin, loading: roleLoading } = useUserRole();
   
   // First check query param, then fallback to pathname
   let page = searchParams.get("page") || "";
@@ -142,42 +144,61 @@ function PageRouter() {
     case "quiz":
       return <QuizPlayer />;
     case "admin":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminDashboard />;
     case "admin/receita":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminReceita />;
     case "admin/vendas":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminVendas />;
     case "admin/rankings":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminRankings />;
     case "admin/recovery":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminRecovery />;
     case "admin/users":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminUsers />;
     case "admin/products":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminProducts />;
     case "admin/transactions":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminTransactionsPage />;
     case "admin/withdrawals":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminWithdrawalsPage />;
     case "admin/invoices":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminInvoicesPage />;
     case "admin/gateways":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminGatewaysPage />;
     case "admin/analytics":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminAnalytics />;
     case "admin/settings":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminSettings />;
     case "admin/instagram-posts":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminInstagramPosts />;
     case "admin/gateway-logs":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminGatewayLogs />;
     case "admin/broadcast":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminBroadcast />;
     case "admin/email-broadcast":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminEmailBroadcast />;
     case "admin/minhas-vendas":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminMinhasVendas />;
     case "admin/affiliates":
+      if (!roleLoading && !isSuperAdmin) return <Dashboard />;
       return <AdminAffiliates />;
     case "super-admin/dashboard":
       return <SuperAdminDashboard />;
