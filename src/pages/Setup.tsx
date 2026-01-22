@@ -11,6 +11,44 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import { AlertTriangle, CheckCircle2, Shield } from "lucide-react";
 
+type SetupDebug = {
+  siteOrigin: string;
+  siteProtocol: string;
+  backendUrl: string;
+  backendOrigin: string;
+  backendProtocol: string;
+  mixedContentRisk: boolean;
+  userAgent: string;
+  timestamp: string;
+};
+
+const getDebugInfo = (): SetupDebug => {
+  const backendUrl = String(import.meta.env.VITE_SUPABASE_URL || "");
+  let backendOrigin = "";
+  let backendProtocol = "";
+  try {
+    if (backendUrl) {
+      const u = new URL(backendUrl);
+      backendOrigin = u.origin;
+      backendProtocol = u.protocol;
+    }
+  } catch {
+    // ignore
+  }
+
+  const siteProtocol = window.location.protocol;
+  return {
+    siteOrigin: window.location.origin,
+    siteProtocol,
+    backendUrl,
+    backendOrigin,
+    backendProtocol,
+    mixedContentRisk: siteProtocol === "https:" && backendProtocol === "http:",
+    userAgent: navigator.userAgent,
+    timestamp: new Date().toISOString(),
+  };
+};
+
 const setupSchema = z.object({
   email: z.string().trim().email("Informe um e-mail válido").max(255),
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres").max(200),
@@ -37,6 +75,7 @@ export default function Setup() {
   const [setupToken, setSetupToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<Status>({ type: "idle" });
+  const [debug, setDebug] = useState<SetupDebug>(() => getDebugInfo());
 
   const goToLogin = () => {
     window.location.href = "/?page=auth";
@@ -45,6 +84,7 @@ export default function Setup() {
   // Checagem leve: com um Setup Token válido, chamamos a função com body vazio.
   // Ela responde 409 (setup concluído) antes de validar campos.
   useEffect(() => {
+    setDebug(getDebugInfo());
     const token = setupToken.trim();
     if (!token) return;
 
@@ -86,6 +126,7 @@ export default function Setup() {
   }, [email, password, fullName, setupToken, submitting]);
 
   const handleSubmit = async () => {
+    setDebug(getDebugInfo());
     setStatus({ type: "idle" });
 
     const parsed = setupSchema.safeParse({
@@ -123,6 +164,15 @@ export default function Setup() {
 
         // Quando o browser bloqueia a chamada (CORS/preflight), o client costuma retornar essa mensagem genérica.
         if (!httpStatus && msg.toLowerCase().includes("failed to send")) {
+          const dbg = getDebugInfo();
+          if (dbg.mixedContentRisk) {
+            setStatus({
+              type: "error",
+              message:
+                "Bloqueio por segurança (Mixed Content): o site está em HTTPS mas o backend está em HTTP. Corrija o backend para usar HTTPS ou ajuste a configuração do BACKEND_URL no servidor e faça novo build/deploy.",
+            });
+            return;
+          }
           setStatus({ type: "error", message: NETWORK_ERROR_HELP });
           return;
         }
@@ -158,9 +208,31 @@ export default function Setup() {
       // Redireciona para login
       goToLogin();
     } catch {
-      setStatus({ type: "error", message: NETWORK_ERROR_HELP });
+      const dbg = getDebugInfo();
+      if (dbg.mixedContentRisk) {
+        setStatus({
+          type: "error",
+          message:
+            "Bloqueio por segurança (Mixed Content): o site está em HTTPS mas o backend está em HTTP. Corrija o backend para usar HTTPS ou ajuste a configuração do BACKEND_URL no servidor e faça novo build/deploy.",
+        });
+      } else {
+        setStatus({ type: "error", message: NETWORK_ERROR_HELP });
+      }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const copyDebug = async () => {
+    const dbg = getDebugInfo();
+    setDebug(dbg);
+    const text = JSON.stringify(dbg, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus({ type: "success", message: "Diagnóstico copiado. Cole aqui no chat." });
+    } catch {
+      // fallback simples
+      setStatus({ type: "error", message: "Não consegui copiar automaticamente. Selecione e copie manualmente no bloco de diagnóstico." });
     }
   };
 
@@ -205,6 +277,31 @@ export default function Setup() {
                 <AlertDescription>{status.message}</AlertDescription>
               </Alert>
             )}
+
+            <Alert>
+              <Shield className="h-4 w-4" />
+              <AlertDescription className="space-y-2">
+                <div>
+                  <strong>Diagnóstico rápido</strong> (sem DevTools):
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Site: <strong>{debug.siteOrigin}</strong> | Backend: <strong>{debug.backendOrigin || "(não detectado)"}</strong>
+                </div>
+                {debug.mixedContentRisk && (
+                  <div className="text-sm">
+                    <strong>Atenção:</strong> seu site está em HTTPS, mas o backend está em HTTP — isso costuma bloquear a chamada.
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={copyDebug}>
+                    Copiar diagnóstico
+                  </Button>
+                </div>
+                <pre className="max-h-40 overflow-auto rounded-md bg-muted p-3 text-xs">
+{JSON.stringify(debug, null, 2)}
+                </pre>
+              </AlertDescription>
+            </Alert>
 
             {status.type !== "setup_done" ? (
               <>
