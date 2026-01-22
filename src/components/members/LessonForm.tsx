@@ -114,11 +114,11 @@ export function LessonForm({ open, onOpenChange, lesson, onSave }: LessonFormPro
   const showUploadOption = contentType === "video" || contentType === "pdf" || contentType === "file";
 
   // For "Arquivo", allow any file type by not setting the input's accept attribute.
-  const uploadAccept: string | undefined =
+  const uploadAccept: string =
     contentType === "pdf"
       ? "application/pdf"
       : contentType === "file"
-        ? undefined
+        ? ""
         : "video/mp4,video/webm";
 
   return (

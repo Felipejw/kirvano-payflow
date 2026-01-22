@@ -120,7 +120,7 @@ export function FileUpload({
       <input
         ref={inputRef}
         type="file"
-        accept={accept}
+        {...(accept && accept.trim() !== "" ? { accept } : {})}
         onChange={handleChange}
         className="hidden"
         disabled={uploading}
