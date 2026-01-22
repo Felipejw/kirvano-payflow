@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.quiz-public]
 verify_jwt = false
+
+[functions.bootstrap-first-admin]
+verify_jwt = false
