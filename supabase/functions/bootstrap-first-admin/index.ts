@@ -2,7 +2,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  // Inclua headers customizados usados pelo frontend para evitar falha de preflight (CORS)
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-setup-token",
 };
 
 type BootstrapRequest = {
