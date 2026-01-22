@@ -105,9 +105,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { collapsed, toggle, isMobile } = useSidebar();
   const currentPage = useCurrentPage();
   const navigate = useAppNavigate();
-  const { isAdmin, isSuperAdmin, loading: roleLoading } = useUserRole();
+  const { isSuperAdmin, loading: roleLoading } = useUserRole();
   const { signOut } = useAuth();
-  const { paymentMode, loading: modeLoading } = usePaymentMode();
+  const { paymentMode } = usePaymentMode();
 
   const isOnAdminRoute = currentPage.startsWith("admin");
   const isOnSuperAdminRoute = currentPage.startsWith("super-admin");
@@ -129,6 +129,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   };
 
   const toggleView = () => {
+    // Segurança: telas admin globais só podem ser acessadas por super_admin.
+    if (!isSuperAdmin) {
+      navigate("dashboard");
+      onNavigate?.();
+      return;
+    }
+
     if (isOnSuperAdminRoute) {
       navigate("admin");
     } else if (isOnAdminRoute) {
@@ -216,24 +223,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       )}
       
       {/* Admin/Seller Toggle - only for admins (non super_admin) */}
-      {isAdmin && !isSuperAdmin && !roleLoading && (
-        <div className="px-3 py-2 border-b border-sidebar-border">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleView}
-            className={cn(
-              "w-full justify-start gap-2",
-              showCollapsed && "justify-center px-2"
-            )}
-          >
-            <Shield className="h-4 w-4" />
-            {!showCollapsed && (
-              <span>{isOnAdminRoute ? "Modo Vendedor" : "Modo Admin"}</span>
-            )}
-          </Button>
-        </div>
-      )}
+      {/*
+        Importante: "Modo Admin" (telas globais) foi restringido a super_admin.
+        Admin de tenant não deve alternar para essas páginas.
+      */}
 
       {/* Main Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
