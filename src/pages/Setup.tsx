@@ -28,7 +28,7 @@ const INVALID_TOKEN_HELP =
   "Setup Token inválido. Se você não configurou um token no backend, use o token padrão (gateflow_setup_v1). Se o backend estiver com um token personalizado configurado (secret SETUP_TOKEN), use exatamente esse valor. Se você não tiver acesso ao backend, peça ao administrador da instalação.";
 
 const NETWORK_ERROR_HELP =
-  "Não foi possível enviar a solicitação ao backend. Isso geralmente acontece por bloqueio de rede/CORS. Verifique se a instalação permite o header de Setup Token e tente novamente. Se você não administra o servidor, encaminhe esta mensagem para quem fez a instalação.";
+  "Não foi possível enviar a solicitação ao backend. Isso geralmente acontece por bloqueio de rede/CORS (muito comum em VPS/proxy). Tente: 1) aba anônima, 2) desativar AdBlock/extensões, 3) testar em outra rede (4G). Se persistir, peça ao instalador para liberar chamadas do navegador ao backend e confirmar que a URL/chave do backend estão corretas.";
 
 export default function Setup() {
   const [email, setEmail] = useState("");
@@ -51,8 +51,8 @@ export default function Setup() {
     const t = window.setTimeout(async () => {
       try {
         const { error } = await supabase.functions.invoke("bootstrap-first-admin", {
-          body: {},
-          headers: { "x-setup-token": token },
+          // Enviar o token no body evita header customizado (que costuma disparar preflight/CORS em VPS).
+          body: { setup_token: token },
         });
 
         if (!error) return;
@@ -111,9 +111,7 @@ export default function Setup() {
           email: cleanEmail,
           password: cleanPassword,
           full_name: normalizedFullName,
-        },
-        headers: {
-          "x-setup-token": setup_token,
+          setup_token,
         },
       });
 
