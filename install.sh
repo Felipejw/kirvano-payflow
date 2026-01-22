@@ -57,7 +57,8 @@ echo ""
 echo "=============================="
 echo " CRIAR ADMIN INICIAL "
 echo "=============================="
-echo "ℹ️  Bootstrap desativado: o admin deverá ser criado manualmente no backend do cliente após a instalação."
+read -p "Email do admin (ex: admin@seudominio.com): " ADMIN_EMAIL
+read -s -p "Senha do admin (mín. 6 caracteres): " ADMIN_PASSWORD
 echo ""
 
 ZIP_PATH="/home/administrator/$ZIP_FILE"
@@ -121,6 +122,47 @@ npm install
 echo ">>> Gerando build..."
 npm run build
 
+echo ">>> Criando usuário admin no backend (sem chaves no VPS)..."
+ADMIN_EMAIL_CLEAN=$(echo "$ADMIN_EMAIL" | tr '[:upper:]' '[:lower:]' | xargs)
+
+if [ -z "$ADMIN_EMAIL_CLEAN" ] || [[ "$ADMIN_EMAIL_CLEAN" != *"@"* ]]; then
+  echo "❌ Email do admin inválido"
+  exit 1
+fi
+
+if [ ${#ADMIN_PASSWORD} -lt 6 ]; then
+  echo "❌ A senha do admin deve ter pelo menos 6 caracteres"
+  exit 1
+fi
+
+BOOTSTRAP_PAYLOAD=$(python3 - <<'PY'
+import json, os
+email = os.environ.get('ADMIN_EMAIL_CLEAN','')
+password = os.environ.get('ADMIN_PASSWORD','')
+print(json.dumps({
+  "email": email,
+  "password": password,
+  "full_name": "Admin"
+}))
+PY
+)
+
+BOOTSTRAP_URL="$BACKEND_URL/functions/v1/bootstrap-first-admin"
+BOOTSTRAP_RES=$(curl -sS -X POST "$BOOTSTRAP_URL" \
+  -H "Content-Type: application/json" \
+  -H "apikey: $BACKEND_PUBLISHABLE_KEY" \
+  -H "Authorization: Bearer $BACKEND_PUBLISHABLE_KEY" \
+  -H "x-setup-token: $BOOTSTRAP_SETUP_TOKEN" \
+  --data "$BOOTSTRAP_PAYLOAD")
+
+if echo "$BOOTSTRAP_RES" | grep -q '"success"[[:space:]]*:[[:space:]]*true'; then
+  echo "✅ Admin preparado: $ADMIN_EMAIL_CLEAN"
+else
+  echo "❌ Falha ao preparar o admin automaticamente."
+  echo "   Resposta do backend: $BOOTSTRAP_RES"
+  exit 1
+fi
+
 echo ">>> Configurando Nginx..."
 cat > /etc/nginx/sites-available/$DOMAIN <<EOF
 server {
@@ -150,8 +192,4 @@ certbot --nginx -d $DOMAIN -d www.$DOMAIN \
 echo "=============================="
 echo " INSTALAÇÃO FINALIZADA 🎉"
 echo " https://$DOMAIN"
-echo ""
-echo "Próximos passos:"
-echo "- Crie o usuário admin no backend do cliente (autenticação) e atribua a role/perfil necessário no sistema."
-echo "- Garanta que o backend do cliente tenha as tabelas/funções/políticas compatíveis com este sistema."
 echo "=============================="
