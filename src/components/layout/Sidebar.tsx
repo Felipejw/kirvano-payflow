@@ -105,7 +105,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { collapsed, toggle, isMobile } = useSidebar();
   const currentPage = useCurrentPage();
   const navigate = useAppNavigate();
-  const { isSuperAdmin, loading: roleLoading } = useUserRole();
+  const { isSuperAdmin, isAdmin, loading: roleLoading } = useUserRole();
   const { signOut } = useAuth();
   const { paymentMode } = usePaymentMode();
 
@@ -129,16 +129,15 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   };
 
   const toggleView = () => {
-    // Segurança: telas admin globais só podem ser acessadas por super_admin.
-    if (!isSuperAdmin) {
+    // Permite alternar para Admin somente para quem tem permissão de admin.
+    // (super_admin também é admin, mas tem toggle dedicado de Super Admin)
+    if (!isAdmin) {
       navigate("dashboard");
       onNavigate?.();
       return;
     }
 
-    if (isOnSuperAdminRoute) {
-      navigate("admin");
-    } else if (isOnAdminRoute) {
+    if (isOnAdminRoute) {
       navigate("dashboard");
     } else {
       navigate("admin");
@@ -219,6 +218,26 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               )}
             </Button>
           )}
+        </div>
+      )}
+
+      {/* Admin Toggle - visible to tenant admins (non super_admin) */}
+      {!isSuperAdmin && isAdmin && !roleLoading && (
+        <div className="px-3 py-2 border-b border-sidebar-border">
+          <Button
+            variant={isOnAdminRoute ? "default" : "outline"}
+            size="sm"
+            onClick={toggleView}
+            className={cn(
+              "w-full justify-start gap-2",
+              showCollapsed && "justify-center px-2"
+            )}
+          >
+            <Shield className="h-4 w-4" />
+            {!showCollapsed && (
+              <span>{isOnAdminRoute ? "Modo Vendedor" : "Modo Admin"}</span>
+            )}
+          </Button>
         </div>
       )}
       
