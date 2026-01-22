@@ -27,6 +27,9 @@ type Status =
 const INVALID_TOKEN_HELP =
   "Setup Token inválido. Se você não configurou um token no backend, use o token padrão (gateflow_setup_v1). Se o backend estiver com um token personalizado configurado (secret SETUP_TOKEN), use exatamente esse valor. Se você não tiver acesso ao backend, peça ao administrador da instalação.";
 
+const NETWORK_ERROR_HELP =
+  "Não foi possível enviar a solicitação ao backend. Isso geralmente acontece por bloqueio de rede/CORS. Verifique se a instalação permite o header de Setup Token e tente novamente. Se você não administra o servidor, encaminhe esta mensagem para quem fez a instalação.";
+
 export default function Setup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -120,6 +123,12 @@ export default function Setup() {
         const httpStatus = anyErr?.context?.status;
         const msg = String(error.message || "Erro ao criar admin");
 
+        // Quando o browser bloqueia a chamada (CORS/preflight), o client costuma retornar essa mensagem genérica.
+        if (!httpStatus && msg.toLowerCase().includes("failed to send")) {
+          setStatus({ type: "error", message: NETWORK_ERROR_HELP });
+          return;
+        }
+
         if (httpStatus === 409 || msg.toLowerCase().includes("setup")) {
           setStatus({
             type: "setup_done",
@@ -151,7 +160,7 @@ export default function Setup() {
       // Redireciona para login
       goToLogin();
     } catch {
-      setStatus({ type: "error", message: "Erro inesperado ao criar admin." });
+      setStatus({ type: "error", message: NETWORK_ERROR_HELP });
     } finally {
       setSubmitting(false);
     }
