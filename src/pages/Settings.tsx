@@ -22,7 +22,8 @@ import {
   Check,
   Key,
   Globe,
-  DollarSign
+  DollarSign,
+  Shield
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ import { WhiteLabelSettings } from "@/components/settings/WhiteLabelSettings";
 import { GateflowAffiliateSection } from "@/components/settings/GateflowAffiliateSection";
 import { useUserRole } from "@/hooks/useUserRole";
 import { SellerFeeSettings } from "@/components/settings/SellerFeeSettings";
+import { InitialAdminSetupSection } from "@/components/settings/InitialAdminSetupSection";
 
 const Settings = () => {
   const { isAdmin } = useUserRole();
@@ -174,6 +176,10 @@ const Settings = () => {
             <TabsTrigger value="fees" className="gap-2">
               <DollarSign className="h-4 w-4" />
               Taxas
+            </TabsTrigger>
+            <TabsTrigger value="setup" className="gap-2">
+              <Shield className="h-4 w-4" />
+              Setup
             </TabsTrigger>
             {isAdmin && (
               <>
@@ -492,6 +498,11 @@ const Settings = () => {
           {/* Seller Gateway Fees */}
           <TabsContent value="fees">
             <SellerFeeSettings paymentMode={paymentMode} />
+          </TabsContent>
+
+          {/* Initial Setup */}
+          <TabsContent value="setup">
+            <InitialAdminSetupSection />
           </TabsContent>
 
           {/* White Label Settings - Admin Only */}
