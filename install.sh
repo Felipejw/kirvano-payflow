@@ -46,6 +46,18 @@ apt update -y && apt upgrade -y
 echo ">>> Instalando dependências..."
 apt install -y nginx curl unzip certbot python3-certbot-nginx rsync
 
+echo ">>> Instalando Node.js (NVM)..."
+if [ ! -d "$HOME/.nvm" ]; then
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+fi
+
+export NVM_DIR="$HOME/.nvm"
+# shellcheck disable=SC1090
+source "$NVM_DIR/nvm.sh"
+
+nvm install 18
+nvm use 18
+
 echo ">>> Verificando ZIP..."
 if [ ! -f "$ZIP_PATH" ]; then
   echo "❌ ZIP não encontrado em $ZIP_PATH"
@@ -70,12 +82,21 @@ fi
 rsync -a "$SUBDIR"/ "$APP_PATH"/
 rm -rf "$SUBDIR"
 
-# Validar se temos dist/
-if [ ! -d "$APP_PATH/dist" ]; then
-  echo "❌ Build não encontrado: pasta dist/ não existe no ZIP."
-  echo "   Gere o build antes de zipar (npm run build) e envie o ZIP com a pasta dist/."
-  exit 1
-fi
+cd "$APP_PATH"
+
+echo ">>> Criando arquivo .env (automático, sem pedir chaves)..."
+cat > .env <<ENVEOF
+VITE_SUPABASE_PROJECT_ID=""
+VITE_SUPABASE_PUBLISHABLE_KEY="$BACKEND_PUBLISHABLE_KEY"
+VITE_SUPABASE_URL="$BACKEND_URL"
+VITE_PLATFORM_DOMAINS="$DOMAIN,www.$DOMAIN"
+ENVEOF
+
+echo ">>> Instalando dependências do projeto..."
+npm install
+
+echo ">>> Gerando build..."
+npm run build
 
 echo ">>> Criando usuário admin no backend (sem chaves no VPS)..."
 ADMIN_EMAIL_CLEAN=$(echo "$ADMIN_EMAIL" | tr '[:upper:]' '[:lower:]' | xargs)
