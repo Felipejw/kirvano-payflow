@@ -1,22 +1,34 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  // Inclua headers customizados usados pelo frontend para evitar falha de preflight (CORS)
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-setup-token",
+const defaultAllowHeaders =
+  "authorization, x-client-info, apikey, content-type, x-setup-token, x-supabase-api-version";
+
+const buildCorsHeaders = (req: Request) => {
+  // Alguns proxies/browsers enviam um conjunto diferente de headers no preflight.
+  // Refletir o que foi solicitado costuma ser mais robusto do que manter uma lista fixa.
+  const requested = req.headers.get("access-control-request-headers") || "";
+  const allowHeaders = requested.trim() ? requested : defaultAllowHeaders;
+
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": allowHeaders,
+  };
 };
 
 type BootstrapRequest = {
   email?: string;
   password?: string;
   full_name?: string;
+  setup_token?: string;
 };
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // CORS headers devem ser injetados pelo handler principal (porque podem depender do preflight).
+    // Aqui, setamos apenas o Content-Type.
+    headers: { "Content-Type": "application/json" },
   });
 
 // Token "embutido" para não exigir configuração do instalador.
@@ -24,16 +36,38 @@ const json = (status: number, body: unknown) =>
 const SETUP_TOKEN_FALLBACK = "gateflow_setup_v1";
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
+    // Log seguro (não inclui credenciais)
+    console.log(
+      "[bootstrap-first-admin] OPTIONS preflight",
+      JSON.stringify({
+        origin: req.headers.get("origin"),
+        requested_headers: req.headers.get("access-control-request-headers"),
+      }),
+    );
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const setupToken = req.headers.get("x-setup-token") || "";
+    // Aceita token tanto por header (retrocompatibilidade) quanto por body (evita preflight em muitos VPS/proxies)
+    const setupTokenHeader = req.headers.get("x-setup-token") || "";
+    const rawBody = await req.json().catch(() => ({}));
+    const body: BootstrapRequest = (rawBody || {}) as BootstrapRequest;
+
+    const setupTokenBody = (body.setup_token || "").trim();
+    const setupToken = (setupTokenHeader || setupTokenBody || "").trim();
     const expectedToken = Deno.env.get("SETUP_TOKEN") || SETUP_TOKEN_FALLBACK;
 
     if (!setupToken || setupToken !== expectedToken) {
-      return json(401, { error: "Não autorizado" });
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -59,13 +93,22 @@ Deno.serve(async (req) => {
       return json(409, { error: "Setup já concluído" });
     }
 
-    const body: BootstrapRequest = await req.json().catch(() => ({}));
     const email = (body.email || "").trim().toLowerCase();
     const password = body.password || "";
     const fullName = (body.full_name || "Admin").trim() || "Admin";
 
-    if (!email || !password) return json(400, { error: "Campos inválidos" });
-    if (password.length < 6) return json(400, { error: "A senha deve ter pelo menos 6 caracteres" });
+    if (!email || !password) {
+      return new Response(JSON.stringify({ error: "Campos inválidos" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Prefer profiles como fonte de verdade para encontrar user_id por email.
     const { data: existingProfile } = await supabase
@@ -85,14 +128,20 @@ Deno.serve(async (req) => {
       });
 
       if (createError || !created.user) {
-        return json(400, { error: createError?.message || "Erro ao criar usuário" });
+        return new Response(
+          JSON.stringify({ error: createError?.message || "Erro ao criar usuário" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
 
       userId = created.user.id;
     } else {
       const { error: updateError } = await supabase.auth.admin.updateUserById(userId, { password });
       if (updateError) {
-        return json(400, { error: updateError.message || "Erro ao atualizar senha" });
+        return new Response(
+          JSON.stringify({ error: updateError.message || "Erro ao atualizar senha" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
     }
 
@@ -104,17 +153,26 @@ Deno.serve(async (req) => {
     // Ignore duplicate key violation
     if (roleInsertError && roleInsertError.code !== "23505") {
       console.error("[bootstrap-first-admin] roleInsertError:", roleInsertError);
-      return json(500, { error: "Erro ao garantir role admin" });
+      return new Response(JSON.stringify({ error: "Erro ao garantir role admin" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    return json(200, {
-      success: true,
-      user_id: userId,
-      email,
-      message: "Admin criado/resetado com sucesso",
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        user_id: userId,
+        email,
+        message: "Admin criado/resetado com sucesso",
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (error: any) {
     console.error("[bootstrap-first-admin] Error:", error);
-    return json(500, { error: error?.message || "Erro interno" });
+    return new Response(JSON.stringify({ error: error?.message || "Erro interno" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
