@@ -158,12 +158,20 @@ create_code=$(echo "$create_resp" | tail -n 1)
 admin_user_id=""
 
 if [ "$create_code" = "200" ] || [ "$create_code" = "201" ]; then
-  admin_user_id=$(python3 - <<PY
-import json,sys
-data=json.loads(sys.argv[1] or "{}")
-print(data.get("id") or data.get("user",{}).get("id") or "")
+  # Parse JSON robustly via stdin (avoids argv parsing issues / special chars)
+  admin_user_id=$(python3 - <<'PY' <<<"$create_body"
+import json
+import sys
+
+raw = sys.stdin.read()
+try:
+  data = json.loads(raw or "{}")
+except Exception:
+  data = {}
+
+print(data.get("id") or (data.get("user") or {}).get("id") or "")
 PY
-"$create_body")
+  )
 else
   # Usuário pode já existir; buscamos pelo email na listagem admin
   users_resp=$(curl -sS -w "\n%{http_code}" -X GET "$BACKEND_URL/auth/v1/admin/users?page=1&per_page=200" "${ADMIN_HEADERS[@]}" || true)
@@ -177,20 +185,30 @@ else
     exit 1
   fi
 
-  admin_user_id=$(python3 - <<PY
-import json,sys
-email=sys.argv[2].strip().lower()
-obj=json.loads(sys.argv[1])
-users=obj.get('users') if isinstance(obj, dict) else obj
+  admin_user_id=$(python3 - "$ADMIN_EMAIL" <<'PY' <<<"$users_body"
+import json
+import sys
+
+email = (sys.argv[1] if len(sys.argv) > 1 else "").strip().lower()
+raw = sys.stdin.read()
+
+try:
+  obj = json.loads(raw or "{}")
+except Exception:
+  obj = {}
+
+users = obj.get("users") if isinstance(obj, dict) else obj
 if not isinstance(users, list):
-  users=[]
+  users = []
+
 for u in users:
-  if str(u.get('email','')).strip().lower()==email:
-    print(u.get('id',''))
+  if str(u.get("email", "")).strip().lower() == email:
+    print(u.get("id", ""))
     raise SystemExit(0)
-print('')
+
+print("")
 PY
-"$users_body" "$ADMIN_EMAIL")
+  )
 
   if [ -z "$admin_user_id" ]; then
     echo "❌ Admin já existe mas não consegui localizar o user_id por email ($ADMIN_EMAIL)."
