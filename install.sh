@@ -26,6 +26,9 @@ BACKEND_URL="${BACKEND_URL:-$BACKEND_URL_DEFAULT}"
 BACKEND_PUBLISHABLE_KEY="${BACKEND_PUBLISHABLE_KEY:-$BACKEND_PUBLISHABLE_KEY_DEFAULT}"
 BOOTSTRAP_SETUP_TOKEN="${BOOTSTRAP_SETUP_TOKEN:-gateflow_setup_v1}"
 
+# Normaliza URL para evitar "//functions" etc.
+BACKEND_URL="${BACKEND_URL%/}"
+
 echo ""
 echo "=============================="
 echo " BACKEND DO CLIENTE (OPCIONAL)"
@@ -148,19 +151,140 @@ PY
 )
 
 BOOTSTRAP_URL="$BACKEND_URL/functions/v1/bootstrap-first-admin"
-BOOTSTRAP_RES=$(curl -sS -X POST "$BOOTSTRAP_URL" \
+BOOTSTRAP_HTTP_CODE=$(curl -sS -o /tmp/bootstrap_res.json -w "%{http_code}" -X POST "$BOOTSTRAP_URL" \
   -H "Content-Type: application/json" \
   -H "apikey: $BACKEND_PUBLISHABLE_KEY" \
   -H "Authorization: Bearer $BACKEND_PUBLISHABLE_KEY" \
   -H "x-setup-token: $BOOTSTRAP_SETUP_TOKEN" \
-  --data "$BOOTSTRAP_PAYLOAD")
+  --data "$BOOTSTRAP_PAYLOAD" || true)
+BOOTSTRAP_RES=$(cat /tmp/bootstrap_res.json 2>/dev/null || echo "")
 
 if echo "$BOOTSTRAP_RES" | grep -q '"success"[[:space:]]*:[[:space:]]*true'; then
-  echo "✅ Admin preparado: $ADMIN_EMAIL_CLEAN"
+  echo "✅ Admin preparado (via função): $ADMIN_EMAIL_CLEAN"
 else
-  echo "❌ Falha ao preparar o admin automaticamente."
-  echo "   Resposta do backend: $BOOTSTRAP_RES"
-  exit 1
+  # Se a função não existir no backend externo, cai para fallback com SERVICE_ROLE_KEY.
+  if echo "$BOOTSTRAP_RES" | grep -q '"code"[[:space:]]*:[[:space:]]*"NOT_FOUND"'; then
+    echo "⚠️  Função bootstrap-first-admin não encontrada nesse backend. Usando fallback com SERVICE_ROLE_KEY..."
+    read -s -p "SERVICE_ROLE_KEY do backend do cliente (não será salva): " SERVICE_ROLE_KEY
+    echo ""
+
+    if [ -z "$SERVICE_ROLE_KEY" ] || [ ${#SERVICE_ROLE_KEY} -lt 20 ]; then
+      echo "❌ SERVICE_ROLE_KEY inválida (muito curta ou vazia)"
+      exit 1
+    fi
+
+    AUTH_ADMIN_USERS_URL="$BACKEND_URL/auth/v1/admin/users"
+
+    echo ">>> Procurando usuário existente por email..."
+    LIST_HTTP_CODE=$(curl -sS -o /tmp/list_users.json -w "%{http_code}" -X GET "$AUTH_ADMIN_USERS_URL?page=1&per_page=1000" \
+      -H "Content-Type: application/json" \
+      -H "apikey: $SERVICE_ROLE_KEY" \
+      -H "Authorization: Bearer $SERVICE_ROLE_KEY" || true)
+
+    if [ "$LIST_HTTP_CODE" != "200" ]; then
+      echo "❌ Falha ao listar usuários (HTTP $LIST_HTTP_CODE)."
+      echo "   Resposta: $(cat /tmp/list_users.json 2>/dev/null || true)"
+      exit 1
+    fi
+
+    USER_ID=$(python3 - <<'PY'
+import json
+
+email = ("""${ADMIN_EMAIL_CLEAN}""").strip().lower()
+
+try:
+  data = json.load(open('/tmp/list_users.json'))
+except Exception:
+  print("")
+  raise SystemExit(0)
+
+users = data.get('users', []) if isinstance(data, dict) else []
+for u in users:
+  if (u.get('email') or '').strip().lower() == email:
+    print(u.get('id') or "")
+    break
+PY
+)
+
+    if [ -z "$USER_ID" ]; then
+      echo ">>> Usuário não existe. Criando via Admin API..."
+      CREATE_HTTP_CODE=$(curl -sS -o /tmp/create_user.json -w "%{http_code}" -X POST "$AUTH_ADMIN_USERS_URL" \
+        -H "Content-Type: application/json" \
+        -H "apikey: $SERVICE_ROLE_KEY" \
+        -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+        --data "$BOOTSTRAP_PAYLOAD" || true)
+
+      if [ "$CREATE_HTTP_CODE" != "200" ]; then
+        echo "❌ Falha ao criar usuário admin (HTTP $CREATE_HTTP_CODE)."
+        echo "   Resposta: $(cat /tmp/create_user.json 2>/dev/null || true)"
+        exit 1
+      fi
+
+      USER_ID=$(python3 - <<'PY'
+import json
+try:
+  data = json.load(open('/tmp/create_user.json'))
+  print(data.get('id') or "")
+except Exception:
+  print("")
+PY
+)
+    else
+      echo ">>> Usuário já existe. Atualizando senha via Admin API..."
+      UPDATE_HTTP_CODE=$(curl -sS -o /tmp/update_user.json -w "%{http_code}" -X PUT "$AUTH_ADMIN_USERS_URL/$USER_ID" \
+        -H "Content-Type: application/json" \
+        -H "apikey: $SERVICE_ROLE_KEY" \
+        -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+        --data "{\"password\": \"$ADMIN_PASSWORD\"}" || true)
+
+      if [ "$UPDATE_HTTP_CODE" != "200" ]; then
+        echo "❌ Falha ao atualizar senha do admin (HTTP $UPDATE_HTTP_CODE)."
+        echo "   Resposta: $(cat /tmp/update_user.json 2>/dev/null || true)"
+        exit 1
+      fi
+    fi
+
+    if [ -z "$USER_ID" ]; then
+      echo "❌ Não foi possível determinar o user_id do admin."
+      exit 1
+    fi
+
+    echo ">>> Garantindo role admin em user_roles..."
+    ROLE_HTTP_CODE=$(curl -sS -o /tmp/role_insert.json -w "%{http_code}" -X POST "$BACKEND_URL/rest/v1/user_roles" \
+      -H "Content-Type: application/json" \
+      -H "apikey: $SERVICE_ROLE_KEY" \
+      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+      -H "Prefer: resolution=merge-duplicates" \
+      --data "{\"user_id\":\"$USER_ID\",\"role\":\"admin\"}" || true)
+
+    # PostgREST costuma retornar 201/204 em inserts.
+    if [ "$ROLE_HTTP_CODE" != "201" ] && [ "$ROLE_HTTP_CODE" != "204" ] && [ "$ROLE_HTTP_CODE" != "200" ]; then
+      echo "❌ Falha ao inserir role admin em user_roles (HTTP $ROLE_HTTP_CODE)."
+      echo "   Resposta: $(cat /tmp/role_insert.json 2>/dev/null || true)"
+      echo "   (Provável causa: schema do backend do cliente não tem a tabela user_roles compatível.)"
+      exit 1
+    fi
+
+    echo ">>> (Opcional) garantindo profile mínimo em profiles..."
+    PROFILE_HTTP_CODE=$(curl -sS -o /tmp/profile_insert.json -w "%{http_code}" -X POST "$BACKEND_URL/rest/v1/profiles" \
+      -H "Content-Type: application/json" \
+      -H "apikey: $SERVICE_ROLE_KEY" \
+      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+      -H "Prefer: resolution=merge-duplicates" \
+      --data "{\"user_id\":\"$USER_ID\",\"email\":\"$ADMIN_EMAIL_CLEAN\",\"full_name\":\"Admin\"}" || true)
+
+    if [ "$PROFILE_HTTP_CODE" != "201" ] && [ "$PROFILE_HTTP_CODE" != "204" ] && [ "$PROFILE_HTTP_CODE" != "200" ]; then
+      echo "⚠️  Não consegui garantir profiles (HTTP $PROFILE_HTTP_CODE). Seguindo mesmo assim."
+    fi
+
+    echo "✅ Admin preparado (fallback): $ADMIN_EMAIL_CLEAN"
+    unset SERVICE_ROLE_KEY
+  else
+    echo "❌ Falha ao preparar o admin automaticamente."
+    echo "   HTTP: $BOOTSTRAP_HTTP_CODE"
+    echo "   Resposta do backend: $BOOTSTRAP_RES"
+    exit 1
+  fi
 fi
 
 echo ">>> Configurando Nginx..."
