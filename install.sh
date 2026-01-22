@@ -14,40 +14,31 @@ echo "=============================="
 echo " CONFIGURAÇÃO DO BACKEND "
 echo "=============================="
 
-# Prefer reading backend credentials from a config file to avoid interactive prompts.
-# Fallback to prompts only if the file is missing or incomplete.
-BACKEND_ENV_FILE_DEFAULT="/root/gateflow-backend.env"
-BACKEND_ENV_FILE="${BACKEND_ENV_FILE:-$BACKEND_ENV_FILE_DEFAULT}"
+# MODO SEM PERGUNTAS (fixo):
+# - NÃO perguntamos credenciais do backend.
+# - Usa valores fixos no script, com possibilidade de override via env vars.
+#
+# IMPORTANTE:
+# - Esses valores são sensíveis (especialmente a SERVICE_ROLE_KEY).
+# - Se você preferir não deixar a SERVICE_ROLE_KEY no script, rode com:
+#   SUPABASE_SERVICE_ROLE_KEY="..." bash install.sh
 
-load_backend_env_file() {
-  local file="$1"
+# === PREENCHA AQUI (valores padrão) ===
+SUPABASE_URL_DEFAULT=""
+SUPABASE_ANON_KEY_DEFAULT=""
+SUPABASE_SERVICE_ROLE_KEY_DEFAULT=""
 
-  if [ ! -f "$file" ]; then
-    return 1
-  fi
+# Permite override por variáveis de ambiente
+SUPABASE_URL="${SUPABASE_URL:-$SUPABASE_URL_DEFAULT}"
+SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-$SUPABASE_ANON_KEY_DEFAULT}"
+SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-$SUPABASE_SERVICE_ROLE_KEY_DEFAULT}"
 
-  # shellcheck disable=SC1090
-  source "$file"
-
-  if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_ANON_KEY:-}" ] && [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
-    return 0
-  fi
-
-  return 2
-}
-
-load_backend_env_file "$BACKEND_ENV_FILE" || true
-
-if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
-  echo "⚠️  Credenciais do backend não encontradas (ou incompletas) em: $BACKEND_ENV_FILE"
-  echo "    Dica: crie esse arquivo com SUPABASE_URL, SUPABASE_ANON_KEY e SUPABASE_SERVICE_ROLE_KEY para não precisar digitar aqui."
-  echo ""
-  read -p "Backend URL (ex: https://xxxxx.supabase.co): " SUPABASE_URL
-  read -p "Publishable key (anon) do backend: " SUPABASE_ANON_KEY
-  read -s -p "Service Role Key do backend (NÃO cole em locais públicos): " SUPABASE_SERVICE_ROLE_KEY
-  echo ""
-else
-  echo "✅ Credenciais do backend carregadas de: $BACKEND_ENV_FILE"
+# Falha cedo e claramente (sem prompts)
+if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+  echo "❌ Credenciais do backend não configuradas."
+  echo "   Preencha SUPABASE_URL_DEFAULT / SUPABASE_ANON_KEY_DEFAULT / SUPABASE_SERVICE_ROLE_KEY_DEFAULT no install.sh"
+  echo "   OU rode exportando as variáveis: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY."
+  exit 1
 fi
 
 echo ""
