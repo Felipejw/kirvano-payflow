@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,7 @@ const setupSchema = z.object({
 type Status =
   | { type: "idle" }
   | { type: "success"; message: string }
+  | { type: "setup_done"; message: string }
   | { type: "error"; message: string };
 
 export default function Setup() {
@@ -30,6 +31,43 @@ export default function Setup() {
   const [setupToken, setSetupToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<Status>({ type: "idle" });
+
+  const goToLogin = () => {
+    window.location.href = "/?page=auth";
+  };
+
+  // Checagem leve: com um Setup Token válido, chamamos a função com body vazio.
+  // Ela responde 409 (setup concluído) antes de validar campos.
+  useEffect(() => {
+    const token = setupToken.trim();
+    if (!token) return;
+
+    const t = window.setTimeout(async () => {
+      try {
+        const { error } = await supabase.functions.invoke("bootstrap-first-admin", {
+          body: {},
+          headers: { "x-setup-token": token },
+        });
+
+        if (!error) return;
+
+        const anyErr = error as any;
+        const httpStatus = anyErr?.context?.status;
+        const msg = String(error.message || "");
+
+        if (httpStatus === 409 || msg.toLowerCase().includes("setup")) {
+          setStatus({
+            type: "setup_done",
+            message: "Setup já concluído: o admin já existe. Basta ir para o login em /?page=auth.",
+          });
+        }
+      } catch {
+        // silêncio: é apenas uma checagem de conveniência
+      }
+    }, 400);
+
+    return () => window.clearTimeout(t);
+  }, [setupToken]);
 
   const canSubmit = useMemo(() => {
     const parsed = setupSchema.safeParse({
@@ -80,7 +118,10 @@ export default function Setup() {
         const msg = String(error.message || "Erro ao criar admin");
 
         if (httpStatus === 409 || msg.toLowerCase().includes("setup")) {
-          setStatus({ type: "error", message: "Setup já foi concluído neste backend." });
+          setStatus({
+            type: "setup_done",
+            message: "Setup já concluído: o admin já existe. Basta ir para o login em /?page=auth.",
+          });
           return;
         }
 
@@ -105,7 +146,7 @@ export default function Setup() {
       });
 
       // Redireciona para login
-      window.location.href = "/?page=auth";
+      goToLogin();
     } catch {
       setStatus({ type: "error", message: "Erro inesperado ao criar admin." });
     } finally {
@@ -126,7 +167,22 @@ export default function Setup() {
           </CardHeader>
 
           <CardContent className="space-y-4">
+            <Alert>
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                Se aparecer <strong>"Setup já concluído"</strong>, significa que o admin já foi criado e você só precisa
+                entrar em <strong>/?page=auth</strong>.
+              </AlertDescription>
+            </Alert>
+
             {status.type === "success" && (
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>{status.message}</AlertDescription>
+              </Alert>
+            )}
+
+            {status.type === "setup_done" && (
               <Alert>
                 <CheckCircle2 className="h-4 w-4" />
                 <AlertDescription>{status.message}</AlertDescription>
@@ -140,39 +196,55 @@ export default function Setup() {
               </Alert>
             )}
 
-            <div className="space-y-2">
-              <Label>Email do admin</Label>
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@admin.com" />
-            </div>
+            {status.type !== "setup_done" ? (
+              <>
+                <div className="space-y-2">
+                  <Label>Email do admin</Label>
+                  <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@admin.com" />
+                </div>
 
-            <div className="space-y-2">
-              <Label>Senha do admin</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="mín. 6 caracteres"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Senha do admin</Label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="mín. 6 caracteres"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label>Nome (opcional)</Label>
-              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Admin" />
-            </div>
+                <div className="space-y-2">
+                  <Label>Nome (opcional)</Label>
+                  <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Admin" />
+                </div>
 
-            <div className="space-y-2">
-              <Label>Setup Token</Label>
-              <Input
-                type="password"
-                value={setupToken}
-                onChange={(e) => setSetupToken(e.target.value)}
-                placeholder="Token definido no backend"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Setup Token</Label>
+                  <Input
+                    type="password"
+                    value={setupToken}
+                    onChange={(e) => setSetupToken(e.target.value)}
+                    placeholder="Token definido no backend"
+                  />
+                </div>
 
-            <Button className="w-full" variant="gradient" disabled={!canSubmit} onClick={handleSubmit}>
-              {submitting ? "Criando..." : "Criar Admin"}
-            </Button>
+                <Button className="w-full" variant="gradient" disabled={!canSubmit} onClick={handleSubmit}>
+                  {submitting ? "Criando..." : "Criar Admin"}
+                </Button>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Button className="w-full" variant="gradient" onClick={goToLogin}>
+                  Ir para Login
+                </Button>
+              </div>
+            )}
+
+            {status.type !== "setup_done" && (
+              <Button className="w-full" variant="outline" onClick={goToLogin}>
+                Ir para Login
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
