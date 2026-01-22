@@ -24,6 +24,9 @@ type Status =
   | { type: "setup_done"; message: string }
   | { type: "error"; message: string };
 
+const INVALID_TOKEN_HELP =
+  "Setup Token inválido. Se você não configurou um token no backend, use o token padrão (gateflow_setup_v1). Se o backend estiver com um token personalizado configurado (secret SETUP_TOKEN), use exatamente esse valor. Se você não tiver acesso ao backend, peça ao administrador da instalação.";
+
 export default function Setup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -126,7 +129,7 @@ export default function Setup() {
         }
 
         if (httpStatus === 401) {
-          setStatus({ type: "error", message: "Setup Token inválido." });
+          setStatus({ type: "error", message: INVALID_TOKEN_HELP });
           return;
         }
 
@@ -226,6 +229,10 @@ export default function Setup() {
                     onChange={(e) => setSetupToken(e.target.value)}
                     placeholder="Token definido no backend"
                   />
+                  <p className="text-sm text-muted-foreground">
+                    Se você <strong>não configurou</strong> um token no backend, o padrão é <strong>gateflow_setup_v1</strong>. Se
+                    houver um token personalizado (secret <strong>SETUP_TOKEN</strong>), use o valor configurado nele.
+                  </p>
                 </div>
 
                 <Button className="w-full" variant="gradient" disabled={!canSubmit} onClick={handleSubmit}>
