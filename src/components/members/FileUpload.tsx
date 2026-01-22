@@ -84,6 +84,25 @@ export function FileUpload({
     if (file) uploadFile(file);
   };
 
+  const getHelperText = () => {
+    if (!accept || accept.trim() === "" || accept.includes("*")) {
+      return `Qualquer arquivo até ${maxSizeMB}MB`;
+    }
+
+    const normalized = accept.toLowerCase();
+    if (normalized.includes("video/")) {
+      return `Vídeos (MP4, WebM) até ${maxSizeMB}MB`;
+    }
+    if (normalized.includes("application/pdf")) {
+      return `PDF até ${maxSizeMB}MB`;
+    }
+    if (normalized.includes("zip")) {
+      return `Arquivos ZIP até ${maxSizeMB}MB`;
+    }
+
+    return `Arquivo até ${maxSizeMB}MB`;
+  };
+
   return (
     <div
       className={cn(
@@ -130,7 +149,7 @@ export function FileUpload({
               </button>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Vídeos (MP4, WebM), PDFs ou arquivos ZIP até {maxSizeMB}MB
+              {getHelperText()}
             </p>
           </div>
         </div>

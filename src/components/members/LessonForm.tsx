@@ -113,6 +113,14 @@ export function LessonForm({ open, onOpenChange, lesson, onSave }: LessonFormPro
 
   const showUploadOption = contentType === "video" || contentType === "pdf" || contentType === "file";
 
+  // For "Arquivo", allow any file type by not setting the input's accept attribute.
+  const uploadAccept: string | undefined =
+    contentType === "pdf"
+      ? "application/pdf"
+      : contentType === "file"
+        ? undefined
+        : "video/mp4,video/webm";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -183,13 +191,7 @@ export function LessonForm({ open, onOpenChange, lesson, onSave }: LessonFormPro
                 <TabsContent value="upload" className="mt-2">
                   <FileUpload
                     onUploadComplete={handleFileUpload}
-                    accept={
-                      contentType === "pdf" 
-                        ? "application/pdf" 
-                        : contentType === "file"
-                        ? "application/pdf,application/zip,application/x-zip-compressed,.zip"
-                        : "video/mp4,video/webm"
-                    }
+                    accept={uploadAccept}
                   />
                   {contentUrl && (
                     <p className="text-sm text-muted-foreground mt-2 truncate">
