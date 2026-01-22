@@ -53,7 +53,6 @@ import QuizPlayer from "./pages/QuizPlayer";
 import ApiDocs from "./pages/ApiDocs";
 import Coupons from "./pages/Coupons";
 import Index from "./pages/Index";
-import Setup from "./pages/Setup";
 import SuperAdminDashboard from "./pages/super-admin/SuperAdminDashboard";
 import SuperAdminClientes from "./pages/super-admin/SuperAdminClientes";
 import SuperAdminTenants from "./pages/super-admin/SuperAdminTenants";
@@ -106,8 +105,6 @@ function PageRouter() {
   switch (page) {
     case "auth":
       return <Auth />;
-    case "setup":
-      return <Setup />;
     case "checkout":
       return <Checkout />;
     case "docs":

@@ -18,13 +18,13 @@ echo "=============================="
 # MODO MULTI-CLIENTE:
 # - Pergunta no terminal o backend (URL + chave pública) de cada cliente.
 # - Mantém defaults para instalação "plug and play" (basta apertar Enter).
-# - O bootstrap/criação automática de admin foi removido (admin será criado manualmente depois).
+# - O admin padrão é provisionado automaticamente via chave de serviço (server-side).
 BACKEND_URL_DEFAULT="https://gfjsvuoqaheiaddvfrwb.supabase.co"
 BACKEND_PUBLISHABLE_KEY_DEFAULT="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmanN2dW9xYWhlaWFkZHZmcndiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODYyNTIsImV4cCI6MjA4MDc2MjI1Mn0.20nFxYFWynuRr1jMH6AoqK5JmLT-7_ylwVHwg-rEm0w"
 
 BACKEND_URL="${BACKEND_URL:-$BACKEND_URL_DEFAULT}"
 BACKEND_PUBLISHABLE_KEY="${BACKEND_PUBLISHABLE_KEY:-$BACKEND_PUBLISHABLE_KEY_DEFAULT}"
-BOOTSTRAP_SETUP_TOKEN="${BOOTSTRAP_SETUP_TOKEN:-gateflow_setup_v1}"
+BACKEND_SERVICE_ROLE_KEY="${BACKEND_SERVICE_ROLE_KEY:-}"
 
 # Normaliza URL para evitar "//functions" etc.
 BACKEND_URL="${BACKEND_URL%/}"
@@ -58,11 +58,34 @@ fi
 
 echo ""
 echo "=============================="
+echo " CHAVE DE SERVIÇO (OBRIGATÓRIO)"
+echo "=============================="
+echo "Para criar/resetar o admin padrão (admin@admin.com / 123456), o instalador precisa da Service Role Key do backend do cliente."
+
+# Tenta ler automaticamente de /root/gateflow-backend.env (se existir)
+BACKEND_ENV_FILE="/root/gateflow-backend.env"
+if [ -z "$BACKEND_SERVICE_ROLE_KEY" ] && [ -f "$BACKEND_ENV_FILE" ]; then
+  # shellcheck disable=SC1090
+  source "$BACKEND_ENV_FILE" || true
+  # Suporta nomes comuns
+  BACKEND_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-${BACKEND_SERVICE_ROLE_KEY:-}}"
+fi
+
+if [ -z "$BACKEND_SERVICE_ROLE_KEY" ]; then
+  read -s -p "Service Role Key do backend: " BACKEND_SERVICE_ROLE_KEY
+  echo ""
+fi
+
+if [ -z "$BACKEND_SERVICE_ROLE_KEY" ] || [ ${#BACKEND_SERVICE_ROLE_KEY} -lt 40 ]; then
+  echo "❌ Service Role Key inválida (muito curta ou vazia)"
+  exit 1
+fi
+
+echo ""
+echo "=============================="
 echo " SETUP INICIAL "
 echo "=============================="
-echo "✅ A criação automática de admin via terminal está desativada."
-echo "   Após instalar, acesse o app e crie o primeiro admin em:"
-echo "   Dashboard → Configurações → Setup Inicial"
+echo "✅ O instalador vai criar/resetar automaticamente: admin@admin.com / 123456"
 
 ZIP_PATH="/home/administrator/$ZIP_FILE"
 APP_PATH="/var/www/$APP_FOLDER"
@@ -71,7 +94,7 @@ echo ">>> Atualizando servidor..."
 apt update -y && apt upgrade -y
 
 echo ">>> Instalando dependências..."
-apt install -y nginx curl unzip certbot python3-certbot-nginx rsync
+apt install -y nginx curl unzip certbot python3-certbot-nginx rsync python3
 
 echo ">>> Instalando Node.js (NVM)..."
 if [ ! -d "$HOME/.nvm" ]; then
@@ -110,6 +133,116 @@ rsync -a "$SUBDIR"/ "$APP_PATH"/
 rm -rf "$SUBDIR"
 
 cd "$APP_PATH"
+
+echo ">>> Provisionando admin padrão (admin@admin.com / 123456)..."
+
+ADMIN_EMAIL="admin@admin.com"
+ADMIN_PASSWORD="123456"
+ADMIN_FULL_NAME="Admin"
+
+ADMIN_HEADERS=(
+  -H "Authorization: Bearer $BACKEND_SERVICE_ROLE_KEY"
+  -H "apikey: $BACKEND_SERVICE_ROLE_KEY"
+  -H "Content-Type: application/json"
+)
+
+create_payload=$(cat <<JSON
+{"email":"$ADMIN_EMAIL","password":"$ADMIN_PASSWORD","email_confirm":true,"user_metadata":{"full_name":"$ADMIN_FULL_NAME"}}
+JSON
+)
+
+create_resp=$(curl -sS -w "\n%{http_code}" -X POST "$BACKEND_URL/auth/v1/admin/users" "${ADMIN_HEADERS[@]}" -d "$create_payload" || true)
+create_body=$(echo "$create_resp" | head -n -1)
+create_code=$(echo "$create_resp" | tail -n 1)
+
+admin_user_id=""
+
+if [ "$create_code" = "200" ] || [ "$create_code" = "201" ]; then
+  admin_user_id=$(python3 - <<PY
+import json,sys
+data=json.loads(sys.argv[1] or "{}")
+print(data.get("id") or data.get("user",{}).get("id") or "")
+PY
+"$create_body")
+else
+  # Usuário pode já existir; buscamos pelo email na listagem admin
+  users_resp=$(curl -sS -w "\n%{http_code}" -X GET "$BACKEND_URL/auth/v1/admin/users?page=1&per_page=200" "${ADMIN_HEADERS[@]}" || true)
+  users_body=$(echo "$users_resp" | head -n -1)
+  users_code=$(echo "$users_resp" | tail -n 1)
+
+  if [ "$users_code" != "200" ]; then
+    echo "❌ Não consegui listar usuários no backend para localizar o admin."
+    echo "HTTP $users_code"
+    echo "$users_body"
+    exit 1
+  fi
+
+  admin_user_id=$(python3 - <<PY
+import json,sys
+email=sys.argv[2].strip().lower()
+obj=json.loads(sys.argv[1])
+users=obj.get('users') if isinstance(obj, dict) else obj
+if not isinstance(users, list):
+  users=[]
+for u in users:
+  if str(u.get('email','')).strip().lower()==email:
+    print(u.get('id',''))
+    raise SystemExit(0)
+print('')
+PY
+"$users_body" "$ADMIN_EMAIL")
+
+  if [ -z "$admin_user_id" ]; then
+    echo "❌ Admin já existe mas não consegui localizar o user_id por email ($ADMIN_EMAIL)."
+    exit 1
+  fi
+
+  update_payload=$(cat <<JSON
+{"password":"$ADMIN_PASSWORD"}
+JSON
+)
+  update_resp=$(curl -sS -w "\n%{http_code}" -X PUT "$BACKEND_URL/auth/v1/admin/users/$admin_user_id" "${ADMIN_HEADERS[@]}" -d "$update_payload" || true)
+  update_body=$(echo "$update_resp" | head -n -1)
+  update_code=$(echo "$update_resp" | tail -n 1)
+
+  if [ "$update_code" != "200" ]; then
+    echo "❌ Falha ao resetar senha do admin."
+    echo "HTTP $update_code"
+    echo "$update_body"
+    exit 1
+  fi
+fi
+
+if [ -z "$admin_user_id" ]; then
+  echo "❌ Não consegui obter o user_id do admin."
+  echo "HTTP $create_code"
+  echo "$create_body"
+  exit 1
+fi
+
+# Garante role 'admin' na tabela user_roles (idempotente)
+role_payload=$(cat <<JSON
+[{"user_id":"$admin_user_id","role":"admin"}]
+JSON
+)
+
+role_resp=$(curl -sS -w "\n%{http_code}" -X POST "$BACKEND_URL/rest/v1/user_roles?on_conflict=user_id,role" \
+  -H "Authorization: Bearer $BACKEND_SERVICE_ROLE_KEY" \
+  -H "apikey: $BACKEND_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: resolution=merge-duplicates" \
+  -d "$role_payload" || true)
+role_body=$(echo "$role_resp" | head -n -1)
+role_code=$(echo "$role_resp" | tail -n 1)
+
+if [ "$role_code" != "201" ] && [ "$role_code" != "200" ] && [ "$role_code" != "204" ]; then
+  echo "❌ Falha ao garantir role admin em user_roles."
+  echo "HTTP $role_code"
+  echo "$role_body"
+  exit 1
+fi
+
+echo "✅ Admin pronto: $ADMIN_EMAIL / $ADMIN_PASSWORD"
 
 echo ">>> Criando arquivo .env (automático, sem pedir chaves)..."
 cat > .env <<ENVEOF
@@ -154,5 +287,5 @@ certbot --nginx -d $DOMAIN -d www.$DOMAIN \
 echo "=============================="
 echo " INSTALAÇÃO FINALIZADA 🎉"
 echo " https://$DOMAIN"
-echo " DICA: Crie o primeiro admin em Dashboard → Configurações → Setup Inicial"
+echo " LOGIN PADRÃO: admin@admin.com / 123456"
 echo "=============================="
