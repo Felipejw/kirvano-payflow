@@ -5,8 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import gateflowLogo from "@/assets/gateflow-logo.png";
 import { useAppNavigate } from "@/lib/routes";
 const Auth = () => {
@@ -91,11 +90,6 @@ const Auth = () => {
   };
   return <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          Voltar ao início
-        </Link>
-
         <Card className="glass-card">
           <CardHeader className="text-center">
             <img src={gateflowLogo} alt="Gateflow" className="h-12 w-auto mx-auto mb-4" />

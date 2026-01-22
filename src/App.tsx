@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom"
 import { AuthProvider } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import Auth from "./pages/Auth";
-import DomainRouter from "./components/DomainRouter";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Transactions from "./pages/Transactions";
@@ -202,9 +201,11 @@ function PageRouter() {
     case "affiliate-store":
       return <AffiliateStore />;
     default:
-      // If no page param, show landing page (DomainRouter)
+      // If no page param, show Login as the default home.
+      // Preserve checkout links that rely on ?s= or ?id= without explicitly setting ?page=checkout.
       if (!page) {
-        return <DomainRouter />;
+        if (productId || slug) return <Checkout />;
+        return <Auth />;
       }
       // Unknown page, show 404
       return <NotFound />;
