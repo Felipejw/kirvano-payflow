@@ -60,7 +60,8 @@ echo ""
 echo "=============================="
 echo " CHAVE DE SERVIÇO (OBRIGATÓRIO)"
 echo "=============================="
-echo "Para criar/resetar o admin padrão (admin@admin.com / 123456), o instalador precisa da Service Role Key do backend do cliente."
+echo "Para criar/resetar o admin padrão (admin@admin.com / 123456), o instalador precisa da Service Role Key (CHAVE PRIVADA) do backend do cliente."
+echo "ATENÇÃO: a Publishable/Anon Key (chave pública) NÃO funciona aqui e vai dar erro 403 (not_admin)."
 
 # Tenta ler automaticamente de /root/gateflow-backend.env (se existir)
 BACKEND_ENV_FILE="/root/gateflow-backend.env"
@@ -78,6 +79,39 @@ fi
 
 if [ -z "$BACKEND_SERVICE_ROLE_KEY" ] || [ ${#BACKEND_SERVICE_ROLE_KEY} -lt 40 ]; then
   echo "❌ Service Role Key inválida (muito curta ou vazia)"
+  exit 1
+fi
+
+# Valida se a chave informada é realmente Service Role (e não a chave pública anon/publishable)
+# A chave é um JWT: decodificamos o payload e checamos o campo "role".
+BACKEND_KEY_ROLE=$(printf '%s' "$BACKEND_SERVICE_ROLE_KEY" | python3 -c '
+import sys, json, base64
+
+token = (sys.stdin.read() or "").strip()
+parts = token.split(".")
+if len(parts) < 2:
+  print("unknown")
+  raise SystemExit(0)
+
+payload_b64 = parts[1]
+payload_b64 += "=" * (-len(payload_b64) % 4)
+try:
+  payload = base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8", "replace")
+  data = json.loads(payload)
+  print(str(data.get("role") or "unknown"))
+except Exception:
+  print("unknown")
+')
+
+if [ "$BACKEND_KEY_ROLE" = "anon" ]; then
+  echo "❌ Você informou uma chave pública (role=anon)."
+  echo "   Use a Service Role Key (chave privada) do backend para provisionar o admin (senão dá 403/not_admin)."
+  exit 1
+fi
+
+if [ "$BACKEND_KEY_ROLE" != "service_role" ] && [ "$BACKEND_KEY_ROLE" != "unknown" ]; then
+  echo "❌ A chave informada não parece ser Service Role (role=$BACKEND_KEY_ROLE)."
+  echo "   Use a Service Role Key (chave privada) do backend para provisionar o admin."
   exit 1
 fi
 
