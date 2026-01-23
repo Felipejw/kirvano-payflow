@@ -13,7 +13,7 @@ fi
 
 read -r -p "Domínio (ex: meusite.com): " DOMAIN
 read -r -p "Nome da pasta do projeto (ex: app): " APP_FOLDER
-read -r -p "Caminho do arquivo ZIP (ex: /home/ubuntu/gatteflow.zip): " ZIP_PATH
+read -r -p "Caminho do arquivo ZIP (ex: /home/administrator/gatteflow.zip): " ZIP_PATH
 
 DOMAIN="${DOMAIN// /}"
 APP_FOLDER="${APP_FOLDER// /}"
