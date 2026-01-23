@@ -6,8 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/contexts/SidebarContext";
-import { useUserRole } from "@/hooks/useUserRole";
 import Auth from "./pages/Auth";
+import DomainRouter from "./components/DomainRouter";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Transactions from "./pages/Transactions";
@@ -52,7 +52,6 @@ import QuizBuilder from "./pages/QuizBuilder";
 import QuizPlayer from "./pages/QuizPlayer";
 import ApiDocs from "./pages/ApiDocs";
 import Coupons from "./pages/Coupons";
-import Index from "./pages/Index";
 import SuperAdminDashboard from "./pages/super-admin/SuperAdminDashboard";
 import SuperAdminClientes from "./pages/super-admin/SuperAdminClientes";
 import SuperAdminTenants from "./pages/super-admin/SuperAdminTenants";
@@ -62,11 +61,12 @@ import SuperAdminCommissions from "./pages/super-admin/SuperAdminCommissions";
 import SuperAdminFeatures from "./pages/super-admin/SuperAdminFeatures";
 import AdminAffiliates from "./pages/admin/AdminAffiliates";
 import { getUrlParam } from "./lib/routes";
-import { isCustomDomainHostname } from "@/lib/domain";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
 const isCustomDomain = (() => {
-  return isCustomDomainHostname(window.location.hostname);
+  const hostname = window.location.hostname;
+  const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
+  return !ignoredDomains.some(d => hostname.includes(d));
 })();
 
 const queryClient = new QueryClient({
@@ -87,7 +87,6 @@ const queryClient = new QueryClient({
 function PageRouter() {
   const [searchParams] = useSearchParams();
   const location = window.location;
-  const { isAdmin, loading: roleLoading } = useUserRole();
   
   // First check query param, then fallback to pathname
   let page = searchParams.get("page") || "";
@@ -144,61 +143,42 @@ function PageRouter() {
     case "quiz":
       return <QuizPlayer />;
     case "admin":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminDashboard />;
     case "admin/receita":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminReceita />;
     case "admin/vendas":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminVendas />;
     case "admin/rankings":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminRankings />;
     case "admin/recovery":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminRecovery />;
     case "admin/users":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminUsers />;
     case "admin/products":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminProducts />;
     case "admin/transactions":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminTransactionsPage />;
     case "admin/withdrawals":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminWithdrawalsPage />;
     case "admin/invoices":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminInvoicesPage />;
     case "admin/gateways":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminGatewaysPage />;
     case "admin/analytics":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminAnalytics />;
     case "admin/settings":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminSettings />;
     case "admin/instagram-posts":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminInstagramPosts />;
     case "admin/gateway-logs":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminGatewayLogs />;
     case "admin/broadcast":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminBroadcast />;
     case "admin/email-broadcast":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminEmailBroadcast />;
     case "admin/minhas-vendas":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminMinhasVendas />;
     case "admin/affiliates":
-      if (!roleLoading && !isAdmin) return <Dashboard />;
       return <AdminAffiliates />;
     case "super-admin/dashboard":
       return <SuperAdminDashboard />;
@@ -223,11 +203,9 @@ function PageRouter() {
     case "affiliate-store":
       return <AffiliateStore />;
     default:
-      // If no page param, show Landing Page as the default home.
-      // Preserve checkout links that rely on ?s= or ?id= without explicitly setting ?page=checkout.
+      // If no page param, show landing page (DomainRouter)
       if (!page) {
-        if (productId || slug) return <Checkout />;
-        return <Auth />;
+        return <DomainRouter />;
       }
       // Unknown page, show 404
       return <NotFound />;

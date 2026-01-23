@@ -12,7 +12,6 @@ import { formatCurrency } from "@/lib/utils";
 import { QRCodeSVG } from "qrcode.react";
 import { CreditCardForm } from "@/components/checkout/CreditCardForm";
 import { useMercadoPago } from "@/hooks/useMercadoPago";
-import { getCustomDomainOrNull } from "@/lib/domain";
 import { 
   QrCode, 
   Copy, 
@@ -154,7 +153,11 @@ const Checkout = () => {
   
   // Detect custom domain via hostname
   const customDomain = useMemo(() => {
-    return getCustomDomainOrNull();
+    const hostname = window.location.hostname;
+    // Ignore Lovable/Gateflow domains
+    const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
+    const isCustomDomain = !ignoredDomains.some(d => hostname.includes(d));
+    return isCustomDomain ? hostname : null;
   }, []);
   
   // Extract slug: from route params, query parameter (?s=), or pathname for custom domains
@@ -630,20 +633,16 @@ const Checkout = () => {
         }
       }, 1000);
 
-      // SECURITY: Consultar status apenas via backend function (não ler tabela no navegador)
+      // Polling para verificar status a cada 5 segundos (fallback)
       const pollPaymentStatus = async () => {
         try {
-          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pix-api/charges/${charge.id}`;
-          const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) return;
-          const result = await response.json();
-          if (result?.status === 'paid') {
+          const { data, error } = await supabase
+            .from('pix_charges')
+            .select('status')
+            .eq('id', charge.id)
+            .single();
+          
+          if (!error && data?.status === 'paid') {
             setPaymentConfirmed(true);
             toast({
               title: "Pagamento confirmado!",
@@ -651,15 +650,39 @@ const Checkout = () => {
             });
           }
         } catch (error) {
-          console.error('Error polling payment status (secure):', error);
+          console.error('Error polling payment status:', error);
         }
       };
-
+      
       const pollInterval = setInterval(pollPaymentStatus, 5000);
+
+      // Realtime como canal principal (mais rápido)
+      const channel = supabase
+        .channel(`charge-${charge.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'pix_charges',
+            filter: `id=eq.${charge.id}`,
+          },
+          (payload) => {
+            if (payload.new.status === 'paid') {
+              setPaymentConfirmed(true);
+              toast({
+                title: "Pagamento confirmado!",
+                description: "Seu pagamento foi recebido com sucesso.",
+              });
+            }
+          }
+        )
+        .subscribe();
 
       return () => {
         clearInterval(timerInterval);
         clearInterval(pollInterval);
+        supabase.removeChannel(channel);
       };
     }
   }, [charge, paymentConfirmed, toast]);

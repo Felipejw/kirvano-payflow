@@ -5,7 +5,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useAppNavigate } from "@/lib/routes";
 import { format, subDays, startOfMonth, endOfMonth, addDays, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useTenant } from "@/hooks/useTenant";
 
 export interface SellerData {
   user_id: string;
@@ -113,8 +112,7 @@ export function useAdminStats() {
   const [isLive, setIsLive] = useState(true);
   const { toast } = useToast();
   const navigate = useAppNavigate();
-  const { isAdmin, isSuperAdmin, loading: roleLoading } = useUserRole();
-  const { tenant, loading: tenantLoading } = useTenant();
+  const { isAdmin, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
@@ -129,225 +127,164 @@ export function useAdminStats() {
 
   const fetchAdminData = useCallback(async () => {
     try {
-      setLoading(true);
+      const { data: sellerRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "seller");
 
-      const isTenantAdmin = isAdmin && !isSuperAdmin;
-      if (isTenantAdmin && tenantLoading) return;
+      if (rolesError) throw rolesError;
 
-      if (isTenantAdmin && !tenant?.id) {
-        toast({
-          title: "Tenant não configurado",
-          description:
-            "Seu painel admin ainda não foi configurado (tenant não encontrado). Fale com o suporte para vincular seu usuário a um tenant.",
-          variant: "destructive",
-        });
-        setStats(initialStats);
-        setSellers([]);
-        setChartData([]);
-        setFeesChartData([]);
-        setTopProducts([]);
-        setTopSellers([]);
-        setPaymentModeData([]);
-        return;
-      }
+      const sellerUserIds = sellerRoles?.map(r => r.user_id) || [];
 
-      let sellerUserIds: string[] = [];
-      let profiles: any[] = [];
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("user_id", sellerUserIds);
 
-      if (isTenantAdmin) {
-        const { data: tenantProfiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("tenant_id", tenant!.id);
-
-        if (profilesError) throw profilesError;
-        profiles = tenantProfiles || [];
-        sellerUserIds = profiles.map((p) => p.user_id).filter(Boolean);
-      } else {
-        const { data: sellerRoles, error: rolesError } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("role", "seller");
-
-        if (rolesError) throw rolesError;
-        sellerUserIds = sellerRoles?.map((r) => r.user_id) || [];
-
-        const { data: allProfiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("*")
-          .in("user_id", sellerUserIds);
-
-        if (profilesError) throw profilesError;
-        profiles = allProfiles || [];
-      }
-
-      if (!sellerUserIds.length) {
-        setStats({ ...initialStats, totalSellers: profiles.length });
-        setSellers([]);
-        setChartData([]);
-        setFeesChartData([]);
-        setTopProducts([]);
-        setTopSellers([]);
-        setPaymentModeData([]);
-        setLastUpdate(new Date());
-        return;
-      }
+      if (profilesError) throw profilesError;
 
       const { data: transactions, error: transactionsError } = await supabase
         .from("transactions")
-        .select("*")
-        .in("seller_id", sellerUserIds);
+        .select("*");
 
       if (transactionsError) throw transactionsError;
 
       const { data: products, error: productsError } = await supabase
         .from("products")
-        .select("*")
-        .in("seller_id", sellerUserIds);
+        .select("*");
 
       if (productsError) throw productsError;
 
       const { data: withdrawals, error: withdrawalsError } = await supabase
         .from("withdrawals")
         .select("*")
-        .eq("status", "pending")
-        .in("user_id", sellerUserIds);
+        .eq("status", "pending");
 
       if (withdrawalsError) throw withdrawalsError;
 
-      const { data: pixCharges, error: pixChargesError } = await supabase
+      const { data: pixCharges } = await supabase
         .from("pix_charges")
-        .select("status, created_at, order_bumps, seller_id")
-        .in("seller_id", sellerUserIds);
+        .select("status, created_at, order_bumps");
 
-      if (pixChargesError) throw pixChargesError;
-
-      const { data: invoices, error: invoicesError } = await supabase
+      const { data: invoices } = await supabase
         .from("platform_invoices")
-        .select("*")
-        .in("user_id", sellerUserIds);
-
-      if (invoicesError) throw invoicesError;
+        .select("*");
 
       const today = new Date();
-      const paidTransactions = transactions?.filter((t) => t.status === "paid") || [];
+      const paidTransactions = transactions?.filter(t => t.status === 'paid') || [];
       const totalRevenue = paidTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
       const platformFees = paidTransactions.reduce((sum, t) => sum + Number(t.platform_fee || 0), 0);
       const pendingWithdrawalsAmount = withdrawals?.reduce((sum, w) => sum + Number(w.amount || 0), 0) || 0;
 
-      const platformGatewaySellers = profiles?.filter((p) => p.payment_mode === "platform_gateway").length || 0;
-      const ownGatewaySellers = profiles?.filter((p) => p.payment_mode !== "platform_gateway").length || 0;
+      const platformGatewaySellers = profiles?.filter(p => p.payment_mode === 'platform_gateway').length || 0;
+      const ownGatewaySellers = profiles?.filter(p => p.payment_mode !== 'platform_gateway').length || 0;
 
-      const platformGatewayUserIds = profiles
-        ?.filter((p) => p.payment_mode === "platform_gateway")
-        .map((p) => p.user_id) || [];
-
+      const platformGatewayUserIds = profiles?.filter(p => p.payment_mode === 'platform_gateway').map(p => p.user_id) || [];
       const platformGatewayRevenue = paidTransactions
-        .filter((t) => platformGatewayUserIds.includes(t.seller_id))
+        .filter(t => platformGatewayUserIds.includes(t.seller_id))
         .reduce((sum, t) => sum + Number(t.amount || 0), 0);
       const ownGatewayRevenue = totalRevenue - platformGatewayRevenue;
 
       const averageTicket = paidTransactions.length > 0 ? totalRevenue / paidTransactions.length : 0;
 
       const totalOrders = pixCharges?.length || 0;
-      const paidOrders = pixCharges?.filter((c) => c.status === "paid").length || 0;
+      const paidOrders = pixCharges?.filter(c => c.status === 'paid').length || 0;
       const conversionRate = totalOrders > 0 ? (paidOrders / totalOrders) * 100 : 0;
 
-      const paidWithBumps =
-        pixCharges?.filter((c) => c.status === "paid" && c.order_bumps && c.order_bumps.length > 0).length || 0;
+      const paidWithBumps = pixCharges?.filter(c => c.status === 'paid' && c.order_bumps && c.order_bumps.length > 0).length || 0;
       const orderBumpConversionRate = paidOrders > 0 ? (paidWithBumps / paidOrders) * 100 : 0;
 
-      const firstSaleDate =
-        paidTransactions.length > 0
-          ? new Date(Math.min(...paidTransactions.map((t) => new Date(t.created_at).getTime())))
-          : today;
+      const firstSaleDate = paidTransactions.length > 0 
+        ? new Date(Math.min(...paidTransactions.map(t => new Date(t.created_at).getTime())))
+        : today;
       const daysActive = Math.max(1, differenceInDays(today, firstSaleDate) + 1);
       const averageSalesPerDay = totalRevenue / daysActive;
 
-      const recoveredTransactions = paidTransactions.filter((t) => t.is_recovered);
+      const recoveredTransactions = paidTransactions.filter(t => t.is_recovered);
       const recoveredSales = recoveredTransactions.length;
       const recoveredAmount = recoveredTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-      const pendingInvoices = invoices?.filter((i) => i.status === "pending") || [];
+      const pendingInvoices = invoices?.filter(i => i.status === 'pending') || [];
       const pendingInvoicesAmount = pendingInvoices.reduce((sum, i) => sum + Number(i.fee_total || 0), 0);
-
-      const overdueInvoices =
-        invoices?.filter((i) => i.status === "pending" && new Date(i.due_date) < today) || [];
+      
+      const overdueInvoices = invoices?.filter(i => 
+        i.status === 'pending' && new Date(i.due_date) < today
+      ) || [];
       const overdueInvoicesAmount = overdueInvoices.reduce((sum, i) => sum + Number(i.fee_total || 0), 0);
 
       const nextWeek = addDays(today, 7);
-      const nextWeekInvoices =
-        invoices?.filter((i) => {
-          const dueDate = new Date(i.due_date);
-          return i.status === "pending" && dueDate >= today && dueDate <= nextWeek;
-        }) || [];
+      const nextWeekInvoices = invoices?.filter(i => {
+        const dueDate = new Date(i.due_date);
+        return i.status === 'pending' && dueDate >= today && dueDate <= nextWeek;
+      }) || [];
       const nextWeekPending = nextWeekInvoices.reduce((sum, i) => sum + Number(i.fee_total || 0), 0);
 
-      const custodyBalance =
-        paidTransactions
-          .filter((t) => platformGatewayUserIds.includes(t.seller_id))
-          .reduce((sum, t) => sum + Number(t.seller_amount || 0), 0) - pendingWithdrawalsAmount;
+      const custodyBalance = paidTransactions
+        .filter(t => platformGatewayUserIds.includes(t.seller_id))
+        .reduce((sum, t) => sum + Number(t.seller_amount || 0), 0) - pendingWithdrawalsAmount;
 
       const thisMonthStart = startOfMonth(today);
       const lastMonthStart = startOfMonth(subDays(thisMonthStart, 1));
       const lastMonthEnd = endOfMonth(subDays(thisMonthStart, 1));
-
+      
       const thisMonthRevenue = paidTransactions
-        .filter((t) => new Date(t.created_at) >= thisMonthStart)
+        .filter(t => new Date(t.created_at) >= thisMonthStart)
         .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
+      
       const lastMonthRevenue = paidTransactions
-        .filter((t) => {
+        .filter(t => {
           const date = new Date(t.created_at);
           return date >= lastMonthStart && date <= lastMonthEnd;
         })
         .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-      const monthlyGrowth = lastMonthRevenue > 0 ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0;
+      const monthlyGrowth = lastMonthRevenue > 0 
+        ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 
+        : 0;
 
       const last7Days = Array.from({ length: 7 }, (_, i) => {
         const date = subDays(today, 6 - i);
-        const dayTransactions = paidTransactions.filter((t) => {
+        const dayTransactions = paidTransactions.filter(t => {
           const tDate = new Date(t.created_at);
           return tDate.toDateString() === date.toDateString();
         });
         return {
           date: format(date, "dd/MM", { locale: ptBR }),
           revenue: dayTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0),
-          transactions: dayTransactions.length,
+          transactions: dayTransactions.length
         };
       });
 
       const last30Days = Array.from({ length: 30 }, (_, i) => {
         const date = subDays(today, 29 - i);
-        const dayTransactions = paidTransactions.filter((t) => {
+        const dayTransactions = paidTransactions.filter(t => {
           const tDate = new Date(t.created_at);
           return tDate.toDateString() === date.toDateString();
         });
         return {
           date: format(date, "dd/MM", { locale: ptBR }),
-          fees: dayTransactions.reduce((sum, t) => sum + Number(t.platform_fee || 0), 0),
+          fees: dayTransactions.reduce((sum, t) => sum + Number(t.platform_fee || 0), 0)
         };
       });
 
       const paymentModeChartData = [
-        { name: "Gateway Plataforma", value: platformGatewayRevenue },
-        { name: "Gateway Próprio", value: ownGatewayRevenue },
-      ].filter((d) => d.value > 0);
+        { name: 'Gateway Plataforma', value: platformGatewayRevenue },
+        { name: 'Gateway Próprio', value: ownGatewayRevenue }
+      ].filter(d => d.value > 0);
 
       const productSalesMap = new Map<string, { name: string; sales: number; revenue: number }>();
-      paidTransactions.forEach((t) => {
+      paidTransactions.forEach(t => {
         if (t.product_id) {
-          const product = products?.find((p) => p.id === t.product_id);
+          const product = products?.find(p => p.id === t.product_id);
           const existing = productSalesMap.get(t.product_id);
           if (existing) {
             existing.sales += 1;
             existing.revenue += Number(t.amount || 0);
           } else {
             productSalesMap.set(t.product_id, {
-              name: product?.name || "Produto desconhecido",
+              name: product?.name || 'Produto desconhecido',
               sales: 1,
-              revenue: Number(t.amount || 0),
+              revenue: Number(t.amount || 0)
             });
           }
         }
@@ -357,25 +294,25 @@ export function useAdminStats() {
           id,
           name: data.name,
           totalSales: data.sales,
-          totalRevenue: data.revenue,
+          totalRevenue: data.revenue
         }))
         .sort((a, b) => b.totalSales - a.totalSales)
         .slice(0, 5);
 
       const sellerRevenueMap = new Map<string, { name: string; email: string; sales: number; revenue: number }>();
-      paidTransactions.forEach((t) => {
+      paidTransactions.forEach(t => {
         if (t.seller_id) {
-          const profile = profiles?.find((p) => p.user_id === t.seller_id);
+          const profile = profiles?.find(p => p.user_id === t.seller_id);
           const existing = sellerRevenueMap.get(t.seller_id);
           if (existing) {
             existing.sales += 1;
             existing.revenue += Number(t.seller_amount || 0);
           } else {
             sellerRevenueMap.set(t.seller_id, {
-              name: profile?.full_name || "Vendedor",
-              email: profile?.email || "",
+              name: profile?.full_name || 'Vendedor',
+              email: profile?.email || '',
               sales: 1,
-              revenue: Number(t.seller_amount || 0),
+              revenue: Number(t.seller_amount || 0)
             });
           }
         }
@@ -386,7 +323,7 @@ export function useAdminStats() {
           full_name: data.name,
           email: data.email,
           totalSales: data.sales,
-          totalRevenue: data.revenue,
+          totalRevenue: data.revenue
         }))
         .sort((a, b) => b.totalRevenue - a.totalRevenue)
         .slice(0, 5);
@@ -397,7 +334,7 @@ export function useAdminStats() {
         totalTransactions: paidTransactions.length,
         platformFees,
         pendingWithdrawals: pendingWithdrawalsAmount,
-        activeProducts: products?.filter((p) => p.status === "active").length || 0,
+        activeProducts: products?.filter(p => p.status === "active").length || 0,
         platformGatewaySellers,
         ownGatewaySellers,
         platformGatewayRevenue,
@@ -416,7 +353,7 @@ export function useAdminStats() {
         paidOrders,
         averageSalesPerDay,
         orderBumpConversionRate,
-        nextWeekPending,
+        nextWeekPending
       });
 
       setChartData(last7Days);
@@ -426,8 +363,8 @@ export function useAdminStats() {
       setTopSellers(topSellersList);
 
       const sellerMap = new Map<string, SellerData>();
-
-      profiles?.forEach((profile) => {
+      
+      profiles?.forEach(profile => {
         sellerMap.set(profile.user_id, {
           user_id: profile.user_id,
           email: profile.email || "",
@@ -436,11 +373,11 @@ export function useAdminStats() {
           total_sales: 0,
           total_revenue: 0,
           products_count: 0,
-          payment_mode: profile.payment_mode || "own_gateway",
+          payment_mode: profile.payment_mode || 'own_gateway'
         });
       });
 
-      transactions?.forEach((t) => {
+      transactions?.forEach(t => {
         if (t.seller_id && sellerMap.has(t.seller_id)) {
           const seller = sellerMap.get(t.seller_id)!;
           seller.total_sales += 1;
@@ -448,7 +385,7 @@ export function useAdminStats() {
         }
       });
 
-      products?.forEach((p) => {
+      products?.forEach(p => {
         if (sellerMap.has(p.seller_id)) {
           const seller = sellerMap.get(p.seller_id)!;
           seller.products_count += 1;
@@ -462,12 +399,12 @@ export function useAdminStats() {
       toast({
         title: "Erro",
         description: "Falha ao carregar dados do admin",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, isSuperAdmin, tenant, tenantLoading, toast]);
+  }, [toast]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -477,8 +414,7 @@ export function useAdminStats() {
 
   // Real-time subscriptions
   useEffect(() => {
-    // Evita subscription global para admin de tenant (pode disparar refetch por mudanças de outros tenants)
-    if (!isAdmin || !isLive || !isSuperAdmin) return;
+    if (!isAdmin || !isLive) return;
 
     const transactionsChannel = supabase
       .channel('admin-transactions-hook')
@@ -514,7 +450,7 @@ export function useAdminStats() {
       supabase.removeChannel(transactionsChannel);
       supabase.removeChannel(withdrawalsChannel);
     };
-  }, [isAdmin, isSuperAdmin, isLive, fetchAdminData, toast]);
+  }, [isAdmin, isLive, fetchAdminData, toast]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {

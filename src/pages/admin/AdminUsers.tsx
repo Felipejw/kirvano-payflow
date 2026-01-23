@@ -139,12 +139,7 @@ export default function AdminUsers() {
   
   const { toast } = useToast();
   const navigate = useAppNavigate();
-  const { isAdmin, isSuperAdmin, loading: roleLoading } = useUserRole();
-
-  // Super admin bootstrap
-  const [bootstrapEmail, setBootstrapEmail] = useState("admin@admin.com");
-  const [bootstrapPassword, setBootstrapPassword] = useState("123456");
-  const [bootstrapLoading, setBootstrapLoading] = useState(false);
+  const { isAdmin, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
@@ -162,53 +157,6 @@ export default function AdminUsers() {
       fetchUsers();
     }
   }, [isAdmin]);
-
-  const handleBootstrapAdmin = async () => {
-    if (!isSuperAdmin) {
-      toast({
-        title: "Acesso negado",
-        description: "Apenas super admins podem executar esta ação",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!bootstrapEmail.trim() || !bootstrapPassword.trim()) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Informe email e senha",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setBootstrapLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("admin-bootstrap", {
-        body: {
-          email: bootstrapEmail.trim(),
-          password: bootstrapPassword,
-          full_name: "Admin",
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Admin pronto",
-        description: data?.message || "Usuário admin criado/resetado",
-      });
-    } catch (err: any) {
-      console.error("Error bootstrapping admin:", err);
-      toast({
-        title: "Erro",
-        description: err?.message || "Falha ao criar/resetar admin",
-        variant: "destructive",
-      });
-    } finally {
-      setBootstrapLoading(false);
-    }
-  };
 
   const fetchUsers = async () => {
     try {
@@ -655,50 +603,6 @@ export default function AdminUsers() {
             Gerencie roles e permissões de usuários da plataforma
           </p>
         </div>
-
-        {/* Bootstrap admin@admin.com (super_admin only) */}
-        {isSuperAdmin && (
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Bootstrap do Admin Padrão
-              </CardTitle>
-              <CardDescription>
-                Crie ou resete o usuário <strong>admin@admin.com</strong> com a senha informada.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="bootstrap-email">Email</Label>
-                  <Input
-                    id="bootstrap-email"
-                    value={bootstrapEmail}
-                    onChange={(e) => setBootstrapEmail(e.target.value)}
-                    placeholder="admin@admin.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bootstrap-password">Senha</Label>
-                  <Input
-                    id="bootstrap-password"
-                    type="password"
-                    value={bootstrapPassword}
-                    onChange={(e) => setBootstrapPassword(e.target.value)}
-                    placeholder="123456"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end">
-                <Button onClick={handleBootstrapAdmin} disabled={bootstrapLoading}>
-                  {bootstrapLoading ? "Processando..." : "Criar / Resetar Admin"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-5">

@@ -2,36 +2,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-// ============================================================
-// SECURITY: basic per-IP rate limiting for public endpoints
-// NOTE: This is best-effort (edge runtime is ephemeral), but helps against abuse.
-// ============================================================
-type RateEntry = { count: number; resetAt: number };
-const rateLimitStore = new Map<string, RateEntry>();
-
-function getClientIp(req: Request): string {
-  const xff = req.headers.get('x-forwarded-for');
-  if (xff && xff.trim()) return xff.split(',')[0].trim();
-  const realIp = req.headers.get('x-real-ip');
-  if (realIp && realIp.trim()) return realIp.trim();
-  return 'unknown';
-}
-
-function checkRateLimit(ip: string, limit: number, windowMs: number) {
-  const now = Date.now();
-  const entry = rateLimitStore.get(ip);
-  if (!entry || entry.resetAt <= now) {
-    rateLimitStore.set(ip, { count: 1, resetAt: now + windowMs });
-    return { ok: true, remaining: limit - 1, resetAt: now + windowMs };
-  }
-  if (entry.count >= limit) {
-    return { ok: false, remaining: 0, resetAt: entry.resetAt };
-  }
-  entry.count += 1;
-  rateLimitStore.set(ip, entry);
-  return { ok: true, remaining: limit - entry.count, resetAt: entry.resetAt };
-}
-
 // SECURITY: Use service role client for database operations
 // This is required since RLS now restricts pix_charges updates to service role only
 const createServiceClient = () => {
@@ -1548,50 +1518,15 @@ async function processPaymentConfirmation(
     .update({ status: 'paid', paid_at: new Date().toISOString() })
     .eq('id', charge.id);
 
-  const amount = Number(charge.amount);
-  // Get seller_id from product or use null
-  const sellerId = charge.products?.seller_id || charge.seller_id || null;
-
-  // Determine fee settings: per-seller override (own_gateway) or platform settings
   const { data: platformSettings } = await supabase
     .from('platform_settings')
-    .select('platform_fee, platform_gateway_fee_percentage, platform_gateway_fee_fixed, own_gateway_fee_percentage, own_gateway_fee_fixed')
+    .select('platform_fee')
     .single();
+  
+  const platformFeeRate = platformSettings?.platform_fee ?? 5;
 
-  let feePercentage = Number(platformSettings?.platform_fee ?? 5);
-  let feeFixed = 0;
-
-  if (sellerId) {
-    const { data: sellerProfile } = await supabase
-      .from('profiles')
-      .select('payment_mode')
-      .eq('user_id', sellerId)
-      .maybeSingle();
-
-    const paymentMode = sellerProfile?.payment_mode || 'own_gateway';
-
-    if (paymentMode === 'platform_gateway') {
-      feePercentage = Number(platformSettings?.platform_gateway_fee_percentage ?? feePercentage);
-      feeFixed = Number(platformSettings?.platform_gateway_fee_fixed ?? 0);
-    } else {
-      // own_gateway: try seller-specific fee settings (PIX)
-      const { data: sellerFees } = await supabase
-        .from('seller_fee_settings')
-        .select('pix_fee_percentage, pix_fee_fixed')
-        .eq('user_id', sellerId)
-        .maybeSingle();
-
-      if (sellerFees) {
-        feePercentage = Number(sellerFees.pix_fee_percentage ?? (platformSettings?.own_gateway_fee_percentage ?? feePercentage));
-        feeFixed = Number(sellerFees.pix_fee_fixed ?? (platformSettings?.own_gateway_fee_fixed ?? 0));
-      } else {
-        feePercentage = Number(platformSettings?.own_gateway_fee_percentage ?? feePercentage);
-        feeFixed = Number(platformSettings?.own_gateway_fee_fixed ?? 0);
-      }
-    }
-  }
-
-  const platformFee = (amount * (feePercentage / 100)) + feeFixed;
+  const amount = Number(charge.amount);
+  const platformFee = amount * (platformFeeRate / 100);
   let affiliateAmount = 0;
   let sellerAmount = amount - platformFee;
 
@@ -1609,6 +1544,9 @@ async function processPaymentConfirmation(
       .eq('id', charge.affiliate_id);
   }
 
+  // Get seller_id from product or use null
+  const sellerId = charge.products?.seller_id || charge.seller_id || null;
+  
   if (!sellerId) {
     console.warn('Transaction created without seller_id - product_id was:', charge.product_id);
   }
@@ -2937,30 +2875,10 @@ serve(async (req) => {
     // GET /charges/:id - Get charge status
     if (req.method === 'GET' && path.startsWith('/charges/')) {
       const chargeId = path.replace('/charges/', '');
-
-      // SECURITY: rate-limit public status checks (avoid enumeration/abuse)
-      const ip = getClientIp(req);
-      const rl = checkRateLimit(ip, 60, 60_000); // 60 req/min per IP
-      if (!rl.ok) {
-        await logSecurityEvent(
-          supabase,
-          'RATE_LIMITED_STATUS_CHECK',
-          { ip, path, charge_id: chargeId, reset_at: new Date(rl.resetAt).toISOString() },
-          ip,
-          req.headers.get('user-agent')
-        );
-
-        return new Response(JSON.stringify({ error: 'Too many requests' }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
       
       const { data: charge, error } = await supabase
         .from('pix_charges')
-        // SECURITY: Never return buyer PII from public endpoints
-        // Only select what we need to sync status with the gateway
-        .select('id,status,amount,expires_at,paid_at,seller_id,external_id')
+        .select('*')
         .or(`id.eq.${chargeId},external_id.eq.${chargeId}`)
         .single();
 
@@ -3067,15 +2985,7 @@ serve(async (req) => {
         }
       }
 
-      const publicCharge = {
-        id: charge.id,
-        status: charge.status,
-        amount: charge.amount,
-        expires_at: charge.expires_at,
-        paid_at: charge.paid_at,
-      };
-
-      return new Response(JSON.stringify(publicCharge), {
+      return new Response(JSON.stringify(charge), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
