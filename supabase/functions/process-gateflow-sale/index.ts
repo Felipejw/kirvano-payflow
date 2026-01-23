@@ -15,15 +15,8 @@ interface ProcessGateflowSaleRequest {
   reseller_user_id?: string;
 }
 
-// Gerar senha aleatória segura
-function generatePassword(length: number = 12): string {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
+// Senha padrão do produto (conforme regra de negócio aprovada)
+const DEFAULT_PASSWORD = "123456";
 
 Deno.serve(async (req) => {
   // Handle CORS
@@ -106,8 +99,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Gerar senha aleatória
-    const generatedPassword = generatePassword();
+    // Senha padrão
+    const generatedPassword = DEFAULT_PASSWORD;
 
     // Criar novo usuário
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -269,8 +262,6 @@ Deno.serve(async (req) => {
                   <p><strong>Email:</strong> ${buyer_email}</p>
                   <p><strong>Senha:</strong> ${generatedPassword}</p>
                 </div>
-                
-                <p style="color: #ef4444;"><strong>⚠️ Importante:</strong> Por segurança, recomendamos que você altere sua senha após o primeiro acesso.</p>
                 
                 <a href="https://pixgate-hub.lovable.app/?page=auth" 
                    style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin: 20px 0;">

@@ -61,6 +61,7 @@ import SuperAdminCommissions from "./pages/super-admin/SuperAdminCommissions";
 import SuperAdminFeatures from "./pages/super-admin/SuperAdminFeatures";
 import AdminAffiliates from "./pages/admin/AdminAffiliates";
 import { getUrlParam } from "./lib/routes";
+import { RequireSuperAdmin } from "@/components/auth/RequireSuperAdmin";
 
 // Detect if we're on a custom domain (not Lovable/Gateflow domains)
 const isCustomDomain = (() => {
@@ -181,19 +182,47 @@ function PageRouter() {
     case "admin/affiliates":
       return <AdminAffiliates />;
     case "super-admin/dashboard":
-      return <SuperAdminDashboard />;
+      return (
+        <RequireSuperAdmin>
+          <SuperAdminDashboard />
+        </RequireSuperAdmin>
+      );
     case "super-admin/clientes":
-      return <SuperAdminClientes />;
+      return (
+        <RequireSuperAdmin>
+          <SuperAdminClientes />
+        </RequireSuperAdmin>
+      );
     case "super-admin/tenants":
-      return <SuperAdminClientes />; // Redirect antigo para novo
+      return (
+        <RequireSuperAdmin>
+          <SuperAdminClientes />
+        </RequireSuperAdmin>
+      ); // Redirect antigo para novo
     case "super-admin/commissions":
-      return <SuperAdminCommissions />;
+      return (
+        <RequireSuperAdmin>
+          <SuperAdminCommissions />
+        </RequireSuperAdmin>
+      );
     case "super-admin/features":
-      return <SuperAdminFeatures />;
+      return (
+        <RequireSuperAdmin>
+          <SuperAdminFeatures />
+        </RequireSuperAdmin>
+      );
     case "super-admin/gateflow-product":
-      return <SuperAdminGateflowProduct />;
+      return (
+        <RequireSuperAdmin>
+          <SuperAdminGateflowProduct />
+        </RequireSuperAdmin>
+      );
     case "super-admin/gateflow-sales":
-      return <SuperAdminGateflowSales />;
+      return (
+        <RequireSuperAdmin>
+          <SuperAdminGateflowSales />
+        </RequireSuperAdmin>
+      );
     case "members":
       return <MembersArea />;
     case "members/login":
