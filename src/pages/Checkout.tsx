@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/utils";
 import { QRCodeSVG } from "qrcode.react";
 import { CreditCardForm } from "@/components/checkout/CreditCardForm";
 import { useMercadoPago } from "@/hooks/useMercadoPago";
+import { getHostname, isCustomDomain as isCustomDomainHost } from "@/lib/domain";
 import { 
   QrCode, 
   Copy, 
@@ -153,11 +154,8 @@ const Checkout = () => {
   
   // Detect custom domain via hostname
   const customDomain = useMemo(() => {
-    const hostname = window.location.hostname;
-    // Ignore Lovable/Gateflow domains
-    const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
-    const isCustomDomain = !ignoredDomains.some(d => hostname.includes(d));
-    return isCustomDomain ? hostname : null;
+    const hostname = getHostname();
+    return isCustomDomainHost(hostname) ? hostname : null;
   }, []);
   
   // Extract slug: from route params, query parameter (?s=), or pathname for custom domains
