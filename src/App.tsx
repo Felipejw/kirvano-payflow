@@ -196,7 +196,7 @@ function PageRouter() {
     case "super-admin/tenants":
       return (
         <RequireSuperAdmin>
-          <SuperAdminClientes />
+          <SuperAdminTenants />
         </RequireSuperAdmin>
       ); // Redirect antigo para novo
     case "super-admin/commissions":
