@@ -2,15 +2,12 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Checkout from '@/pages/Checkout';
 import Index from '@/pages/Index';
+import { isCustomDomain as isCustomDomainHost } from '@/lib/domain';
 
 const DomainRouter = () => {
   const [searchParams] = useSearchParams();
   
-  const isCustomDomain = useMemo(() => {
-    const hostname = window.location.hostname;
-    const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
-    return !ignoredDomains.some(d => hostname.includes(d));
-  }, []);
+  const isCustomDomain = useMemo(() => isCustomDomainHost(), []);
 
   // Check for checkout query params (?s= or ?id=)
   const hasCheckoutParams = searchParams.get('s') || searchParams.get('id');

@@ -62,13 +62,9 @@ import SuperAdminFeatures from "./pages/super-admin/SuperAdminFeatures";
 import AdminAffiliates from "./pages/admin/AdminAffiliates";
 import { getUrlParam } from "./lib/routes";
 import { RequireSuperAdmin } from "@/components/auth/RequireSuperAdmin";
+import { isCustomDomain } from "@/lib/domain";
 
-// Detect if we're on a custom domain (not Lovable/Gateflow domains)
-const isCustomDomain = (() => {
-  const hostname = window.location.hostname;
-  const ignoredDomains = ['localhost', 'lovable.app', 'gatteflow.store', '127.0.0.1', 'lovableproject.com'];
-  return !ignoredDomains.some(d => hostname.includes(d));
-})();
+const isCustomDomainHost = isCustomDomain();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -243,7 +239,7 @@ function PageRouter() {
 
 const App = () => {
   // If custom domain, render ONLY Checkout routes
-  if (isCustomDomain) {
+  if (isCustomDomainHost) {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
