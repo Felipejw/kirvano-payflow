@@ -2,14 +2,23 @@ import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
 
+// Import local gateway logos
+import mercadoPagoLogo from "@/assets/gateways/mercado-pago.png";
+import pagbankLogo from "@/assets/gateways/pagbank.png";
+import asaasLogo from "@/assets/gateways/asaas.png";
+import picpayLogo from "@/assets/gateways/picpay.png";
+import getnetLogo from "@/assets/gateways/getnet.png";
+import bspayLogo from "@/assets/gateways/bspay.png";
+import ghostpayLogo from "@/assets/gateways/ghostpay.png";
+
 const gateways = [
-  { name: "Mercado Pago", logo: "https://logopng.com.br/logos/mercado-pago-icone-1024.png" },
-  { name: "PagBank", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/PagBank.svg/512px-PagBank.svg.png" },
-  { name: "Asaas", logo: "https://logopng.com.br/logos/asaas-130.png" },
-  { name: "PicPay", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/PicPay_logo.svg/512px-PicPay_logo.svg.png" },
-  { name: "Getnet", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Getnet_logo.svg/512px-Getnet_logo.svg.png" },
-  { name: "BSPAY", logo: "https://bfrpay.com.br/assets/images/logo-light.png" },
-  { name: "Ghostpay", logo: "https://ghostpay.com.br/wp-content/uploads/2024/01/logo-ghostpay-branco.png" },
+  { name: "Mercado Pago", logo: mercadoPagoLogo },
+  { name: "PagBank", logo: pagbankLogo },
+  { name: "Asaas", logo: asaasLogo },
+  { name: "PicPay", logo: picpayLogo },
+  { name: "Getnet", logo: getnetLogo },
+  { name: "BSPAY", logo: bspayLogo },
+  { name: "Ghostpay", logo: ghostpayLogo },
 ];
 
 export const IntegratedGatewaysSection = () => {
