@@ -234,10 +234,6 @@ const AdminGatewaysPage = () => {
             <h1 className="text-3xl font-bold">Gateways de Pagamento</h1>
             <p className="text-muted-foreground">Gerencie os gateways disponíveis para vendedores</p>
           </div>
-          <Button onClick={handleNew} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Gateway
-          </Button>
         </div>
 
         <Card>
