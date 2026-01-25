@@ -1464,7 +1464,7 @@ const Checkout = () => {
               📧 Enviamos um email com instruções de acesso para <strong>{buyerEmail}</strong>
             </p>
             <div className="space-y-3">
-              <Button className="w-full btn-success-gradient" onClick={() => window.location.href = '/members/login'}>
+              <Button className="w-full btn-success-gradient" onClick={() => window.location.href = '/?page=members/login'}>
                 Acessar Área de Membros
               </Button>
               <p className="text-xs text-muted-foreground">
