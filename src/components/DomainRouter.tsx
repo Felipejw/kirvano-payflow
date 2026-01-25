@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Checkout from '@/pages/Checkout';
-import Index from '@/pages/Index';
+import Auth from '@/pages/Auth';
 import { isCustomDomain as isCustomDomainHost } from '@/lib/domain';
 
 const DomainRouter = () => {
@@ -17,8 +17,8 @@ const DomainRouter = () => {
     return <Checkout />;
   }
 
-  // Se for domínio principal sem params, mostra a landing page
-  return <Index />;
+  // TEMPORÁRIO: Mostra tela de login em vez da landing page
+  return <Auth />;
 };
 
 export default DomainRouter;

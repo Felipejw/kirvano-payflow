@@ -49,7 +49,7 @@ const MembersLogin = () => {
         description: "Bem-vindo à área de membros.",
       });
       
-      navigate("/members");
+      navigate("/?page=members");
     } catch (error) {
       console.error("Login error:", error);
       toast({
