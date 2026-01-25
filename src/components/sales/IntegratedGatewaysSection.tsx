@@ -67,7 +67,7 @@ export const IntegratedGatewaysSection = () => {
               key={`${gateway.name}-${index}`}
               className="flex-shrink-0 mx-4 md:mx-6"
             >
-              <div className="w-28 h-28 md:w-36 md:h-36 bg-card rounded-2xl border border-border/50 flex items-center justify-center p-4 md:p-5 transition-all duration-300 hover:border-accent/50 hover:shadow-lg group">
+              <div className="w-24 h-24 md:w-28 md:h-28 bg-card rounded-2xl border border-border/50 flex items-center justify-center p-4 md:p-5 transition-all duration-300 hover:border-accent/50 hover:shadow-lg group">
                 <img
                   src={gateway.logo}
                   alt={gateway.name}
