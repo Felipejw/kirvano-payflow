@@ -2,6 +2,7 @@ import { SalesHero } from "@/components/sales/SalesHero";
 import { FixedCTA } from "@/components/sales/FixedCTA";
 import { UseOwnSection } from "@/components/sales/UseOwnSection";
 import { SystemShowcaseSection } from "@/components/sales/SystemShowcaseSection";
+import { IntegratedGatewaysSection } from "@/components/sales/IntegratedGatewaysSection";
 import { CompleteSystemSection } from "@/components/sales/CompleteSystemSection";
 import { WhiteLabelSection } from "@/components/sales/WhiteLabelSection";
 import { EarningModelsSection } from "@/components/sales/EarningModelsSection";
@@ -29,6 +30,9 @@ const SalesPage = () => {
       
       {/* Section 2 - System Showcase with real screenshots */}
       <SystemShowcaseSection />
+      
+      {/* Section 2.5 - Integrated Banks and Gateways */}
+      <IntegratedGatewaysSection />
       
       {/* Section 3 - Complete System features list */}
       <CompleteSystemSection onBuyClick={handleBuyClick} />
