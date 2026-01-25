@@ -4,21 +4,23 @@ import { useRef } from "react";
 
 // Import local gateway logos
 import mercadoPagoLogo from "@/assets/gateways/mercado-pago.png";
-import pagbankLogo from "@/assets/gateways/pagbank.png";
+import pagbankLogo from "@/assets/gateways/pagbank.jpeg";
 import asaasLogo from "@/assets/gateways/asaas.png";
-import picpayLogo from "@/assets/gateways/picpay.png";
 import getnetLogo from "@/assets/gateways/getnet.png";
-import bspayLogo from "@/assets/gateways/bspay.png";
-import ghostpayLogo from "@/assets/gateways/ghostpay.png";
+import bspayLogo from "@/assets/gateways/bspay.jpeg";
+import ghostpayLogo from "@/assets/gateways/ghostpay.webp";
+import efiBankLogo from "@/assets/gateways/efi-bank.png";
+import pixupLogo from "@/assets/gateways/pixup.png";
 
 const gateways = [
   { name: "Mercado Pago", logo: mercadoPagoLogo },
   { name: "PagBank", logo: pagbankLogo },
   { name: "Asaas", logo: asaasLogo },
-  { name: "PicPay", logo: picpayLogo },
   { name: "Getnet", logo: getnetLogo },
   { name: "BSPAY", logo: bspayLogo },
-  { name: "Ghostpay", logo: ghostpayLogo },
+  { name: "GhostsPay", logo: ghostpayLogo },
+  { name: "Efi Bank", logo: efiBankLogo },
+  { name: "Pixup", logo: pixupLogo },
 ];
 
 export const IntegratedGatewaysSection = () => {
