@@ -21,8 +21,7 @@ import {
   Building2,
   Check,
   Key,
-  Globe,
-  DollarSign
+  Globe
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,7 +29,6 @@ import { usePaymentMode, updatePaymentMode, PaymentMode } from "@/hooks/usePayme
 import { cn } from "@/lib/utils";
 import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
 import { WhiteLabelSettings } from "@/components/settings/WhiteLabelSettings";
-import { GateflowAffiliateSection } from "@/components/settings/GateflowAffiliateSection";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const Settings = () => {
@@ -171,16 +169,10 @@ const Settings = () => {
               Notificações
             </TabsTrigger>
             {isAdmin && (
-              <>
-                <TabsTrigger value="whitelabel" className="gap-2">
-                  <Globe className="h-4 w-4" />
-                  White Label
-                </TabsTrigger>
-                <TabsTrigger value="affiliate" className="gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  Revender GateFlow
-                </TabsTrigger>
-              </>
+              <TabsTrigger value="whitelabel" className="gap-2">
+                <Globe className="h-4 w-4" />
+                White Label
+              </TabsTrigger>
             )}
           </TabsList>
 
@@ -491,12 +483,6 @@ const Settings = () => {
             </TabsContent>
           )}
 
-          {/* GateFlow Affiliate Settings - Admin Only */}
-          {isAdmin && (
-            <TabsContent value="affiliate">
-              <GateflowAffiliateSection />
-            </TabsContent>
-          )}
         </Tabs>
       </div>
     </DashboardLayout>

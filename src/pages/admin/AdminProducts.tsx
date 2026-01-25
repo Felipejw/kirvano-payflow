@@ -67,10 +67,15 @@ export default function AdminProducts() {
 
   const fetchProducts = async () => {
     try {
-      // Fetch all products
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      // Fetch only products owned by this admin/seller
       const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select("*")
+        .eq("seller_id", user.id)
         .order("created_at", { ascending: false });
 
       if (productsError) throw productsError;
