@@ -15,7 +15,7 @@ interface FileUploadProps {
 
 export function FileUpload({
   onUploadComplete,
-  accept = "video/mp4,video/webm,application/pdf,application/zip,application/x-zip-compressed,.zip",
+  accept = "video/mp4,video/webm,application/pdf,application/zip,application/x-zip-compressed,.zip,.sh,application/x-sh,text/x-shellscript",
   maxSizeMB = 100,
   className,
 }: FileUploadProps) {
@@ -130,7 +130,7 @@ export function FileUpload({
               </button>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Vídeos (MP4, WebM), PDFs ou arquivos ZIP até {maxSizeMB}MB
+              Vídeos (MP4, WebM), PDFs, ZIP ou scripts (.sh) até {maxSizeMB}MB
             </p>
           </div>
         </div>

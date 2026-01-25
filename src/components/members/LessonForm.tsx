@@ -187,7 +187,7 @@ export function LessonForm({ open, onOpenChange, lesson, onSave }: LessonFormPro
                       contentType === "pdf" 
                         ? "application/pdf" 
                         : contentType === "file"
-                        ? "application/pdf,application/zip,application/x-zip-compressed,.zip"
+                        ? "application/pdf,application/zip,application/x-zip-compressed,.zip,.sh,application/x-sh,text/x-shellscript"
                         : "video/mp4,video/webm"
                     }
                   />
