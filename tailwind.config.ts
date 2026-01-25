@@ -126,7 +126,7 @@ export default {
         "shimmer": "shimmer 2s linear infinite",
         "scale-in": "scale-in 0.3s ease-out forwards",
         "bounce-subtle": "bounce-subtle 2s ease-in-out infinite",
-        "marquee": "marquee 30s linear infinite",
+        "marquee": "marquee 12s linear infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

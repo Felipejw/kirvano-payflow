@@ -4,19 +4,12 @@ import { useRef } from "react";
 
 const gateways = [
   { name: "Mercado Pago", logo: "https://logopng.com.br/logos/mercado-pago-icone-1024.png" },
-  { name: "PagBank", logo: "https://logodownload.org/wp-content/uploads/2019/09/pagbank-logo.png" },
+  { name: "PagBank", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/PagBank.svg/512px-PagBank.svg.png" },
   { name: "Asaas", logo: "https://logopng.com.br/logos/asaas-130.png" },
-  { name: "PicPay", logo: "https://logodownload.org/wp-content/uploads/2018/05/picpay-logo.png" },
-  { name: "Getnet", logo: "https://logodownload.org/wp-content/uploads/2020/02/getnet-logo.png" },
-  { name: "Nubank", logo: "https://logodownload.org/wp-content/uploads/2019/08/nubank-logo.png" },
-  { name: "Inter", logo: "https://logodownload.org/wp-content/uploads/2019/09/banco-inter-logo.png" },
-  { name: "Banco do Brasil", logo: "https://logodownload.org/wp-content/uploads/2014/05/banco-do-brasil-logo.png" },
-  { name: "Bradesco", logo: "https://logodownload.org/wp-content/uploads/2014/05/bradesco-logo-0.png" },
-  { name: "Itaú", logo: "https://logodownload.org/wp-content/uploads/2014/05/itau-logo.png" },
-  { name: "Santander", logo: "https://logodownload.org/wp-content/uploads/2014/05/santander-logo.png" },
-  { name: "Sicredi", logo: "https://logodownload.org/wp-content/uploads/2018/10/sicredi-logo.png" },
-  { name: "Caixa", logo: "https://logodownload.org/wp-content/uploads/2014/05/caixa-economica-federal-logo.png" },
-  { name: "Sicoob", logo: "https://logodownload.org/wp-content/uploads/2018/10/sicoob-logo.png" },
+  { name: "PicPay", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/PicPay_logo.svg/512px-PicPay_logo.svg.png" },
+  { name: "Getnet", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Getnet_logo.svg/512px-Getnet_logo.svg.png" },
+  { name: "BSPAY", logo: "https://bfrpay.com.br/assets/images/logo-light.png" },
+  { name: "Ghostpay", logo: "https://ghostpay.com.br/wp-content/uploads/2024/01/logo-ghostpay-branco.png" },
 ];
 
 export const IntegratedGatewaysSection = () => {
