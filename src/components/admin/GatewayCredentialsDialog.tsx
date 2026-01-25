@@ -10,10 +10,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Copy, Check, Key, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Copy, Check, Key, Loader2, Save, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface GatewayCredentialsDialogProps {
   gateway: 'bspay' | 'pixup' | 'ghostpay';
@@ -34,8 +35,14 @@ export function GatewayCredentialsDialog({
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [credentials, setCredentials] = useState<Credentials | null>(null);
+  const [editCredentials, setEditCredentials] = useState<Credentials>({ client_id: '', client_secret: '' });
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [source, setSource] = useState<'platform' | 'admin'>('admin');
+  
+  const { isSuperAdmin } = useUserRole();
 
   const gatewayName = gateway === 'bspay' ? 'BSPAY' : gateway === 'ghostpay' ? 'GHOSTPAY' : 'PIXUP';
 
@@ -45,8 +52,10 @@ export function GatewayCredentialsDialog({
     } else {
       // Reset state when dialog closes
       setCredentials(null);
+      setEditCredentials({ client_id: '', client_secret: '' });
       setShowSecrets({});
       setError(null);
+      setIsEditing(false);
     }
   }, [open, gateway]);
 
@@ -68,12 +77,85 @@ export function GatewayCredentialsDialog({
       }
 
       setCredentials(data.credentials);
+      setEditCredentials({
+        client_id: data.credentials?.client_id || '',
+        client_secret: data.credentials?.client_secret || '',
+      });
+      setSource(data.source || 'admin');
     } catch (err: any) {
       console.error('Error fetching credentials:', err);
       setError(err.message || 'Erro ao carregar credenciais');
       toast.error('Erro ao carregar credenciais');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveCredentials = async () => {
+    setSaving(true);
+    
+    try {
+      // Get the gateway_id
+      const { data: gatewayData, error: gatewayError } = await supabase
+        .from('payment_gateways')
+        .select('id')
+        .eq('slug', gateway)
+        .maybeSingle();
+
+      if (gatewayError || !gatewayData) {
+        throw new Error('Gateway não encontrado');
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Check if credential already exists
+      const { data: existing } = await supabase
+        .from('seller_gateway_credentials')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('gateway_id', gatewayData.id)
+        .maybeSingle();
+
+      const credentialData = {
+        client_id: editCredentials.client_id || null,
+        client_secret: editCredentials.client_secret || null,
+      };
+
+      if (existing) {
+        // Update
+        const { error: updateError } = await supabase
+          .from('seller_gateway_credentials')
+          .update({
+            credentials: credentialData,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Insert
+        const { error: insertError } = await supabase
+          .from('seller_gateway_credentials')
+          .insert({
+            user_id: user.id,
+            gateway_id: gatewayData.id,
+            credentials: credentialData,
+            is_active: true,
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      toast.success('Credenciais salvas com sucesso!');
+      setCredentials(credentialData);
+      setIsEditing(false);
+    } catch (err: any) {
+      console.error('Error saving credentials:', err);
+      toast.error(err.message || 'Erro ao salvar credenciais');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -119,6 +201,8 @@ export function GatewayCredentialsDialog({
         { key: 'client_secret' as const, label: 'Client Secret' },
       ];
 
+  const canEdit = !isSuperAdmin && source === 'admin';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -128,7 +212,10 @@ export function GatewayCredentialsDialog({
             Credenciais do {gatewayName}
           </DialogTitle>
           <DialogDescription>
-            Visualize e copie as credenciais de API do gateway {gatewayName}
+            {isSuperAdmin 
+              ? `Visualize as credenciais globais do gateway ${gatewayName}`
+              : `Gerencie suas credenciais de API do gateway ${gatewayName}`
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -148,7 +235,23 @@ export function GatewayCredentialsDialog({
                 </div>
               ))}
             </div>
+          ) : isEditing ? (
+            // Edit mode for admins
+            fields.map((field) => (
+              <div key={field.key} className="space-y-2">
+                <Label htmlFor={`edit-${field.key}`}>{field.label}</Label>
+                <Input
+                  id={`edit-${field.key}`}
+                  type={showSecrets[field.key] ? "text" : "password"}
+                  value={editCredentials[field.key] || ''}
+                  onChange={(e) => setEditCredentials(prev => ({ ...prev, [field.key]: e.target.value }))}
+                  placeholder={`Digite o ${field.label}`}
+                  className="font-mono text-sm"
+                />
+              </div>
+            ))
           ) : (
+            // View mode
             fields.map((field) => (
               <div key={field.key} className="space-y-2">
                 <Label htmlFor={field.key}>{field.label}</Label>
@@ -195,24 +298,57 @@ export function GatewayCredentialsDialog({
             ))
           )}
 
-          {!loading && !error && (
-            <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm">
-              <p className="text-yellow-600 dark:text-yellow-400">
-                <strong>Segurança:</strong> Essas credenciais são sensíveis. Para alterá-las, acesse as configurações de secrets do Cloud.
+          {!loading && !error && !isEditing && (
+            <div className={`p-3 rounded-lg text-sm ${isSuperAdmin ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
+              <p className={isSuperAdmin ? 'text-blue-600 dark:text-blue-400' : 'text-yellow-600 dark:text-yellow-400'}>
+                {isSuperAdmin ? (
+                  <>
+                    <strong>Super Admin:</strong> Estas são as credenciais globais da plataforma configuradas via secrets do Cloud.
+                  </>
+                ) : (
+                  <>
+                    <strong>Suas Credenciais:</strong> Configure suas próprias credenciais para processar pagamentos diretamente.
+                  </>
+                )}
               </p>
             </div>
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
-          {!loading && !error && (
-            <Button onClick={fetchCredentials} variant="secondary">
-              <Loader2 className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
+          
+          {!loading && !error && isEditing && (
+            <>
+              <Button variant="ghost" onClick={() => setIsEditing(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={saveCredentials} disabled={saving}>
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Salvar
+              </Button>
+            </>
+          )}
+          
+          {!loading && !error && !isEditing && (
+            <>
+              <Button onClick={fetchCredentials} variant="secondary">
+                <Loader2 className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+              {canEdit && (
+                <Button onClick={() => setIsEditing(true)}>
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+              )}
+            </>
           )}
         </DialogFooter>
       </DialogContent>

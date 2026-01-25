@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAppNavigate } from "@/lib/routes";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ interface MemberProduct {
     cover_url: string | null;
     deliverable_url: string | null;
     content_url: string | null;
+    seller_id: string;
   };
 }
 
@@ -40,6 +42,10 @@ const MembersArea = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useAppNavigate();
   const { toast } = useToast();
+  
+  // Get seller_id from first membership for branding
+  const firstSellerId = memberships.length > 0 ? memberships[0].product.seller_id : null;
+  const { branding } = useTenantBranding(firstSellerId);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -69,7 +75,8 @@ const MembersArea = () => {
             description,
             cover_url,
             deliverable_url,
-            content_url
+            content_url,
+            seller_id
           )
         `)
         .eq("user_id", user?.id);
@@ -129,7 +136,11 @@ const MembersArea = () => {
       <header className="border-b border-border/50 bg-card/50 backdrop-blur sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={gateflowLogo} alt="Gateflow" className="h-10 w-auto" />
+            {branding.logo_url ? (
+              <img src={branding.logo_url} alt={branding.brand_name} className="h-10 w-auto" />
+            ) : (
+              <img src={gateflowLogo} alt="Gateflow" className="h-10 w-auto" />
+            )}
             <span className="text-xl font-semibold text-foreground">Área de Membros</span>
           </div>
           <div className="flex items-center gap-4">

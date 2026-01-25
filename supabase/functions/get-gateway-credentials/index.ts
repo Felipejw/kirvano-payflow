@@ -33,14 +33,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if user is admin using the has_role function
+    // Check if user is admin or super_admin
     const { data: isAdmin, error: roleError } = await supabase.rpc('has_role', {
       _user_id: user.id,
       _role: 'admin'
     });
 
-    if (roleError || !isAdmin) {
-      console.log(`Access denied for user ${user.id}. Is admin: ${isAdmin}`);
+    const { data: isSuperAdmin } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'super_admin'
+    });
+
+    if (roleError || (!isAdmin && !isSuperAdmin)) {
+      console.log(`Access denied for user ${user.id}. Is admin: ${isAdmin}, Is super_admin: ${isSuperAdmin}`);
       return new Response(
         JSON.stringify({ error: 'Forbidden - Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -58,27 +63,84 @@ Deno.serve(async (req) => {
 
     let credentials: { client_id: string | null; client_secret: string | null };
 
-    if (gateway === 'bspay') {
+    // Super Admin: return global environment credentials
+    if (isSuperAdmin) {
+      console.log(`Super admin ${user.id} accessing global ${gateway} credentials`);
+      
+      if (gateway === 'bspay') {
+        credentials = {
+          client_id: Deno.env.get('BSPAY_CLIENT_ID') ?? null,
+          client_secret: Deno.env.get('BSPAY_CLIENT_SECRET') ?? null,
+        };
+      } else if (gateway === 'ghostpay') {
+        credentials = {
+          client_id: Deno.env.get('GHOSTPAY_COMPANY_ID') ?? null,
+          client_secret: Deno.env.get('GHOSTPAY_SECRET_KEY') ?? null,
+        };
+      } else {
+        credentials = {
+          client_id: Deno.env.get('PIXUP_CLIENT_ID') ?? null,
+          client_secret: Deno.env.get('PIXUP_CLIENT_SECRET') ?? null,
+        };
+      }
+
+      return new Response(
+        JSON.stringify({ credentials, source: 'platform' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Admin (tenant): fetch from seller_gateway_credentials table
+    console.log(`Admin ${user.id} accessing their own ${gateway} credentials`);
+
+    // First, get the gateway_id for the requested gateway slug
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: gatewayData, error: gatewayError } = await adminClient
+      .from('payment_gateways')
+      .select('id')
+      .eq('slug', gateway)
+      .maybeSingle();
+
+    if (gatewayError || !gatewayData) {
+      console.log(`Gateway ${gateway} not found in payment_gateways table`);
+      return new Response(
+        JSON.stringify({ credentials: { client_id: null, client_secret: null }, source: 'admin' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Fetch admin's credentials for this gateway
+    const { data: sellerCredentials, error: credError } = await adminClient
+      .from('seller_gateway_credentials')
+      .select('credentials')
+      .eq('user_id', user.id)
+      .eq('gateway_id', gatewayData.id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (credError) {
+      console.error('Error fetching seller credentials:', credError);
+    }
+
+    if (sellerCredentials?.credentials) {
+      const creds = sellerCredentials.credentials as { client_id?: string; client_secret?: string };
       credentials = {
-        client_id: Deno.env.get('BSPAY_CLIENT_ID') ?? null,
-        client_secret: Deno.env.get('BSPAY_CLIENT_SECRET') ?? null,
-      };
-    } else if (gateway === 'ghostpay') {
-      credentials = {
-        client_id: Deno.env.get('GHOSTPAY_COMPANY_ID') ?? null,
-        client_secret: Deno.env.get('GHOSTPAY_SECRET_KEY') ?? null,
+        client_id: creds.client_id ?? null,
+        client_secret: creds.client_secret ?? null,
       };
     } else {
       credentials = {
-        client_id: Deno.env.get('PIXUP_CLIENT_ID') ?? null,
-        client_secret: Deno.env.get('PIXUP_CLIENT_SECRET') ?? null,
+        client_id: null,
+        client_secret: null,
       };
     }
 
-    console.log(`Admin ${user.id} accessed ${gateway} credentials`);
-
     return new Response(
-      JSON.stringify({ credentials }),
+      JSON.stringify({ credentials, source: 'admin' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ interface Product {
   deliverable_url: string | null;
   deliverable_type: string | null;
   content_url: string | null;
+  seller_id: string;
 }
 
 interface Membership {
@@ -77,6 +79,9 @@ const MemberProduct = () => {
   const { user, loading: authLoading } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
+  
+  // Fetch tenant branding based on product's seller_id
+  const { branding } = useTenantBranding(product?.seller_id || null);
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Record<string, Lesson[]>>({});
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
@@ -144,10 +149,10 @@ const MemberProduct = () => {
         console.log("Successfully updated last_accessed_at for member:", membershipData.id);
       }
 
-      // Fetch product details
+      // Fetch product details including seller_id for branding
       const { data: productData, error: productError } = await supabase
         .from("products")
-        .select("id, name, description, cover_url, deliverable_url, deliverable_type, content_url")
+        .select("id, name, description, cover_url, deliverable_url, deliverable_type, content_url, seller_id")
         .eq("id", productId)
         .single();
 
@@ -418,7 +423,11 @@ const MemberProduct = () => {
       <header className="border-b border-border/50 bg-card/50 backdrop-blur sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={gateflowLogo} alt="Gateflow" className="h-10 w-auto" />
+            {branding.logo_url ? (
+              <img src={branding.logo_url} alt={branding.brand_name} className="h-10 w-auto" />
+            ) : (
+              <img src={gateflowLogo} alt="Gateflow" className="h-10 w-auto" />
+            )}
           </div>
           <Button variant="ghost" onClick={() => navigate("/?page=members")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
