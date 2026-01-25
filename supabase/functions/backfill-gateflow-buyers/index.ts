@@ -226,6 +226,28 @@ Deno.serve(async (req) => {
           if (upsertRoleErr) throw upsertRoleErr;
           totals.admin_role_upserts += 1;
 
+          // 2b) Ensure member role for area de membros access
+          await supabase
+            .from("user_roles")
+            .upsert({ user_id: userId, role: "member" }, { onConflict: "user_id,role" });
+
+          // 2c) Ensure member record exists
+          const { data: existingMember } = await supabase
+            .from("members")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("product_id", productId)
+            .maybeSingle();
+
+          if (!existingMember) {
+            await supabase.from("members").insert({
+              user_id: userId,
+              product_id: productId,
+              access_level: "full",
+              status: "active",
+            });
+          }
+
           // 3) Ensure tenant
           const { data: existingTenant, error: tenantSelectErr } = await supabase
             .from("tenants")

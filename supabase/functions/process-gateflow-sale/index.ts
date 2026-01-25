@@ -174,6 +174,36 @@ Deno.serve(async (req) => {
       console.error("Error adding admin role:", roleError);
     }
 
+    // Adicionar role 'member' para acesso à área de membros
+    const { error: memberRoleError } = await supabaseAdmin
+      .from("user_roles")
+      .insert({
+        user_id: userId,
+        role: "member",
+      });
+
+    if (memberRoleError) {
+      console.error("Error adding member role:", memberRoleError);
+    }
+
+    // Criar acesso à área de membros do produto Gateflow
+    const GATEFLOW_PRODUCT_ID = "e5761661-ebb4-4605-a33c-65943686972c";
+    
+    const { error: memberError } = await supabaseAdmin
+      .from("members")
+      .insert({
+        user_id: userId,
+        product_id: GATEFLOW_PRODUCT_ID,
+        access_level: "full",
+        status: "active",
+      });
+
+    if (memberError) {
+      console.error("Error creating member access:", memberError);
+    } else {
+      console.log("Member access created for user:", userId);
+    }
+
     // Registrar a venda no gateflow_sales
     const commissionAmount = amount * 0.5; // 50% de comissão padrão
 
@@ -196,7 +226,6 @@ Deno.serve(async (req) => {
     }
 
     // Adicionar produto Gateflow padrão para revenda (copiar do produto principal)
-    const GATEFLOW_PRODUCT_ID = "e5761661-ebb4-4605-a33c-65943686972c";
     
     const { data: sourceProduct } = await supabaseAdmin
       .from("products")
