@@ -18,8 +18,16 @@ export const getPlatformDomains = () => {
   // Always treat local development as platform.
   const local = ["localhost", "127.0.0.1"];
 
+  // Hardcoded fallback domains to prevent routing issues if env is misconfigured
+  const fallbackDomains = [
+    "gateflow.store",
+    "www.gateflow.store",
+    "gatteflow.store",
+    "www.gatteflow.store"
+  ];
+
   // If env is missing, keep behavior safe by defaulting to platform for localhost only.
-  return Array.from(new Set([...local, ...domains]));
+  return Array.from(new Set([...local, ...fallbackDomains, ...domains]));
 };
 
 export const isPlatformDomain = (hostnameInput?: string) => {
