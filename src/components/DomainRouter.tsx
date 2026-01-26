@@ -8,7 +8,13 @@ const DomainRouter = () => {
   const [searchParams] = useSearchParams();
   
   const isCustomDomain = useMemo(() => isCustomDomainHost(), []);
-  const hasCheckoutParams = searchParams.has('productId') || searchParams.has('slug');
+  
+  // Verificar TODOS os formatos de params de checkout
+  const hasCheckoutParams = 
+    searchParams.has('productId') || 
+    searchParams.has('id') ||
+    searchParams.has('slug') || 
+    searchParams.has('s');
   
   // Se for domínio customizado ou tiver params de checkout, mostra checkout
   if (isCustomDomain || hasCheckoutParams) {
