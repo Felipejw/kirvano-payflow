@@ -841,7 +841,7 @@ const Transactions = () => {
                 </div>
 
                 {/* Mark as Paid Button - Only for pending transactions */}
-                {selectedTransaction.status === 'pending' && (
+                {(selectedTransaction.status === 'pending' || selectedTransaction.status === 'expired') && (
                   <div className="pt-4 border-t border-border">
                     <Button 
                       variant="gradient"

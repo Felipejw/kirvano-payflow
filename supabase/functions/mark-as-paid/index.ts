@@ -387,9 +387,9 @@ serve(async (req) => {
       });
     }
 
-    // Check if charge is pending
-    if (charge.status !== 'pending') {
-      return new Response(JSON.stringify({ error: `Apenas cobranças pendentes podem ser marcadas como pagas. Status atual: ${charge.status}` }), {
+    // Check if charge is pending or expired
+    if (charge.status !== 'pending' && charge.status !== 'expired') {
+      return new Response(JSON.stringify({ error: `Apenas cobranças pendentes ou expiradas podem ser marcadas como pagas. Status atual: ${charge.status}` }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
