@@ -80,3 +80,6 @@ verify_jwt = true
 
 [functions.backfill-gateflow-buyers]
 verify_jwt = true
+
+[functions.grant-member-access]
+verify_jwt = false
