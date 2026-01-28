@@ -68,3 +68,15 @@ verify_jwt = false
 
 [functions.process-gateflow-sale]
 verify_jwt = false
+
+[functions.mark-as-paid]
+verify_jwt = false
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.reset-user-password]
+verify_jwt = true
+
+[functions.backfill-gateflow-buyers]
+verify_jwt = true

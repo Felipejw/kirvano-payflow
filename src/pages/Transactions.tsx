@@ -124,6 +124,10 @@ const Transactions = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState(false);
+  
+  // Mark as paid states
+  const [markAsPaidDialogOpen, setMarkAsPaidDialogOpen] = useState(false);
+  const [markingAsPaid, setMarkingAsPaid] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
@@ -361,6 +365,31 @@ const Transactions = () => {
       setDeleting(false);
       setDeleteDialogOpen(false);
       setTransactionToDelete(null);
+    }
+  };
+
+  const handleMarkAsPaid = async () => {
+    if (!selectedTransaction) return;
+    
+    setMarkingAsPaid(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mark-as-paid', {
+        body: { charge_id: selectedTransaction.id }
+      });
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      toast.success("Transação marcada como paga com sucesso!");
+      fetchTransactions();
+      setDetailDialogOpen(false);
+      setMarkAsPaidDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao marcar como pago:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao marcar como pago';
+      toast.error(errorMessage);
+    } finally {
+      setMarkingAsPaid(false);
     }
   };
 
@@ -810,10 +839,59 @@ const Transactions = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Mark as Paid Button - Only for pending transactions */}
+                {selectedTransaction.status === 'pending' && (
+                  <div className="pt-4 border-t border-border">
+                    <Button 
+                      variant="gradient"
+                      className="w-full gap-2"
+                      onClick={() => setMarkAsPaidDialogOpen(true)}
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      Marcar como Pago
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Ao marcar como pago, o sistema criará automaticamente o acesso à área de membros e enviará email de confirmação.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Mark as Paid Confirmation Dialog */}
+        <AlertDialog open={markAsPaidDialogOpen} onOpenChange={setMarkAsPaidDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-accent" />
+                Confirmar Pagamento Manual
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>Tem certeza que deseja marcar esta transação como paga?</p>
+                <p className="text-sm">Esta ação irá:</p>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  <li>Atualizar o status para "Pago"</li>
+                  <li>Criar acesso à área de membros (se aplicável)</li>
+                  <li>Enviar email de confirmação ao comprador</li>
+                </ul>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={markingAsPaid}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleMarkAsPaid}
+                disabled={markingAsPaid}
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
+              >
+                {markingAsPaid ? "Processando..." : "Confirmar Pagamento"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
