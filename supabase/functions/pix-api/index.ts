@@ -75,6 +75,9 @@ const chargeRequestSchema = z.object({
   utm_campaign: z.string().max(100).nullable().optional(),
   utm_content: z.string().max(100).nullable().optional(),
   utm_term: z.string().max(100).nullable().optional(),
+  // Coupon fields for backend validation
+  coupon_code: z.string().max(50).nullable().optional(),
+  coupon_id: z.string().uuid().nullable().optional(),
   card_data: z.object({
     holderName: z.string(),
     number: z.string(),
@@ -99,8 +102,16 @@ const chargeRequestSchema = z.object({
 async function validateAndGetExpectedPrice(
   supabase: any,
   productId: string,
-  orderBumps?: string[]
-): Promise<{ expectedAmount: number; productName: string; sellerId: string; parentProductId: string | null }> {
+  orderBumps?: string[],
+  couponCode?: string,
+  couponId?: string
+): Promise<{ 
+  expectedAmount: number; 
+  productName: string; 
+  sellerId: string; 
+  parentProductId: string | null;
+  appliedCouponId: string | null;
+}> {
   // Fetch the product price from database
   const { data: product, error: productError } = await supabase
     .from('products')
@@ -128,11 +139,67 @@ async function validateAndGetExpectedPrice(
     }
   }
 
+  // Validate and apply coupon if provided
+  let appliedCouponId: string | null = null;
+  
+  if (couponCode || couponId) {
+    let couponQuery = supabase
+      .from('coupons')
+      .select('*')
+      .eq('product_id', productId)
+      .eq('is_active', true);
+    
+    if (couponId) {
+      couponQuery = couponQuery.eq('id', couponId);
+    } else if (couponCode) {
+      couponQuery = couponQuery.ilike('code', couponCode.trim());
+    }
+    
+    const { data: coupon, error: couponError } = await couponQuery.maybeSingle();
+    
+    if (coupon && !couponError) {
+      // Validate coupon dates
+      const now = new Date();
+      const validFrom = coupon.valid_from ? new Date(coupon.valid_from) : null;
+      const validUntil = coupon.valid_until ? new Date(coupon.valid_until) : null;
+      
+      const isDateValid = (!validFrom || validFrom <= now) && (!validUntil || validUntil >= now);
+      const isUsageValid = coupon.max_uses === null || coupon.used_count < coupon.max_uses;
+      
+      if (isDateValid && isUsageValid) {
+        // Calculate discount
+        if (coupon.discount_type === 'percentage') {
+          expectedAmount -= (expectedAmount * coupon.discount_value) / 100;
+        } else {
+          // Fixed discount - cannot exceed total
+          expectedAmount -= Math.min(coupon.discount_value, expectedAmount);
+        }
+        
+        appliedCouponId = coupon.id;
+        console.log('Coupon applied successfully:', {
+          code: coupon.code,
+          discount_type: coupon.discount_type,
+          discount_value: coupon.discount_value,
+          new_expected_amount: expectedAmount,
+        });
+      } else {
+        console.log('Coupon validation failed:', {
+          code: couponCode || couponId,
+          isDateValid,
+          isUsageValid,
+        });
+      }
+    } else {
+      console.log('Coupon not found or error:', couponError?.message);
+    }
+  }
+
   return {
-    expectedAmount,
+    expectedAmount: Math.max(0, expectedAmount),
     productName: product.name,
     sellerId: product.seller_id,
     parentProductId: product.parent_product_id,
+    appliedCouponId,
   };
 }
 
@@ -190,6 +257,9 @@ interface CreateChargeRequest {
   utm_campaign?: string;
   utm_content?: string;
   utm_term?: string;
+  // Coupon fields for backend validation
+  coupon_code?: string;
+  coupon_id?: string;
   // Asaas card-specific fields (no tokenization)
   card_data?: {
     holderName: string;
@@ -1880,7 +1950,7 @@ serve(async (req) => {
       // ============================================================
       if (body.product_id) {
         try {
-          const priceData = await validateAndGetExpectedPrice(supabase, body.product_id, body.order_bumps);
+          const priceData = await validateAndGetExpectedPrice(supabase, body.product_id, body.order_bumps, body.coupon_code, body.coupon_id);
           
           // CRITICAL: Check if received amount matches expected amount
           const priceTolerance = 0.05; // R$ 0.05 tolerance for rounding
