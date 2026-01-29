@@ -83,3 +83,6 @@ verify_jwt = true
 
 [functions.grant-member-access]
 verify_jwt = false
+
+[functions.update-customer-email]
+verify_jwt = false
