@@ -1129,6 +1129,9 @@ const Checkout = () => {
           expires_in_minutes: 30,
           order_bumps: selectedBumps.length > 0 ? selectedBumps : undefined,
           payment_method: selectedPaymentMethod,
+          // Coupon data for backend validation
+          coupon_code: appliedCoupon?.code || undefined,
+          coupon_id: appliedCoupon?.id || undefined,
           // Card specific fields for Mercado Pago
           card_token: cardGateway === 'mercadopago' ? cardToken : undefined,
           installments: selectedPaymentMethod === 'card' ? cardInstallments : undefined,
