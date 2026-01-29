@@ -92,17 +92,20 @@ serve(async (req) => {
       });
     }
 
-    // Check if user already exists
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find((u: any) => u.email === email);
+    // Check if user already exists by looking in profiles table
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('user_id')
+      .eq('email', email)
+      .maybeSingle();
     
     let userId: string;
     let isNewUser = false;
     let password: string | undefined;
     
-    if (existingUser) {
-      userId = existingUser.id;
-      console.log('Existing user found:', userId);
+    if (existingProfile?.user_id) {
+      userId = existingProfile.user_id;
+      console.log('Existing user found via profile:', userId);
       
       // Check if user already has member role, if not, add it
       const { data: existingRole } = await supabaseAdmin
@@ -139,41 +142,88 @@ serve(async (req) => {
       });
       
       if (createError) {
-        console.error('Error creating user:', createError);
-        return new Response(JSON.stringify({ error: `Falha ao criar usuário: ${createError.message}` }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      userId = newUser.user.id;
-      isNewUser = true;
-      console.log('New user created:', userId);
-      
-      // Delete the 'seller' role that may be auto-created by trigger
-      // and assign 'member' role instead for buyers
-      console.log('Updating role to member for new buyer:', userId);
-      
-      const { error: deleteRoleError } = await supabaseAdmin
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-      
-      if (deleteRoleError) {
-        console.warn('Error deleting auto-assigned roles:', deleteRoleError);
-      }
-      
-      const { error: insertRoleError } = await supabaseAdmin
-        .from('user_roles')
-        .insert({
-          user_id: userId,
-          role: 'member',
-        });
-      
-      if (insertRoleError) {
-        console.error('Error assigning member role:', insertRoleError);
+        // If user already exists (email_exists error), try to find them via auth
+        if (createError.message.includes('already been registered')) {
+          console.log('User already exists, fetching from auth...');
+          
+          // Try to get user by email using a different approach
+          const { data: userData, error: getUserError } = await supabaseAdmin
+            .from('profiles')
+            .select('user_id')
+            .ilike('email', email)
+            .maybeSingle();
+          
+          if (userData?.user_id) {
+            userId = userData.user_id;
+            console.log('Found existing user via case-insensitive search:', userId);
+          } else {
+            // As a last resort, check auth.users directly
+            console.error('Could not find user in profiles, returning error');
+            return new Response(JSON.stringify({ 
+              error: 'Usuário já existe mas não foi encontrado no sistema. Por favor, verifique o email.' 
+            }), {
+              status: 409,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } else {
+          console.error('Error creating user:', createError);
+          return new Response(JSON.stringify({ error: `Falha ao criar usuário: ${createError.message}` }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        // Assign member role to existing user found
+        const { data: existingRole } = await supabaseAdmin
+          .from('user_roles')
+          .select('id')
+          .eq('user_id', userId!)
+          .eq('role', 'member')
+          .maybeSingle();
+        
+        if (!existingRole) {
+          const { error: insertRoleError } = await supabaseAdmin
+            .from('user_roles')
+            .insert({
+              user_id: userId!,
+              role: 'member',
+            });
+          
+          if (insertRoleError && !insertRoleError.message.includes('duplicate')) {
+            console.error('Error assigning member role:', insertRoleError);
+          }
+        }
       } else {
-        console.log('Member role assigned successfully to:', userId);
+        userId = newUser.user.id;
+        isNewUser = true;
+        console.log('New user created:', userId);
+        
+        // Delete the 'seller' role that may be auto-created by trigger
+        // and assign 'member' role instead for buyers
+        console.log('Updating role to member for new buyer:', userId);
+        
+        const { error: deleteRoleError } = await supabaseAdmin
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+        
+        if (deleteRoleError) {
+          console.warn('Error deleting auto-assigned roles:', deleteRoleError);
+        }
+        
+        const { error: insertRoleError } = await supabaseAdmin
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role: 'member',
+          });
+        
+        if (insertRoleError) {
+          console.error('Error assigning member role:', insertRoleError);
+        } else {
+          console.log('Member role assigned successfully to:', userId);
+        }
       }
     }
     
