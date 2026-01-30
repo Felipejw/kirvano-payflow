@@ -80,42 +80,93 @@ Deno.serve(async (req) => {
 
     console.log(`Creating admin user for: ${email}`);
 
-    // Check if user already exists
+    let userId: string;
+    let isExistingUser = false;
+
+    // Check if user already exists in profiles
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("user_id")
+      .select("user_id, tenant_id")
       .eq("email", email)
-      .single();
+      .maybeSingle();
 
-    if (existingProfile) {
-      return new Response(
-        JSON.stringify({ error: "Já existe um usuário com este email" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (existingProfile?.user_id) {
+      userId = existingProfile.user_id;
+      isExistingUser = true;
+      console.log(`User already exists: ${userId}`);
+
+      // Check if user already has a tenant
+      if (existingProfile.tenant_id) {
+        const { data: existingTenant } = await supabase
+          .from("tenants")
+          .select("id, brand_name")
+          .eq("id", existingProfile.tenant_id)
+          .single();
+
+        if (existingTenant) {
+          console.log(`User already has tenant: ${existingTenant.id}`);
+          return new Response(
+            JSON.stringify({
+              success: true,
+              user_id: userId,
+              tenant_id: existingTenant.id,
+              message: `Usuário já existe como admin do tenant "${existingTenant.brand_name}"`,
+              existing: true,
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    } else {
+      // Try to create new user in auth
+      const { data: authData, error: createError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name,
+          phone,
+          document_type: "cnpj",
+          payment_mode: "own_gateway",
+        },
+      });
+
+      if (createError) {
+        // Check if error is because user already exists in auth
+        if (createError.message?.includes("already been registered")) {
+          console.log("User exists in auth but not in profiles, searching...");
+          
+          // Fallback: list users to find the existing one
+          const { data: { users } } = await supabase.auth.admin.listUsers();
+          const existingAuthUser = users?.find(u => u.email === email);
+          
+          if (existingAuthUser) {
+            userId = existingAuthUser.id;
+            isExistingUser = true;
+            console.log(`Found existing auth user: ${userId}`);
+          } else {
+            return new Response(
+              JSON.stringify({ error: "Usuário existe mas não foi possível localizá-lo" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        } else {
+          console.error("Error creating user:", createError);
+          return new Response(
+            JSON.stringify({ error: createError.message || "Erro ao criar usuário" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else if (authData?.user) {
+        userId = authData.user.id;
+        console.log(`New user created with ID: ${userId}`);
+      } else {
+        return new Response(
+          JSON.stringify({ error: "Erro ao criar usuário" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
-
-    // 1. Create user in auth
-    const { data: authData, error: createError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        full_name,
-        phone,
-        document_type: "cnpj", // Default for business
-        payment_mode: "own_gateway",
-      },
-    });
-
-    if (createError || !authData.user) {
-      console.error("Error creating user:", createError);
-      return new Response(
-        JSON.stringify({ error: createError?.message || "Erro ao criar usuário" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const userId = authData.user.id;
     console.log(`User created with ID: ${userId}`);
 
     // 2. Update profile with phone if provided
