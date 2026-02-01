@@ -1,31 +1,38 @@
 
-# Plano: Adicionar Seção "Área de Membros Estilo Netflix"
+# Plano: Adicionar Seção "Notificações Push PWA"
 
 ## Objetivo
 
-Criar uma nova seção na landing page de vendas destacando a funcionalidade de Área de Membros com design estilo Netflix, seguindo o padrão visual e de código dos componentes existentes.
+Criar uma nova seção na landing page de vendas destacando a funcionalidade de aplicativo PWA com notificações push em tempo real, incluindo um mockup animado de celular com notificações.
 
 ---
 
 ## Arquivos a Criar/Modificar
 
-### 1. Criar: `src/components/sales/MembersAreaSection.tsx`
+### 1. Criar: `src/components/sales/PWANotificationsSection.tsx`
 
-Novo componente React seguindo o padrão dos outros componentes de vendas (ex: `WhiteLabelSection.tsx`):
+Novo componente React seguindo o padrão dos outros componentes de vendas:
 
 **Estrutura:**
-- Layout em grid 2 colunas (texto à esquerda, imagem à direita)
+- Layout em grid 2 colunas (texto à esquerda, mockup de celular à direita)
 - Animações com `framer-motion` e `useInView`
+- Badges "Nova Funcionalidade v2" e "Opcional"
 - Lista de features com ícones de check
-- Imagem com efeito glass-card e blur de fundo
+- Mockup de iPhone com notificações animadas
 - Design responsivo mobile-first
 
 **Features a exibir:**
-- Player de vídeo HD
-- Organização por módulos
-- Progresso automático
-- Design responsivo
-- Gestor de Alunos completo
+- Notificações push em tempo real
+- Novo PIX gerado
+- Pedido aprovado
+- Disparos automáticos
+- Instalação como app nativo
+
+**Elementos visuais:**
+- Badge primário com ícone de smartphone
+- Badge secundário "Opcional"
+- Mockup de celular com dynamic island
+- Notificações animadas deslizando para dentro
 
 **Código do componente:**
 
@@ -33,17 +40,17 @@ Novo componente React seguindo o padrão dos outros componentes de vendas (ex: `
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-import { Check } from "lucide-react";
+import { Check, Smartphone, Signal, Battery, ShoppingCart } from "lucide-react";
 
 const features = [
-  "Player de vídeo HD",
-  "Organização por módulos",
-  "Progresso automático",
-  "Design responsivo",
-  "Gestor de Alunos completo",
+  "Notificações push em tempo real",
+  "Novo PIX gerado",
+  "Pedido aprovado",
+  "Disparos automáticos",
+  "Instalação como app nativo",
 ];
 
-export const MembersAreaSection = () => {
+export const PWANotificationsSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
@@ -58,13 +65,24 @@ export const MembersAreaSection = () => {
             transition={{ duration: 0.6 }}
             className="text-center lg:text-left"
           >
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6">
-              Área de Membros{" "}
-              <span className="gradient-text">Estilo Netflix</span>
+            {/* Badges */}
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-4 sm:mb-6">
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-primary/20 text-primary">
+                <Smartphone className="w-4 h-4" />
+                <span className="font-semibold text-sm sm:text-base">Nova Funcionalidade v2</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-muted/50 text-muted-foreground border border-border">
+                <span className="font-medium text-xs sm:text-sm">Opcional</span>
+              </div>
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4 sm:mb-6">
+              Aplicativo PWA com{" "}
+              <span className="gradient-text">Notificações Push</span>
             </h2>
             <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8">
-              Entregue conteúdo de forma profissional com uma área de membros
-              moderna, responsiva e com experiência premium para seus alunos.
+              Transforme sua plataforma em um aplicativo nativo. Seus clientes recebem 
+              notificações em tempo real sobre pedidos, pagamentos e muito mais.
             </p>
             <ul className="space-y-3 sm:space-y-4 inline-flex flex-col items-start">
               {features.map((feature, index) => (
@@ -84,20 +102,86 @@ export const MembersAreaSection = () => {
             </ul>
           </motion.div>
 
-          {/* Image */}
+          {/* Phone Mockup */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative"
+            className="relative flex justify-center lg:justify-end lg:pr-8"
           >
             <div className="absolute -inset-4 bg-primary/10 rounded-3xl blur-2xl" />
-            <div className="relative glass-card overflow-hidden rounded-2xl">
-              <img
-                src="/assets/members-area.png"
-                alt="Área de Membros"
-                className="w-full h-auto"
-              />
+            
+            {/* iPhone mockup */}
+            <div className="relative w-[280px] sm:w-[320px] aspect-[9/19.5] bg-black rounded-[2.5rem] p-2 shadow-2xl border-4 border-gray-800">
+              {/* Dynamic Island */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl z-20" />
+              
+              {/* Screen */}
+              <div className="relative w-full h-full bg-gradient-to-b from-gray-900 to-black rounded-[2rem] overflow-hidden">
+                {/* Status bar */}
+                <div className="absolute top-0 left-0 right-0 h-12 bg-transparent z-10 flex items-center justify-between px-6 pt-2">
+                  <div className="flex items-center gap-1 text-white text-xs font-medium">
+                    <span>9:41</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Signal className="w-3 h-3 text-white" />
+                    <Signal className="w-3 h-3 text-white rotate-180" />
+                    <Battery className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+
+                {/* Notifications */}
+                <div className="absolute top-12 left-0 right-0 px-3 pt-2 space-y-2 z-10">
+                  {/* Notification 1 */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 100 }}
+                    animate={isInView ? { opacity: 1, x: 0 } : {}}
+                    transition={{ duration: 0.5, delay: 0.8 }}
+                    className="bg-blue-500/20 backdrop-blur-md rounded-xl p-3 border border-white/10 shadow-lg"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center border border-white/10">
+                        <ShoppingCart className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p className="font-semibold text-white text-sm leading-tight">Venda confirmada</p>
+                          <span className="text-xs text-white/60 flex-shrink-0">10:51</span>
+                        </div>
+                        <p className="text-xs text-white/80 leading-relaxed">
+                          Produto: Curso Premium - R$ 297,00
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Notification 2 */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 100 }}
+                    animate={isInView ? { opacity: 1, x: 0 } : {}}
+                    transition={{ duration: 0.5, delay: 1.2 }}
+                    className="bg-green-500/20 backdrop-blur-md rounded-xl p-3 border border-white/10 shadow-lg"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center border border-white/10">
+                        <Check className="w-5 h-5 text-green-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p className="font-semibold text-white text-sm leading-tight">PIX Aprovado</p>
+                          <span className="text-xs text-white/60 flex-shrink-0">10:52</span>
+                        </div>
+                        <p className="text-xs text-white/80 leading-relaxed">
+                          Pagamento de R$ 497,00 confirmado
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* Background gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black opacity-50" />
+              </div>
             </div>
           </motion.div>
         </div>
@@ -113,18 +197,18 @@ export const MembersAreaSection = () => {
 
 Importar e adicionar o novo componente na página de vendas.
 
-**Posição sugerida:** Após `CompleteSystemSection` e antes de `WhiteLabelSection` (já que ambos tratam de funcionalidades do sistema).
+**Posição sugerida:** Após `MembersAreaSection` e antes de `WhiteLabelSection` (mantendo a sequência de funcionalidades do sistema).
 
 **Alterações:**
 
 ```diff
-+ import { MembersAreaSection } from "@/components/sales/MembersAreaSection";
++ import { PWANotificationsSection } from "@/components/sales/PWANotificationsSection";
 
-  // Na renderização, adicionar após CompleteSystemSection:
-  <CompleteSystemSection onBuyClick={handleBuyClick} />
+  {/* Section - Members Area Netflix Style */}
+  <MembersAreaSection />
   
-+ {/* Section - Members Area Netflix Style */}
-+ <MembersAreaSection />
++ {/* Section - PWA Notifications */}
++ <PWANotificationsSection />
   
   {/* Section 4 - White Label */}
   <WhiteLabelSection />
@@ -132,38 +216,39 @@ Importar e adicionar o novo componente na página de vendas.
 
 ---
 
-### 3. Imagem da Área de Membros
-
-O HTML original referencia `/assets/members-area-Cp4roTKZ.png`. Precisamos de uma imagem para a área de membros.
-
-**Opções:**
-1. Se você já tem a imagem, adicionar em `public/assets/members-area.png`
-2. Usar um screenshot existente do sistema (ex: dashboard ou outra tela)
-3. Criar/solicitar uma imagem da área de membros
-
----
-
 ## Estrutura Visual
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    SEÇÃO ÁREA DE MEMBROS                    │
+│              SEÇÃO NOTIFICAÇÕES PWA                         │
 ├─────────────────────────────┬───────────────────────────────┤
 │                             │                               │
-│  Área de Membros            │    ┌───────────────────────┐  │
-│  Estilo Netflix             │    │  [blur background]     │ │
-│                             │    │  ┌─────────────────┐   │ │
-│  Entregue conteúdo de       │    │  │                 │   │ │
-│  forma profissional...      │    │  │  [IMAGEM DA     │   │ │
-│                             │    │  │   ÁREA DE       │   │ │
-│  ✓ Player de vídeo HD       │    │  │   MEMBROS]      │   │ │
-│  ✓ Organização por módulos  │    │  │                 │   │ │
-│  ✓ Progresso automático     │    │  │                 │   │ │
-│  ✓ Design responsivo        │    │  └─────────────────┘   │ │
-│  ✓ Gestor de Alunos         │    └───────────────────────┘  │
+│  [Nova Funcionalidade v2]   │       ┌─────────────────┐     │
+│  [Opcional]                 │       │    ╭───────╮    │     │
+│                             │       │    │       │    │     │
+│  Aplicativo PWA com         │       │ ┌──────────────┐│     │
+│  Notificações Push          │       │ │🛒 Venda      ││     │
+│                             │       │ │ confirmada   ││     │
+│  Transforme sua plataforma  │       │ └──────────────┘│     │
+│  em um aplicativo nativo... │       │ ┌──────────────┐│     │
+│                             │       │ │✓ PIX         ││     │
+│  ✓ Notificações push        │       │ │ Aprovado     ││     │
+│  ✓ Novo PIX gerado          │       │ └──────────────┘│     │
+│  ✓ Pedido aprovado          │       │                 │     │
+│  ✓ Disparos automáticos     │       └─────────────────┘     │
+│  ✓ Instalação como app      │       [iPhone Mockup]         │
 │                             │                               │
 └─────────────────────────────┴───────────────────────────────┘
 ```
+
+---
+
+## Animações
+
+1. **Texto à esquerda**: Slide-in da esquerda (`x: -30` → `x: 0`)
+2. **Lista de features**: Staggered animation com delay incremental
+3. **Mockup do celular**: Slide-in da direita (`x: 30` → `x: 0`)
+4. **Notificações**: Slide-in sequencial da direita com delays (`delay: 0.8s` e `delay: 1.2s`)
 
 ---
 
@@ -171,17 +256,17 @@ O HTML original referencia `/assets/members-area-Cp4roTKZ.png`. Precisamos de um
 
 | Arquivo | Ação |
 |---------|------|
-| `src/components/sales/MembersAreaSection.tsx` | **Criar** - Novo componente |
+| `src/components/sales/PWANotificationsSection.tsx` | **Criar** - Novo componente |
 | `src/pages/SalesPage.tsx` | **Modificar** - Importar e adicionar seção |
-| `public/assets/members-area.png` | **Adicionar** - Imagem da área de membros (se disponível) |
 
 ---
 
 ## Comportamento Esperado
 
-- Seção aparece entre "Sistema Completo" e "White Label"
+- Seção aparece entre "Área de Membros" e "White Label"
 - Layout responsivo: empilhado no mobile, 2 colunas no desktop
-- Animações suaves ao entrar na viewport
+- Badges destacando "Nova Funcionalidade v2" e "Opcional"
 - Lista de features com ícones de check verdes
-- Imagem com efeito glass-card e blur de fundo
+- Mockup de iPhone realista com dynamic island
+- Notificações animadas que entram sequencialmente ao visualizar a seção
 - Mantém consistência visual com outras seções da página
