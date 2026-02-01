@@ -5,6 +5,7 @@ import { SystemShowcaseSection } from "@/components/sales/SystemShowcaseSection"
 import { IntegratedGatewaysSection } from "@/components/sales/IntegratedGatewaysSection";
 import { CompleteSystemSection } from "@/components/sales/CompleteSystemSection";
 import { MembersAreaSection } from "@/components/sales/MembersAreaSection";
+import { PWANotificationsSection } from "@/components/sales/PWANotificationsSection";
 import { WhiteLabelSection } from "@/components/sales/WhiteLabelSection";
 import { EarningModelsSection } from "@/components/sales/EarningModelsSection";
 import { ClosingOffer } from "@/components/sales/ClosingOffer";
@@ -40,6 +41,9 @@ const SalesPage = () => {
       
       {/* Section - Members Area Netflix Style */}
       <MembersAreaSection />
+      
+      {/* Section - PWA Notifications */}
+      <PWANotificationsSection />
       
       {/* Section 4 - White Label */}
       <WhiteLabelSection />
