@@ -28,7 +28,7 @@ export const ClosingOffer = ({ onBuyClick }: ClosingOfferProps) => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-12 md:py-16 bg-background">
+    <section ref={ref} className="py-10 md:py-12 bg-background">
       <div className="container max-w-5xl mx-auto px-4">
         {/* Headline */}
         <motion.div

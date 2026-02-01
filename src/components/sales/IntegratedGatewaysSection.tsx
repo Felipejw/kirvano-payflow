@@ -31,7 +31,7 @@ export const IntegratedGatewaysSection = () => {
   const duplicatedGateways = [...gateways, ...gateways];
 
   return (
-    <section ref={ref} className="py-12 md:py-16 bg-muted/30 overflow-hidden">
+    <section ref={ref} className="py-10 md:py-12 bg-muted/30 overflow-hidden">
       <div className="container max-w-6xl mx-auto px-4">
         {/* Header */}
         <motion.div

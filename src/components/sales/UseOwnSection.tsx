@@ -36,7 +36,7 @@ export const UseOwnSection = ({ onBuyClick }: UseOwnSectionProps) => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-12 md:py-16 px-4 bg-muted/30">
+    <section ref={ref} className="py-10 md:py-12 px-4 bg-muted/30">
       <div className="container max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}

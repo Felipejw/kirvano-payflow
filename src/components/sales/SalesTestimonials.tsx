@@ -78,7 +78,7 @@ export const SalesTestimonials = () => {
   };
 
   return (
-    <section ref={ref} className="py-16 md:py-24 px-4 bg-muted/30 relative overflow-hidden">
+    <section ref={ref} className="py-10 md:py-14 px-4 bg-muted/30 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl animate-pulse" />
