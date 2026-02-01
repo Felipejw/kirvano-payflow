@@ -1,272 +1,89 @@
 
-# Plano: Adicionar Seção "Notificações Push PWA"
+# Plano: Reduzir Espaçamentos entre Seções da Landing Page
 
-## Objetivo
+## Problema Identificado
 
-Criar uma nova seção na landing page de vendas destacando a funcionalidade de aplicativo PWA com notificações push em tempo real, incluindo um mockup animado de celular com notificações.
-
----
-
-## Arquivos a Criar/Modificar
-
-### 1. Criar: `src/components/sales/PWANotificationsSection.tsx`
-
-Novo componente React seguindo o padrão dos outros componentes de vendas:
-
-**Estrutura:**
-- Layout em grid 2 colunas (texto à esquerda, mockup de celular à direita)
-- Animações com `framer-motion` e `useInView`
-- Badges "Nova Funcionalidade v2" e "Opcional"
-- Lista de features com ícones de check
-- Mockup de iPhone com notificações animadas
-- Design responsivo mobile-first
-
-**Features a exibir:**
-- Notificações push em tempo real
-- Novo PIX gerado
-- Pedido aprovado
-- Disparos automáticos
-- Instalação como app nativo
-
-**Elementos visuais:**
-- Badge primário com ícone de smartphone
-- Badge secundário "Opcional"
-- Mockup de celular com dynamic island
-- Notificações animadas deslizando para dentro
-
-**Código do componente:**
-
-```typescript
-import { motion } from "framer-motion";
-import { useInView } from "framer-motion";
-import { useRef } from "react";
-import { Check, Smartphone, Signal, Battery, ShoppingCart } from "lucide-react";
-
-const features = [
-  "Notificações push em tempo real",
-  "Novo PIX gerado",
-  "Pedido aprovado",
-  "Disparos automáticos",
-  "Instalação como app nativo",
-];
-
-export const PWANotificationsSection = () => {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-
-  return (
-    <section ref={ref} className="py-16 sm:py-24 px-5 sm:px-6 lg:px-8 relative">
-      <div className="container mx-auto max-w-7xl">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-          {/* Text content */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6 }}
-            className="text-center lg:text-left"
-          >
-            {/* Badges */}
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-4 sm:mb-6">
-              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-primary/20 text-primary">
-                <Smartphone className="w-4 h-4" />
-                <span className="font-semibold text-sm sm:text-base">Nova Funcionalidade v2</span>
-              </div>
-              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-muted/50 text-muted-foreground border border-border">
-                <span className="font-medium text-xs sm:text-sm">Opcional</span>
-              </div>
-            </div>
-
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4 sm:mb-6">
-              Aplicativo PWA com{" "}
-              <span className="gradient-text">Notificações Push</span>
-            </h2>
-            <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8">
-              Transforme sua plataforma em um aplicativo nativo. Seus clientes recebem 
-              notificações em tempo real sobre pedidos, pagamentos e muito mais.
-            </p>
-            <ul className="space-y-3 sm:space-y-4 inline-flex flex-col items-start">
-              {features.map((feature, index) => (
-                <motion.li
-                  key={feature}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={isInView ? { opacity: 1, x: 0 } : {}}
-                  transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
-                  className="flex items-center gap-3 text-base sm:text-lg"
-                >
-                  <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-3 h-3 text-accent" />
-                  </div>
-                  <span className="text-foreground">{feature}</span>
-                </motion.li>
-              ))}
-            </ul>
-          </motion.div>
-
-          {/* Phone Mockup */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative flex justify-center lg:justify-end lg:pr-8"
-          >
-            <div className="absolute -inset-4 bg-primary/10 rounded-3xl blur-2xl" />
-            
-            {/* iPhone mockup */}
-            <div className="relative w-[280px] sm:w-[320px] aspect-[9/19.5] bg-black rounded-[2.5rem] p-2 shadow-2xl border-4 border-gray-800">
-              {/* Dynamic Island */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl z-20" />
-              
-              {/* Screen */}
-              <div className="relative w-full h-full bg-gradient-to-b from-gray-900 to-black rounded-[2rem] overflow-hidden">
-                {/* Status bar */}
-                <div className="absolute top-0 left-0 right-0 h-12 bg-transparent z-10 flex items-center justify-between px-6 pt-2">
-                  <div className="flex items-center gap-1 text-white text-xs font-medium">
-                    <span>9:41</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Signal className="w-3 h-3 text-white" />
-                    <Signal className="w-3 h-3 text-white rotate-180" />
-                    <Battery className="w-4 h-4 text-white" />
-                  </div>
-                </div>
-
-                {/* Notifications */}
-                <div className="absolute top-12 left-0 right-0 px-3 pt-2 space-y-2 z-10">
-                  {/* Notification 1 */}
-                  <motion.div
-                    initial={{ opacity: 0, x: 100 }}
-                    animate={isInView ? { opacity: 1, x: 0 } : {}}
-                    transition={{ duration: 0.5, delay: 0.8 }}
-                    className="bg-blue-500/20 backdrop-blur-md rounded-xl p-3 border border-white/10 shadow-lg"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center border border-white/10">
-                        <ShoppingCart className="w-5 h-5 text-blue-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <p className="font-semibold text-white text-sm leading-tight">Venda confirmada</p>
-                          <span className="text-xs text-white/60 flex-shrink-0">10:51</span>
-                        </div>
-                        <p className="text-xs text-white/80 leading-relaxed">
-                          Produto: Curso Premium - R$ 297,00
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  {/* Notification 2 */}
-                  <motion.div
-                    initial={{ opacity: 0, x: 100 }}
-                    animate={isInView ? { opacity: 1, x: 0 } : {}}
-                    transition={{ duration: 0.5, delay: 1.2 }}
-                    className="bg-green-500/20 backdrop-blur-md rounded-xl p-3 border border-white/10 shadow-lg"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center border border-white/10">
-                        <Check className="w-5 h-5 text-green-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <p className="font-semibold text-white text-sm leading-tight">PIX Aprovado</p>
-                          <span className="text-xs text-white/60 flex-shrink-0">10:52</span>
-                        </div>
-                        <p className="text-xs text-white/80 leading-relaxed">
-                          Pagamento de R$ 497,00 confirmado
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-
-                {/* Background gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black opacity-50" />
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    </section>
-  );
-};
-```
+Os componentes da landing page possuem paddings verticais (`py-`) muito grandes, criando espaços excessivos entre as seções. Vou padronizar os espaçamentos para valores menores e mais consistentes.
 
 ---
 
-### 2. Modificar: `src/pages/SalesPage.tsx`
+## Análise dos Espaçamentos Atuais
 
-Importar e adicionar o novo componente na página de vendas.
-
-**Posição sugerida:** Após `MembersAreaSection` e antes de `WhiteLabelSection` (mantendo a sequência de funcionalidades do sistema).
-
-**Alterações:**
-
-```diff
-+ import { PWANotificationsSection } from "@/components/sales/PWANotificationsSection";
-
-  {/* Section - Members Area Netflix Style */}
-  <MembersAreaSection />
-  
-+ {/* Section - PWA Notifications */}
-+ <PWANotificationsSection />
-  
-  {/* Section 4 - White Label */}
-  <WhiteLabelSection />
-```
+| Componente | Padding Atual | Padding Proposto |
+|------------|---------------|------------------|
+| SalesHero | `py-8 md:py-12` | **Manter** (hero tem espaço adequado) |
+| UseOwnSection | `py-12 md:py-16` | `py-10 md:py-12` |
+| SystemShowcaseSection | `py-16 md:py-24` | `py-10 md:py-14` |
+| IntegratedGatewaysSection | `py-12 md:py-16` | `py-10 md:py-12` |
+| CompleteSystemSection | `py-12 md:py-16` | `py-10 md:py-12` |
+| MembersAreaSection | `py-16 sm:py-24` | `py-10 sm:py-14` |
+| PWANotificationsSection | `py-16 sm:py-24` | `py-10 sm:py-14` |
+| WhiteLabelSection | `py-16 md:py-24` | `py-10 md:py-14` |
+| EarningModelsSection | `py-12 md:py-16` | `py-10 md:py-12` |
+| SalesTestimonials | `py-16 md:py-24` | `py-10 md:py-14` |
+| ClosingOffer | `py-12 md:py-16` | `py-10 md:py-12` |
+| SalesFAQ | `py-12 md:py-16` | `py-10 md:py-12` |
 
 ---
 
-## Estrutura Visual
+## Alterações a Realizar
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│              SEÇÃO NOTIFICAÇÕES PWA                         │
-├─────────────────────────────┬───────────────────────────────┤
-│                             │                               │
-│  [Nova Funcionalidade v2]   │       ┌─────────────────┐     │
-│  [Opcional]                 │       │    ╭───────╮    │     │
-│                             │       │    │       │    │     │
-│  Aplicativo PWA com         │       │ ┌──────────────┐│     │
-│  Notificações Push          │       │ │🛒 Venda      ││     │
-│                             │       │ │ confirmada   ││     │
-│  Transforme sua plataforma  │       │ └──────────────┘│     │
-│  em um aplicativo nativo... │       │ ┌──────────────┐│     │
-│                             │       │ │✓ PIX         ││     │
-│  ✓ Notificações push        │       │ │ Aprovado     ││     │
-│  ✓ Novo PIX gerado          │       │ └──────────────┘│     │
-│  ✓ Pedido aprovado          │       │                 │     │
-│  ✓ Disparos automáticos     │       └─────────────────┘     │
-│  ✓ Instalação como app      │       [iPhone Mockup]         │
-│                             │                               │
-└─────────────────────────────┴───────────────────────────────┘
-```
+### 1. `src/components/sales/UseOwnSection.tsx`
+**Linha 39**: Alterar padding de `py-12 md:py-16` para `py-10 md:py-12`
 
----
+### 2. `src/components/sales/SystemShowcaseSection.tsx`
+**Linha 170**: Alterar padding de `py-16 md:py-24` para `py-10 md:py-14`
 
-## Animações
+### 3. `src/components/sales/IntegratedGatewaysSection.tsx`
+**Linha 34**: Alterar padding de `py-12 md:py-16` para `py-10 md:py-12`
 
-1. **Texto à esquerda**: Slide-in da esquerda (`x: -30` → `x: 0`)
-2. **Lista de features**: Staggered animation com delay incremental
-3. **Mockup do celular**: Slide-in da direita (`x: 30` → `x: 0`)
-4. **Notificações**: Slide-in sequencial da direita com delays (`delay: 0.8s` e `delay: 1.2s`)
+### 4. `src/components/sales/CompleteSystemSection.tsx`
+**Linha 133**: Alterar padding de `py-12 md:py-16` para `py-10 md:py-12`
+
+### 5. `src/components/sales/MembersAreaSection.tsx`
+**Linha 15**: Alterar padding de `py-16 sm:py-24` para `py-10 sm:py-14`
+
+### 6. `src/components/sales/PWANotificationsSection.tsx`
+**Linha 20**: Alterar padding de `py-16 sm:py-24` para `py-10 sm:py-14`
+
+### 7. `src/components/sales/WhiteLabelSection.tsx`
+**Linha 21**: Alterar padding de `py-16 md:py-24` para `py-10 md:py-14`
+
+### 8. `src/components/sales/EarningModelsSection.tsx`
+**Linha 44**: Alterar padding de `py-12 md:py-16` para `py-10 md:py-12`
+
+### 9. `src/components/sales/SalesTestimonials.tsx`
+**Linha 81**: Alterar padding de `py-16 md:py-24` para `py-10 md:py-14`
+
+### 10. `src/components/sales/ClosingOffer.tsx`
+**Linha 31**: Alterar padding de `py-12 md:py-16` para `py-10 md:py-12`
+
+### 11. `src/components/sales/SalesFAQ.tsx`
+**Linha 48**: Alterar padding de `py-12 md:py-16` para `py-10 md:py-12`
 
 ---
 
 ## Resumo das Alterações
 
-| Arquivo | Ação |
-|---------|------|
-| `src/components/sales/PWANotificationsSection.tsx` | **Criar** - Novo componente |
-| `src/pages/SalesPage.tsx` | **Modificar** - Importar e adicionar seção |
+| Arquivo | Alteração |
+|---------|-----------|
+| `UseOwnSection.tsx` | `py-12 md:py-16` → `py-10 md:py-12` |
+| `SystemShowcaseSection.tsx` | `py-16 md:py-24` → `py-10 md:py-14` |
+| `IntegratedGatewaysSection.tsx` | `py-12 md:py-16` → `py-10 md:py-12` |
+| `CompleteSystemSection.tsx` | `py-12 md:py-16` → `py-10 md:py-12` |
+| `MembersAreaSection.tsx` | `py-16 sm:py-24` → `py-10 sm:py-14` |
+| `PWANotificationsSection.tsx` | `py-16 sm:py-24` → `py-10 sm:py-14` |
+| `WhiteLabelSection.tsx` | `py-16 md:py-24` → `py-10 md:py-14` |
+| `EarningModelsSection.tsx` | `py-12 md:py-16` → `py-10 md:py-12` |
+| `SalesTestimonials.tsx` | `py-16 md:py-24` → `py-10 md:py-14` |
+| `ClosingOffer.tsx` | `py-12 md:py-16` → `py-10 md:py-12` |
+| `SalesFAQ.tsx` | `py-12 md:py-16` → `py-10 md:py-12` |
 
 ---
 
-## Comportamento Esperado
+## Resultado Esperado
 
-- Seção aparece entre "Área de Membros" e "White Label"
-- Layout responsivo: empilhado no mobile, 2 colunas no desktop
-- Badges destacando "Nova Funcionalidade v2" e "Opcional"
-- Lista de features com ícones de check verdes
-- Mockup de iPhone realista com dynamic island
-- Notificações animadas que entram sequencialmente ao visualizar a seção
-- Mantém consistência visual com outras seções da página
+- Espaçamento mais compacto e consistente entre todas as seções
+- Redução de aproximadamente 30-40% no espaçamento vertical total
+- Melhor fluxo de leitura na página de vendas
+- Página mais objetiva e com menos "scrolling" desnecessário
