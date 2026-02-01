@@ -4,6 +4,7 @@ import { UseOwnSection } from "@/components/sales/UseOwnSection";
 import { SystemShowcaseSection } from "@/components/sales/SystemShowcaseSection";
 import { IntegratedGatewaysSection } from "@/components/sales/IntegratedGatewaysSection";
 import { CompleteSystemSection } from "@/components/sales/CompleteSystemSection";
+import { MembersAreaSection } from "@/components/sales/MembersAreaSection";
 import { WhiteLabelSection } from "@/components/sales/WhiteLabelSection";
 import { EarningModelsSection } from "@/components/sales/EarningModelsSection";
 import { ClosingOffer } from "@/components/sales/ClosingOffer";
@@ -36,6 +37,9 @@ const SalesPage = () => {
       
       {/* Section 3 - Complete System features list */}
       <CompleteSystemSection onBuyClick={handleBuyClick} />
+      
+      {/* Section - Members Area Netflix Style */}
+      <MembersAreaSection />
       
       {/* Section 4 - White Label */}
       <WhiteLabelSection />
