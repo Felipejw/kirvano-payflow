@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
 import { Check } from "lucide-react";
+import membersAreaImg from "@/assets/screenshots/members-area.png";
 
 const features = [
   "Player de vídeo HD",
@@ -62,7 +63,7 @@ export const MembersAreaSection = () => {
             <div className="absolute -inset-4 bg-primary/10 rounded-3xl blur-2xl" />
             <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
               <img
-                src="/assets/members-area.png"
+                src={membersAreaImg}
                 alt="Área de Membros"
                 className="w-full h-auto"
               />
