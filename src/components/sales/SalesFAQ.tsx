@@ -45,7 +45,7 @@ export const SalesFAQ = ({ onBuyClick }: SalesFAQProps) => {
   };
 
   return (
-    <section ref={ref} className="py-12 md:py-16 px-4 bg-muted/30 pb-28 md:pb-32">
+    <section ref={ref} className="py-10 md:py-12 px-4 bg-muted/30 pb-28 md:pb-32">
       <div className="container max-w-3xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}

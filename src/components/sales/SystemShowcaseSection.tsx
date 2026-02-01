@@ -167,7 +167,7 @@ export const SystemShowcaseSection = () => {
   };
 
   return (
-    <section ref={ref} className="py-16 md:py-24 px-2 md:px-4 bg-background">
+    <section ref={ref} className="py-10 md:py-14 px-2 md:px-4 bg-background">
       <div className="container max-w-6xl mx-auto">
         {/* Header */}
         <motion.div

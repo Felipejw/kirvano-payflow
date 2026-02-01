@@ -18,7 +18,7 @@ export const WhiteLabelSection = () => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-16 md:py-24 px-4 bg-muted/30">
+    <section ref={ref} className="py-10 md:py-14 px-4 bg-muted/30">
       <div className="container max-w-5xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
           {/* Text content */}

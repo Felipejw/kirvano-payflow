@@ -130,7 +130,7 @@ export const CompleteSystemSection = ({ onBuyClick }: CompleteSystemSectionProps
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-12 md:py-16 px-4 bg-background">
+    <section ref={ref} className="py-10 md:py-12 px-4 bg-background">
       <div className="container max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}

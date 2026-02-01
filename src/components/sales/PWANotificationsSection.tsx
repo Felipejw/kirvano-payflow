@@ -16,7 +16,7 @@ export const PWANotificationsSection = () => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-16 sm:py-24 px-5 sm:px-6 lg:px-8 relative">
+    <section ref={ref} className="py-10 sm:py-14 px-5 sm:px-6 lg:px-8 relative">
       <div className="container mx-auto max-w-7xl">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Text content */}
