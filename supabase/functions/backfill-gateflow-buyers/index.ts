@@ -231,7 +231,12 @@ Deno.serve(async (req) => {
             .from("user_roles")
             .upsert({ user_id: userId, role: "member" }, { onConflict: "user_id,role" });
 
-          // 2c) Ensure member record exists
+          // 2c) Ensure seller role para poder criar e vender produtos
+          await supabase
+            .from("user_roles")
+            .upsert({ user_id: userId, role: "seller" }, { onConflict: "user_id,role" });
+
+          // 2d) Ensure member record exists
           const { data: existingMember } = await supabase
             .from("members")
             .select("id")
