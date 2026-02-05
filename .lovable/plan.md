@@ -1,194 +1,110 @@
 
-# Plano: Correção de 3 Problemas no Sistema
 
-## Problema 1: Order Bumps não aparecem na Área de Membros
+# Plano: Backfill de Dados Históricos
 
-### Diagnóstico
-Quando um cliente paga por um produto com order bumps, apenas o produto principal recebe um registro na tabela `members`. Os order bumps são armazenados no campo `order_bumps` da tabela `pix_charges`, mas a função `processPaymentConfirmation` no `pix-api` só cria membership para o `product_id` principal.
+## Problemas Identificados
 
-**Código atual (linha 1672-1680):**
+| Problema | Quantidade | Impacto |
+|----------|------------|---------|
+| Usuários Gateflow sem role "seller" | 19+ usuários | Não conseguem criar/vender produtos |
+| Compras com order bumps sem membership | 20+ compras | Produtos não aparecem na área de membros |
+
+---
+
+## Solução
+
+### 1. Atualizar `backfill-gateflow-buyers` para adicionar role "seller"
+
+**Arquivo:** `supabase/functions/backfill-gateflow-buyers/index.ts`
+
+Adicionar upsert da role "seller" junto com as roles "admin" e "member":
+
 ```typescript
-if (charge.product_id && charge.buyer_email) {
-  const membershipResult = await createMembershipForBuyer(
-    supabase,
-    charge.buyer_email,
-    charge.buyer_name,
-    charge.product_id,  // Apenas produto principal
-    transaction?.id
-  );
-}
+// 2) Ensure admin role
+await supabase.from("user_roles")
+  .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
+
+// 2b) Ensure member role
+await supabase.from("user_roles")
+  .upsert({ user_id: userId, role: "member" }, { onConflict: "user_id,role" });
+
+// NOVO: 2c) Ensure seller role para poder criar e vender produtos
+await supabase.from("user_roles")
+  .upsert({ user_id: userId, role: "seller" }, { onConflict: "user_id,role" });
 ```
 
-### Solução
-Modificar a função `processPaymentConfirmation` em `supabase/functions/pix-api/index.ts` para também criar memberships para cada produto nos order_bumps.
+---
 
-**Alterações necessárias:**
+### 2. Criar nova função para backfill de order bumps históricos
 
-1. Após criar membership para o produto principal, iterar sobre `charge.order_bumps` e criar membership para cada um.
+**Arquivo:** `supabase/functions/backfill-order-bump-memberships/index.ts`
 
+Nova Edge Function que:
+1. Busca todas as `pix_charges` pagas que têm `order_bumps`
+2. Para cada charge, verifica se existem memberships para os order bumps
+3. Cria memberships faltantes
+
+**Lógica:**
 ```typescript
-// Criar membership para produto principal
-if (charge.product_id && charge.buyer_email) {
-  const membershipResult = await createMembershipForBuyer(...);
+// 1. Buscar charges pagas com order_bumps
+const { data: charges } = await supabase
+  .from("pix_charges")
+  .select("id, buyer_email, order_bumps")
+  .eq("status", "paid")
+  .not("order_bumps", "is", null);
+
+// 2. Para cada charge com order_bumps
+for (const charge of charges) {
+  // Encontrar user_id pelo email
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_id")
+    .eq("email", charge.buyer_email)
+    .single();
+    
+  if (!profile?.user_id) continue;
   
-  // NOVO: Criar membership para cada order bump
-  if (charge.order_bumps && Array.isArray(charge.order_bumps) && charge.order_bumps.length > 0) {
-    console.log('Creating memberships for order bumps:', charge.order_bumps);
-    for (const bumpProductId of charge.order_bumps) {
-      try {
-        await createMembershipForBuyer(
-          supabase,
-          charge.buyer_email,
-          charge.buyer_name,
-          bumpProductId,
-          transaction?.id
-        );
-        console.log('Order bump membership created for:', bumpProductId);
-      } catch (bumpError) {
-        console.error('Error creating order bump membership:', bumpError);
-      }
+  // 3. Para cada order bump, criar membership se não existir
+  for (const productId of charge.order_bumps) {
+    const { data: existing } = await supabase
+      .from("members")
+      .select("id")
+      .eq("user_id", profile.user_id)
+      .eq("product_id", productId)
+      .maybeSingle();
+      
+    if (!existing) {
+      await supabase.from("members").insert({
+        user_id: profile.user_id,
+        product_id: productId,
+        access_level: "full",
+        status: "active"
+      });
     }
   }
 }
 ```
-
-2. Garantir que a query que busca o charge inclua o campo `order_bumps`.
-
----
-
-## Problema 2: Cliente ao instalar sistema não pode vender (falta role "seller")
-
-### Diagnóstico
-O `process-gateflow-sale` adiciona as roles "admin" e "member", mas não adiciona "seller". Como resultado, o usuário não consegue criar e vender produtos.
-
-**Código atual (linhas 165-187):**
-```typescript
-// Adicionar role 'admin'
-await supabaseAdmin.from("user_roles").insert({ user_id: userId, role: "admin" });
-
-// Adicionar role 'member' para acesso à área de membros
-await supabaseAdmin.from("user_roles").insert({ user_id: userId, role: "member" });
-```
-
-### Solução
-Adicionar também a role "seller" no `supabase/functions/process-gateflow-sale/index.ts`.
-
-**Alterações necessárias:**
-
-Após adicionar as roles "admin" e "member", adicionar também "seller":
-
-```typescript
-// Adicionar role 'admin'
-const { error: roleError } = await supabaseAdmin
-  .from("user_roles")
-  .insert({ user_id: userId, role: "admin" });
-
-// Adicionar role 'member' para acesso à área de membros  
-const { error: memberRoleError } = await supabaseAdmin
-  .from("user_roles")
-  .insert({ user_id: userId, role: "member" });
-
-// NOVO: Adicionar role 'seller' para poder criar e vender produtos
-const { error: sellerRoleError } = await supabaseAdmin
-  .from("user_roles")
-  .insert({ user_id: userId, role: "seller" });
-
-if (sellerRoleError) {
-  console.error("Error adding seller role:", sellerRoleError);
-}
-```
-
----
-
-## Problema 3: Produtos não aparecem no diálogo "Conceder Acesso"
-
-### Diagnóstico
-O `ClientDetailDialog` busca apenas produtos com `seller_id = user.id` e `status = 'active'`. Se o vendedor não criou nenhum produto ainda (como no caso de quem acabou de instalar), nenhum produto aparece.
-
-**Código atual (linhas 131-136):**
-```typescript
-const { data: products, error } = await supabase
-  .from("products")
-  .select("id, name")
-  .eq("seller_id", user.id)
-  .eq("status", "active")
-  .order("name");
-```
-
-### Solução
-O problema está relacionado ao problema 2 - sem a role "seller", o usuário pode não ver produtos. Mas também precisamos considerar que o vendedor novo pode não ter criado produtos ainda.
-
-Porém, após análise, o problema real é que quando o novo admin é criado pelo `process-gateflow-sale`, um produto é copiado para ele (linha 237-256), então deveria ter ao menos um produto.
-
-A correção do problema 2 (adicionar role seller) deve resolver isso, pois o usuário terá as permissões corretas para ver e gerenciar seus produtos.
-
-Adicionalmente, vou verificar se o produto copiado tem o `status = 'active'` corretamente.
 
 ---
 
 ## Resumo das Alterações
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/pix-api/index.ts` | Criar memberships para order bumps além do produto principal |
-| `supabase/functions/process-gateflow-sale/index.ts` | Adicionar role "seller" para novos admins do sistema |
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `supabase/functions/backfill-gateflow-buyers/index.ts` | Modificar | Adicionar upsert de role "seller" |
+| `supabase/functions/backfill-order-bump-memberships/index.ts` | Criar | Nova função para criar memberships de order bumps históricos |
 
 ---
 
-## Detalhes Técnicos
+## Fluxo de Execução
 
-### Arquivo 1: `supabase/functions/pix-api/index.ts`
-
-**Localização:** Após a criação do membership do produto principal (linha ~1713)
-
-**Código a adicionar:**
-```typescript
-// Create memberships for order bump products
-if (charge.order_bumps && Array.isArray(charge.order_bumps) && charge.order_bumps.length > 0) {
-  console.log('Creating memberships for order bumps:', charge.order_bumps);
-  for (const bumpProductId of charge.order_bumps) {
-    try {
-      await createMembershipForBuyer(
-        supabase,
-        charge.buyer_email,
-        charge.buyer_name,
-        bumpProductId,
-        transaction?.id
-      );
-      console.log('Order bump membership created for product:', bumpProductId);
-    } catch (bumpError) {
-      console.error('Error creating order bump membership for:', bumpProductId, bumpError);
-      // Continue with other bumps even if one fails
-    }
-  }
-}
-```
-
-### Arquivo 2: `supabase/functions/process-gateflow-sale/index.ts`
-
-**Localização:** Após adicionar role "member" (linha ~187)
-
-**Código a adicionar:**
-```typescript
-// Adicionar role 'seller' para poder criar e vender produtos
-const { error: sellerRoleError } = await supabaseAdmin
-  .from("user_roles")
-  .insert({
-    user_id: userId,
-    role: "seller",
-  });
-
-if (sellerRoleError) {
-  console.error("Error adding seller role:", sellerRoleError);
-}
-```
+1. **Deploy** das funções atualizadas
+2. **Executar** `backfill-gateflow-buyers` com `dry_run: false` para adicionar role "seller" a todos compradores
+3. **Executar** `backfill-order-bump-memberships` para criar memberships de order bumps faltantes
 
 ---
 
-## Comportamento Esperado Após Correções
+## Interface de Uso
 
-1. **Order Bumps na Área de Membros:** Quando um cliente compra um produto com order bumps, todos os produtos (principal + bumps) aparecerão na área de membros.
+Ambas as funções podem ser chamadas pelo painel Super Admin existente (`GateflowBackfillCard`), ou adicionar um novo card para o backfill de order bumps.
 
-2. **Novos Admins como Vendedores:** Ao instalar o sistema Gateflow, o novo admin terá as roles: admin + member + seller, permitindo acesso à área de membros E capacidade de criar/vender produtos.
-
-3. **Produtos no Diálogo de Acesso:** Com a role "seller" adicionada, o novo admin poderá ver e gerenciar seus produtos corretamente, incluindo conceder acesso manual a clientes.
