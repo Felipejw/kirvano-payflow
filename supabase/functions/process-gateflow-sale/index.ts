@@ -186,6 +186,18 @@ Deno.serve(async (req) => {
       console.error("Error adding member role:", memberRoleError);
     }
 
+    // Adicionar role 'seller' para poder criar e vender produtos
+    const { error: sellerRoleError } = await supabaseAdmin
+      .from("user_roles")
+      .insert({
+        user_id: userId,
+        role: "seller",
+      });
+
+    if (sellerRoleError) {
+      console.error("Error adding seller role:", sellerRoleError);
+    }
+
     // Criar acesso à área de membros do produto Gateflow
     const GATEFLOW_PRODUCT_ID = "e5761661-ebb4-4605-a33c-65943686972c";
     

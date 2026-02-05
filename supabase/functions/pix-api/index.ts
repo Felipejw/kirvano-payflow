@@ -1711,6 +1711,26 @@ async function processPaymentConfirmation(
     } catch (memberError) {
       console.error('Error creating membership:', memberError);
     }
+    
+    // Create memberships for order bump products
+    if (charge.order_bumps && Array.isArray(charge.order_bumps) && charge.order_bumps.length > 0) {
+      console.log('Creating memberships for order bumps:', charge.order_bumps);
+      for (const bumpProductId of charge.order_bumps) {
+        try {
+          await createMembershipForBuyer(
+            supabase,
+            charge.buyer_email,
+            charge.buyer_name,
+            bumpProductId,
+            transaction?.id
+          );
+          console.log('Order bump membership created for product:', bumpProductId);
+        } catch (bumpError) {
+          console.error('Error creating order bump membership for:', bumpProductId, bumpError);
+          // Continue with other bumps even if one fails
+        }
+      }
+    }
   }
 
   // Send user webhooks
