@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.update-customer-email]
 verify_jwt = false
+
+[functions.backfill-order-bump-memberships]
+verify_jwt = true
