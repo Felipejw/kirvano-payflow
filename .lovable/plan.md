@@ -1,110 +1,83 @@
 
 
-# Plano: Backfill de Dados Históricos
+# Plano: Corrigir erro ao criar Admin (case-sensitivity do email)
 
-## Problemas Identificados
+## Diagnóstico
 
-| Problema | Quantidade | Impacto |
-|----------|------------|---------|
-| Usuários Gateflow sem role "seller" | 19+ usuários | Não conseguem criar/vender produtos |
-| Compras com order bumps sem membership | 20+ compras | Produtos não aparecem na área de membros |
+O erro ocorre porque o formulário envia o email com letras maiusculas (ex: `Pauloriko@bol.com.br`), mas o banco armazena em minusculas (`pauloriko@bol.com.br`). As comparacoes no codigo sao case-sensitive, causando falha na localizacao do usuario.
 
----
+Adicionalmente, o fallback `listUsers()` retorna apenas 50 dos 207 usuarios, tornando-o pouco confiavel.
 
-## Solução
+## Solucao
 
-### 1. Atualizar `backfill-gateflow-buyers` para adicionar role "seller"
+### Arquivo: `supabase/functions/create-tenant-admin/index.ts`
 
-**Arquivo:** `supabase/functions/backfill-gateflow-buyers/index.ts`
+**Alteracao 1: Normalizar email para minusculas no inicio da funcao**
 
-Adicionar upsert da role "seller" junto com as roles "admin" e "member":
+Apos o parsing do body, converter o email para lowercase:
 
 ```typescript
-// 2) Ensure admin role
+const emailNormalized = email.trim().toLowerCase();
+```
+
+E usar `emailNormalized` em todas as operacoes subsequentes (busca de perfil, criacao de usuario, etc).
+
+**Alteracao 2: Usar `.ilike()` na busca por perfil como seguranca extra**
+
+Trocar:
+```typescript
+.eq("email", email)
+```
+Por:
+```typescript
+.eq("email", emailNormalized)
+```
+
+**Alteracao 3: Melhorar fallback de busca de usuario existente**
+
+Substituir `listUsers()` sem filtro (que so traz 50 usuarios) por busca paginada ou comparacao case-insensitive:
+
+```typescript
+// Ao inves de listar todos, normalizar o email na comparacao
+const { data: { users } } = await supabase.auth.admin.listUsers({ 
+  page: 1, 
+  perPage: 1000 
+});
+const existingAuthUser = users?.find(
+  u => u.email?.toLowerCase() === emailNormalized
+);
+```
+
+**Alteracao 4: Adicionar roles "seller" e "member" alem de "admin"**
+
+Aproveitar para incluir as roles que foram adicionadas no `process-gateflow-sale`, garantindo que admins criados manualmente tambem recebam todas as roles necessarias:
+
+```typescript
+// Adicionar role admin
 await supabase.from("user_roles")
   .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
 
-// 2b) Ensure member role
-await supabase.from("user_roles")
-  .upsert({ user_id: userId, role: "member" }, { onConflict: "user_id,role" });
-
-// NOVO: 2c) Ensure seller role para poder criar e vender produtos
+// Adicionar role seller
 await supabase.from("user_roles")
   .upsert({ user_id: userId, role: "seller" }, { onConflict: "user_id,role" });
+
+// Adicionar role member
+await supabase.from("user_roles")
+  .upsert({ user_id: userId, role: "member" }, { onConflict: "user_id,role" });
 ```
 
----
+Usar `upsert` em vez de `insert` para evitar erro de duplicidade se a role ja existir (como no caso do usuario `Pauloriko@bol.com.br` que ja tem role "member").
 
-### 2. Criar nova função para backfill de order bumps históricos
+## Resumo das Alteracoes
 
-**Arquivo:** `supabase/functions/backfill-order-bump-memberships/index.ts`
+| Arquivo | Alteracao |
+|---------|-----------|
+| `supabase/functions/create-tenant-admin/index.ts` | Normalizar email para lowercase, aumentar limite do listUsers, usar upsert para roles, adicionar roles seller e member |
 
-Nova Edge Function que:
-1. Busca todas as `pix_charges` pagas que têm `order_bumps`
-2. Para cada charge, verifica se existem memberships para os order bumps
-3. Cria memberships faltantes
+## Resultado Esperado
 
-**Lógica:**
-```typescript
-// 1. Buscar charges pagas com order_bumps
-const { data: charges } = await supabase
-  .from("pix_charges")
-  .select("id, buyer_email, order_bumps")
-  .eq("status", "paid")
-  .not("order_bumps", "is", null);
-
-// 2. Para cada charge com order_bumps
-for (const charge of charges) {
-  // Encontrar user_id pelo email
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("email", charge.buyer_email)
-    .single();
-    
-  if (!profile?.user_id) continue;
-  
-  // 3. Para cada order bump, criar membership se não existir
-  for (const productId of charge.order_bumps) {
-    const { data: existing } = await supabase
-      .from("members")
-      .select("id")
-      .eq("user_id", profile.user_id)
-      .eq("product_id", productId)
-      .maybeSingle();
-      
-    if (!existing) {
-      await supabase.from("members").insert({
-        user_id: profile.user_id,
-        product_id: productId,
-        access_level: "full",
-        status: "active"
-      });
-    }
-  }
-}
-```
-
----
-
-## Resumo das Alterações
-
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `supabase/functions/backfill-gateflow-buyers/index.ts` | Modificar | Adicionar upsert de role "seller" |
-| `supabase/functions/backfill-order-bump-memberships/index.ts` | Criar | Nova função para criar memberships de order bumps históricos |
-
----
-
-## Fluxo de Execução
-
-1. **Deploy** das funções atualizadas
-2. **Executar** `backfill-gateflow-buyers` com `dry_run: false` para adicionar role "seller" a todos compradores
-3. **Executar** `backfill-order-bump-memberships` para criar memberships de order bumps faltantes
-
----
-
-## Interface de Uso
-
-Ambas as funções podem ser chamadas pelo painel Super Admin existente (`GateflowBackfillCard`), ou adicionar um novo card para o backfill de order bumps.
+- Criar admin funciona independente de maiusculas/minusculas no email
+- Usuarios existentes sao encontrados corretamente
+- Novos admins recebem todas as 3 roles: admin, seller, member
+- Sem erro de duplicidade ao adicionar roles que ja existem
 
