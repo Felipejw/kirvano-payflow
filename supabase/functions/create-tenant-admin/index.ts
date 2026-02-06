@@ -16,7 +16,6 @@ interface CreateTenantAdminRequest {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -25,12 +24,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    // Create admin client
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
     // Verify caller is super_admin
@@ -52,7 +47,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if caller is super_admin
     const { data: callerRoles } = await supabase
       .from("user_roles")
       .select("role")
@@ -78,16 +72,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Creating admin user for: ${email}`);
+    // *** FIX: Normalize email to lowercase ***
+    const emailNormalized = email.trim().toLowerCase();
+
+    console.log(`Creating admin user for: ${emailNormalized}`);
 
     let userId: string;
     let isExistingUser = false;
 
-    // Check if user already exists in profiles
+    // Check if user already exists in profiles (using normalized email)
     const { data: existingProfile } = await supabase
       .from("profiles")
       .select("user_id, tenant_id")
-      .eq("email", email)
+      .eq("email", emailNormalized)
       .maybeSingle();
 
     if (existingProfile?.user_id) {
@@ -118,9 +115,9 @@ Deno.serve(async (req) => {
         }
       }
     } else {
-      // Try to create new user in auth
+      // Try to create new user in auth (using normalized email)
       const { data: authData, error: createError } = await supabase.auth.admin.createUser({
-        email,
+        email: emailNormalized,
         password,
         email_confirm: true,
         user_metadata: {
@@ -132,13 +129,17 @@ Deno.serve(async (req) => {
       });
 
       if (createError) {
-        // Check if error is because user already exists in auth
         if (createError.message?.includes("already been registered")) {
           console.log("User exists in auth but not in profiles, searching...");
           
-          // Fallback: list users to find the existing one
-          const { data: { users } } = await supabase.auth.admin.listUsers();
-          const existingAuthUser = users?.find(u => u.email === email);
+          // *** FIX: Increase perPage and use case-insensitive comparison ***
+          const { data: { users } } = await supabase.auth.admin.listUsers({ 
+            page: 1, 
+            perPage: 1000 
+          });
+          const existingAuthUser = users?.find(
+            u => u.email?.toLowerCase() === emailNormalized
+          );
           
           if (existingAuthUser) {
             userId = existingAuthUser.id;
@@ -167,9 +168,9 @@ Deno.serve(async (req) => {
         );
       }
     }
-    console.log(`User created with ID: ${userId}`);
+    console.log(`User ready with ID: ${userId}`);
 
-    // 2. Update profile with phone if provided
+    // Update profile with phone if provided
     if (phone) {
       await supabase
         .from("profiles")
@@ -177,17 +178,23 @@ Deno.serve(async (req) => {
         .eq("user_id", userId);
     }
 
-    // 3. Add admin role
-    const { error: roleError } = await supabase
-      .from("user_roles")
-      .insert({ user_id: userId, role: "admin" });
-
-    if (roleError) {
-      console.error("Error adding role:", roleError);
-      // Continue anyway, profile trigger may have already created seller role
+    // *** FIX: Add all 3 roles using upsert to avoid duplicate errors ***
+    const rolesToAdd: string[] = ["admin", "seller", "member"];
+    for (const role of rolesToAdd) {
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .upsert(
+          { user_id: userId, role },
+          { onConflict: "user_id,role" }
+        );
+      if (roleError) {
+        console.error(`Error adding role ${role}:`, roleError);
+      } else {
+        console.log(`Role '${role}' ensured for user ${userId}`);
+      }
     }
 
-    // 4. Create tenant
+    // Create tenant
     const { data: tenant, error: tenantError } = await supabase
       .from("tenants")
       .insert({
@@ -209,7 +216,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5. Update profile with tenant_id
+    // Update profile with tenant_id
     await supabase
       .from("profiles")
       .update({ tenant_id: tenant.id })
@@ -217,7 +224,7 @@ Deno.serve(async (req) => {
 
     console.log(`Tenant created: ${tenant.id}`);
 
-    // 6. Add default Gateflow product for reselling (copy from main product)
+    // Add default Gateflow product for reselling
     const GATEFLOW_PRODUCT_ID = "e5761661-ebb4-4605-a33c-65943686972c";
     
     const { data: sourceProduct } = await supabase
@@ -237,14 +244,14 @@ Deno.serve(async (req) => {
           cover_url: sourceProduct.cover_url,
           type: sourceProduct.type,
           status: "active",
-          commission_rate: 50, // 50% commission for affiliates
+          commission_rate: 50,
           allow_affiliates: true,
           checkout_theme: sourceProduct.checkout_theme,
           custom_slug: `gateflow-${Date.now()}`,
           deliverable_type: sourceProduct.deliverable_type,
           deliverable_url: sourceProduct.deliverable_url,
-          parent_product_id: GATEFLOW_PRODUCT_ID, // Link to original for order_bumps and payment
-          order_bumps: sourceProduct.order_bumps, // Copy order bumps from original
+          parent_product_id: GATEFLOW_PRODUCT_ID,
+          order_bumps: sourceProduct.order_bumps,
         });
       
       if (productError) {
