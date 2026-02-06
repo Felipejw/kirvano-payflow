@@ -59,6 +59,56 @@ export function GatewayCredentialsDialog({
     }
   }, [open, gateway]);
 
+  const fetchCredentialsFallback = async () => {
+    console.log('[GatewayCredentials] Edge Function falhou, tentando fallback direto no banco...');
+    
+    const { data: gatewayData, error: gwError } = await supabase
+      .from('payment_gateways')
+      .select('id')
+      .eq('slug', gateway)
+      .maybeSingle();
+
+    if (gwError || !gatewayData) {
+      console.error('[GatewayCredentials] Fallback: gateway não encontrado no banco:', gwError);
+      throw new Error('Gateway não encontrado no banco de dados');
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+
+    // Se for super_admin, credenciais globais vêm de env vars (só acessíveis via Edge Function)
+    if (isSuperAdmin) {
+      console.log('[GatewayCredentials] Fallback: super_admin sem Edge Function - mostrando aviso');
+      setCredentials({ client_id: null, client_secret: null });
+      setSource('platform');
+      setError('edge_function_unavailable');
+      return;
+    }
+
+    // Admin: buscar credenciais próprias diretamente do banco
+    const { data: sellerCreds, error: credsError } = await supabase
+      .from('seller_gateway_credentials')
+      .select('credentials')
+      .eq('user_id', user.id)
+      .eq('gateway_id', gatewayData.id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (credsError) {
+      console.error('[GatewayCredentials] Fallback: erro ao buscar credenciais:', credsError);
+      throw credsError;
+    }
+
+    const creds = (sellerCreds?.credentials as unknown as Credentials) || { client_id: null, client_secret: null };
+    console.log('[GatewayCredentials] Fallback: credenciais carregadas do banco com sucesso');
+    setCredentials(creds);
+    setEditCredentials({
+      client_id: creds.client_id || '',
+      client_secret: creds.client_secret || '',
+    });
+    setSource('admin');
+  };
+
   const fetchCredentials = async () => {
     setLoading(true);
     setError(null);
@@ -83,9 +133,16 @@ export function GatewayCredentialsDialog({
       });
       setSource(data.source || 'admin');
     } catch (err: any) {
-      console.error('Error fetching credentials:', err);
-      setError(err.message || 'Erro ao carregar credenciais');
-      toast.error('Erro ao carregar credenciais');
+      console.warn('[GatewayCredentials] Edge Function falhou:', err.message || err);
+      
+      // Fallback: buscar direto do banco
+      try {
+        await fetchCredentialsFallback();
+      } catch (fallbackErr: any) {
+        console.error('[GatewayCredentials] Fallback também falhou:', fallbackErr);
+        setError(fallbackErr.message || 'Erro ao carregar credenciais');
+        toast.error('Erro ao carregar credenciais');
+      }
     } finally {
       setLoading(false);
     }
@@ -220,9 +277,17 @@ export function GatewayCredentialsDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {error && (
+          {error && error !== 'edge_function_unavailable' && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
               <p className="text-destructive">{error}</p>
+            </div>
+          )}
+
+          {error === 'edge_function_unavailable' && isSuperAdmin && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
+              <p className="text-amber-600 dark:text-amber-400">
+                <strong>Função Edge indisponível:</strong> As credenciais globais são configuradas diretamente no servidor via variáveis de ambiente. Use o painel do servidor para gerenciá-las.
+              </p>
             </div>
           )}
 
