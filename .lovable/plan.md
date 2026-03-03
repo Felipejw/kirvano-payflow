@@ -1,87 +1,99 @@
 
 
-# Plano: Tornar get-gateway-credentials compativel com ambos ambientes
+# Plano: Corrigir integração Ghostpay PIX - Transações sendo recusadas
 
-## Diagnostico
+## Diagnóstico
 
-O problema ocorre porque:
-
-1. **Lovable Cloud**: A Edge Function `get-gateway-credentials` funciona corretamente (testado e confirmado)
-2. **Instancia Docker auto-hospedada**: A Edge Function pode nao estar disponivel ou ter configuracao diferente no Supabase Docker local
-
-O frontend depende 100% da Edge Function para carregar credenciais, sem nenhum fallback. Quando a funcao falha (por qualquer motivo), o dialog mostra "Erro ao carregar credenciais".
-
-## Solucao: Fallback direto no frontend
-
-A abordagem e adicionar um fallback no `GatewayCredentialsDialog` que busca as credenciais diretamente do banco de dados quando a Edge Function falha. Isso funciona porque:
-
-- **Admin (tenant)**: As politicas RLS ja permitem `auth.uid() = user_id` na tabela `seller_gateway_credentials`, entao o admin pode consultar suas proprias credenciais diretamente
-- **Super Admin**: Se a Edge Function falhar, exibir mensagem informando que as credenciais globais sao gerenciadas no nivel do servidor (nao e possivel acessar env vars sem Edge Function)
-
-### Arquivo: `src/components/admin/GatewayCredentialsDialog.tsx`
-
-**Alteracao na funcao `fetchCredentials`:**
+Analisei os logs da Edge Function `pix-api` e encontrei a causa raiz. **Todas as transações recentes estão sendo recusadas pela Ghostpay** com:
 
 ```text
-Fluxo atual:
-  1. Chamar Edge Function get-gateway-credentials
-  2. Se falhar -> mostrar erro
-
-Novo fluxo:
-  1. Chamar Edge Function get-gateway-credentials
-  2. Se funcionar -> usar resultado normalmente
-  3. Se falhar -> executar fallback:
-     a. Buscar gateway_id na tabela payment_gateways (por slug)
-     b. Buscar credenciais na tabela seller_gateway_credentials (por user_id + gateway_id)
-     c. Se for super_admin -> mostrar aviso que credenciais globais sao gerenciadas no servidor
-     d. Se for admin -> mostrar credenciais encontradas no banco
-```
-
-**Detalhes tecnicos do fallback:**
-
-```typescript
-// Fallback: buscar diretamente do banco
-const { data: gatewayData } = await supabase
-  .from('payment_gateways')
-  .select('id')
-  .eq('slug', gateway)
-  .maybeSingle();
-
-if (gatewayData) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    const { data: sellerCreds } = await supabase
-      .from('seller_gateway_credentials')
-      .select('credentials')
-      .eq('user_id', user.id)
-      .eq('gateway_id', gatewayData.id)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    // Usar credenciais encontradas ou null
-    setCredentials(sellerCreds?.credentials || { client_id: null, client_secret: null });
-    setSource('admin');
-  }
+status: "refused"
+pix.qrcode: null
+refusedReason: {
+  acquirerCode: 200,
+  description: "Transação recusada pela adquirente",
+  antifraud: false
 }
 ```
 
-Para super_admin sem Edge Function, o componente exibira:
-- "Credenciais globais sao configuradas diretamente no servidor (variaveis de ambiente). Use o painel do servidor para gerencia-las."
-- Isso substitui a mensagem de erro por algo informativo e util
+Isso explica por que o QR Code e o código copia e cola aparecem vazios no checkout.
 
-**Alteracao adicional - Melhorar mensagem de erro:**
+### Problemas identificados:
 
-Em vez de mostrar "Erro ao carregar credenciais" generico, incluir log detalhado do erro no console para facilitar debug futuro.
+**1. CPF falso `00000000000`**: O campo `buyer_document` não está sendo preenchido pelo checkout, então o fallback `'00000000000'` é usado. A Ghostpay (ou a adquirente por trás) rejeita transações com CPF inválido.
 
-## Resumo das Alteracoes
+**2. O código não verifica se a transação foi recusada**: Mesmo quando a Ghostpay retorna `status: "refused"` com `pix.qrcode: null`, o código trata como sucesso (HTTP 200) e salva a charge sem QR Code. O frontend mostra a tela de PIX com campos vazios.
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/components/admin/GatewayCredentialsDialog.tsx` | Adicionar fallback com busca direta no banco quando Edge Function falhar; mensagem especial para super_admin sem Edge Function |
+**3. Campo `ip: "0.0.0.0"` no metadata**: Pode contribuir para recusa por antifraude/adquirente.
+
+## Alterações
+
+### Arquivo 1: `supabase/functions/pix-api/index.ts`
+
+**Alteração A - Verificar status "refused" na resposta do Ghostpay** (dentro de `createGhostpayPixPayment`, após parsear a resposta):
+
+Após `const data = JSON.parse(responseText)`, adicionar verificação:
+
+```typescript
+if (data.status === 'refused' || data.status === 'chargedback') {
+  const reason = data.refusedReason?.description || 'Transação recusada';
+  console.error('Ghostpay PIX refused:', reason, data.refusedReason);
+  throw new Error(`Transação recusada pelo gateway: ${reason}`);
+}
+```
+
+Isso faz com que o erro seja propagado corretamente para o frontend em vez de mostrar uma tela de PIX vazia.
+
+**Alteração B - Remover CPF falso e enviar sem document se não fornecido** (dentro de `createGhostpayPixPayment`):
+
+Trocar:
+```typescript
+document: {
+  number: customer.document?.replace(/\D/g, '') || '00000000000',
+  type: 'CPF'
+}
+```
+
+Por:
+```typescript
+...(customer.document && customer.document !== '00000000000' ? {
+  document: {
+    number: customer.document.replace(/\D/g, ''),
+    type: customer.document.replace(/\D/g, '').length > 11 ? 'CNPJ' : 'CPF'
+  }
+} : {})
+```
+
+Isso envia o campo `document` apenas quando um CPF real for fornecido, em vez de enviar um CPF falso que causa recusa.
+
+**Alteração C - Capturar IP real do comprador** (no handler `/charges`):
+
+Ao chamar `createGhostpayPixPayment`, passar o IP real em vez de `'0.0.0.0'`:
+
+```typescript
+metadata: {
+  external_id: externalId,
+  ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
+    || req.headers.get('x-real-ip') 
+    || '0.0.0.0'
+}
+```
+
+### Arquivo 2: Checkout frontend (investigar se CPF está sendo coletado)
+
+Verificar se o checkout coleta o CPF do comprador e envia como `buyer_document` na request. Se não, será necessário garantir que o campo CPF seja obrigatório no checkout ao usar Ghostpay.
+
+## Resumo
+
+| Alteração | Arquivo | Impacto |
+|-----------|---------|---------|
+| Verificar status "refused" | pix-api/index.ts | Erro claro no frontend em vez de PIX vazio |
+| Remover CPF falso | pix-api/index.ts | Evita recusa pela adquirente |
+| Capturar IP real | pix-api/index.ts | Reduz rejeições por antifraude |
 
 ## Resultado Esperado
 
-- **Lovable Cloud**: Continua funcionando via Edge Function (sem mudanca)
-- **Instancia Docker**: Admin carrega credenciais diretamente do banco; Super Admin ve mensagem informativa sobre configuracao no servidor
-- **Zero quebras**: O fallback so e ativado se a Edge Function falhar
+- Transações PIX via Ghostpay passam a ser aceitas (sem CPF falso bloqueando)
+- Se uma transação for recusada, o frontend mostra mensagem de erro em vez de tela de PIX vazia
+- Transações aparecem no painel da Ghostpay como pendentes (não mais recusadas)
 
