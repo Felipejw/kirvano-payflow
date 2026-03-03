@@ -1147,7 +1147,7 @@ async function createGhostpayPixPayment(
   companyId: string,
   amount: number,
   externalId: string,
-  customer: { name: string; email: string; document: string; phone?: string },
+  customer: { name: string; email: string; document?: string; phone?: string; ip?: string },
   postbackUrl: string,
   description?: string
 ): Promise<GhostpayPaymentResult> {
@@ -1161,10 +1161,12 @@ async function createGhostpayPixPayment(
       name: customer.name || 'Cliente',
       email: customer.email,
       phone: customer.phone?.replace(/\D/g, '') || undefined,
-      document: {
-        number: customer.document?.replace(/\D/g, '') || '00000000000',
-        type: 'CPF'
-      }
+      ...(customer.document && customer.document.replace(/\D/g, '') !== '00000000000' && customer.document.replace(/\D/g, '').length >= 11 ? {
+        document: {
+          number: customer.document.replace(/\D/g, ''),
+          type: customer.document.replace(/\D/g, '').length > 11 ? 'CNPJ' : 'CPF'
+        }
+      } : {})
     },
     items: [
       {
@@ -1180,7 +1182,7 @@ async function createGhostpayPixPayment(
     postbackUrl: postbackUrl,
     metadata: {
       external_id: externalId,
-      ip: '0.0.0.0'
+      ip: customer.ip || '0.0.0.0'
     }
   };
   
@@ -1206,6 +1208,13 @@ async function createGhostpayPixPayment(
   }
   
   const data = JSON.parse(responseText);
+  
+  // SECURITY: Check if transaction was refused by the acquirer
+  if (data.status === 'refused' || data.status === 'chargedback') {
+    const reason = data.refusedReason?.description || 'Transação recusada pela adquirente';
+    console.error('Ghostpay PIX refused:', reason, JSON.stringify(data.refusedReason));
+    throw new Error(`Transação recusada pelo gateway: ${reason}`);
+  }
   
   console.log('Ghostpay PIX payment created:', data.id);
   
@@ -1259,10 +1268,12 @@ async function createGhostpayCardPayment(
       name: customer.name || 'Cliente',
       email: customer.email,
       phone: customer.phone?.replace(/\D/g, '') || undefined,
-      document: {
-        number: customer.document?.replace(/\D/g, '') || '00000000000',
-        type: 'CPF'
-      }
+      ...(customer.document && customer.document.replace(/\D/g, '') !== '00000000000' && customer.document.replace(/\D/g, '').length >= 11 ? {
+        document: {
+          number: customer.document.replace(/\D/g, ''),
+          type: customer.document.replace(/\D/g, '').length > 11 ? 'CNPJ' : 'CPF'
+        }
+      } : {})
     },
     items: [
       {
@@ -2504,8 +2515,9 @@ serve(async (req) => {
             {
               name: body.buyer_name || 'Cliente',
               email: body.buyer_email,
-              document: body.buyer_document || '00000000000',
+              document: body.buyer_document || undefined,
               phone: body.buyer_phone,
+              ip: body.remote_ip || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || '0.0.0.0',
             },
             webhookUrl + '/ghostpay',
             description
