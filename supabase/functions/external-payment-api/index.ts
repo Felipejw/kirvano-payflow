@@ -169,8 +169,20 @@ async function createGhostpayCharge(
 
   const data = JSON.parse(responseText);
 
+  // Check if transaction was refused
+  if (data.status === 'refused' || data.status === 'chargedback') {
+    const reason = data.refusedReason?.description || 'Transação recusada';
+    console.error('Ghostpay refused:', reason, JSON.stringify(data.refusedReason));
+    throw new Error(`Transação recusada pelo gateway: ${reason}`);
+  }
+
   // Extract copy-paste code
   const copyPasteCode = data.pix?.qrcode || data.pix?.qrCode || data.pix?.qr_code || data.pix?.emv || '';
+
+  if (!copyPasteCode) {
+    console.error('Ghostpay returned empty QR code:', JSON.stringify(data.pix));
+    throw new Error('Gateway não gerou código PIX. Verifique as credenciais e dados do comprador.');
+  }
 
   return {
     transactionId: data.id,
