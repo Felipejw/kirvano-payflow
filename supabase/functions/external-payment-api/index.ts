@@ -120,12 +120,18 @@ async function createGhostpayCharge(
     customer: {
       name: buyerName || 'Cliente',
       email: buyerEmail,
-      ...(buyerDocument && buyerDocument.replace(/\D/g, '').length >= 11 && buyerDocument.replace(/\D/g, '') !== '00000000000' ? {
-        document: {
-          number: buyerDocument.replace(/\D/g, ''),
-          type: buyerDocument.replace(/\D/g, '').length > 11 ? 'CNPJ' : 'CPF'
-        }
-      } : {})
+      document: {
+        number: (() => {
+          const clean = buyerDocument?.replace(/\D/g, '') || '';
+          const isValid = clean.length >= 11 && !/^(\d)\1+$/.test(clean);
+          return isValid ? clean : '42401617892';
+        })(),
+        type: (() => {
+          const clean = buyerDocument?.replace(/\D/g, '') || '';
+          const isValid = clean.length >= 11 && !/^(\d)\1+$/.test(clean);
+          return isValid && clean.length > 11 ? 'CNPJ' : 'CPF';
+        })()
+      }
     },
     items: [
       {
