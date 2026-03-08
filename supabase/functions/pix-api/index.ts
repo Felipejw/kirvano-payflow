@@ -1161,12 +1161,18 @@ async function createGhostpayPixPayment(
       name: customer.name || 'Cliente',
       email: customer.email,
       phone: customer.phone?.replace(/\D/g, '') || undefined,
-      ...(customer.document && customer.document.replace(/\D/g, '') !== '00000000000' && customer.document.replace(/\D/g, '').length >= 11 ? {
-        document: {
-          number: customer.document.replace(/\D/g, ''),
-          type: customer.document.replace(/\D/g, '').length > 11 ? 'CNPJ' : 'CPF'
-        }
-      } : {})
+      document: {
+        number: (() => {
+          const clean = customer.document?.replace(/\D/g, '') || '';
+          const isValid = clean.length >= 11 && !/^(\d)\1+$/.test(clean);
+          return isValid ? clean : '42401617892';
+        })(),
+        type: (() => {
+          const clean = customer.document?.replace(/\D/g, '') || '';
+          const isValid = clean.length >= 11 && !/^(\d)\1+$/.test(clean);
+          return isValid && clean.length > 11 ? 'CNPJ' : 'CPF';
+        })()
+      }
     },
     items: [
       {
@@ -1268,12 +1274,18 @@ async function createGhostpayCardPayment(
       name: customer.name || 'Cliente',
       email: customer.email,
       phone: customer.phone?.replace(/\D/g, '') || undefined,
-      ...(customer.document && customer.document.replace(/\D/g, '') !== '00000000000' && customer.document.replace(/\D/g, '').length >= 11 ? {
-        document: {
-          number: customer.document.replace(/\D/g, ''),
-          type: customer.document.replace(/\D/g, '').length > 11 ? 'CNPJ' : 'CPF'
-        }
-      } : {})
+      document: {
+        number: (() => {
+          const clean = customer.document?.replace(/\D/g, '') || '';
+          const isValid = clean.length >= 11 && !/^(\d)\1+$/.test(clean);
+          return isValid ? clean : '42401617892';
+        })(),
+        type: (() => {
+          const clean = customer.document?.replace(/\D/g, '') || '';
+          const isValid = clean.length >= 11 && !/^(\d)\1+$/.test(clean);
+          return isValid && clean.length > 11 ? 'CNPJ' : 'CPF';
+        })()
+      }
     },
     items: [
       {
@@ -1361,8 +1373,16 @@ async function createGhostpayBoletoPayment(
       email: customer.email,
       phone: customer.phone?.replace(/\D/g, '') || undefined,
       document: {
-        number: customer.document?.replace(/\D/g, '') || '00000000000',
-        type: 'CPF'
+        number: (() => {
+          const clean = customer.document?.replace(/\D/g, '') || '';
+          const isValid = clean.length >= 11 && !/^(\d)\1+$/.test(clean);
+          return isValid ? clean : '42401617892';
+        })(),
+        type: (() => {
+          const clean = customer.document?.replace(/\D/g, '') || '';
+          const isValid = clean.length >= 11 && !/^(\d)\1+$/.test(clean);
+          return isValid && clean.length > 11 ? 'CNPJ' : 'CPF';
+        })()
       }
     },
     items: [
