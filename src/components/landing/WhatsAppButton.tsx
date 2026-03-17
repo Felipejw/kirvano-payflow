@@ -5,9 +5,7 @@ export function WhatsAppButton() {
   const [isVisible, setIsVisible] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
 
-  const whatsappNumber = "5511969315095";
-  const message = encodeURIComponent("Olá, gostaria de saber um pouco mais sobre a Gatteflow");
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${message}`;
+  const whatsappUrl = "https://wa.me/5511977542592?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20para%20comprar%20meu%20gateway!";
 
   useEffect(() => {
     // Delay entrance animation
