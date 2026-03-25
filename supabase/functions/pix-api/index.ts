@@ -1504,7 +1504,7 @@ async function createSigilopayPixPayment(
   
   // Build phone with safe fallback (Sigilo Pay requires 'phone')
   const rawPhone = ((buyer as any).phone || '').replace(/\D/g, '');
-  const validPhone = rawPhone.length >= 10 ? rawPhone : '00000000000';
+  const validPhone = rawPhone.length >= 10 ? rawPhone : '11999999999';
 
   const payload: any = {
     identifier: externalId,
