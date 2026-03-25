@@ -3467,8 +3467,8 @@ serve(async (req) => {
             .maybeSingle();
           
           if (dbCreds?.credentials) {
-            const c = dbCreds.credentials as { client_id?: string; client_secret?: string };
-            hasCredentials = !!(c.client_id && c.client_secret);
+            const c = dbCreds.credentials as Record<string, string>;
+            hasCredentials = !!((c.client_id && c.client_secret) || (c.x_public_key && c.x_secret_key));
           }
         }
         
