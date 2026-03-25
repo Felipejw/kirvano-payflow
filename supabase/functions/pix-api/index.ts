@@ -1498,26 +1498,25 @@ async function createSigilopayPixPayment(
 ): Promise<SigilopayPixResult> {
   console.log('Creating Sigilo Pay PIX payment for amount:', amount);
   
+  // Build document with safe fallback (Sigilo Pay requires 'document')
+  const rawDoc = (buyer.document || '').replace(/\D/g, '');
+  const validDoc = rawDoc.length >= 11 && !/^(\d)\1+$/.test(rawDoc) ? rawDoc : '00000000000';
+  
+  // Build phone with safe fallback (Sigilo Pay requires 'phone')
+  const rawPhone = ((buyer as any).phone || '').replace(/\D/g, '');
+  const validPhone = rawPhone.length >= 10 ? rawPhone : '00000000000';
+
   const payload: any = {
     identifier: externalId,
     amount: amount,
     client: {
       name: buyer.name || 'Cliente',
       email: buyer.email,
+      document: validDoc,
+      phone: validPhone,
     },
     callbackUrl: callbackUrl,
   };
-
-  // Add document if valid (Sigilo Pay requires 'document', not 'cpf')
-  if (buyer.document) {
-    const cleanDoc = buyer.document.replace(/\D/g, '');
-    if (cleanDoc.length >= 11 && !/^(\d)\1+$/.test(cleanDoc)) {
-      payload.client.document = cleanDoc;
-    }
-  }
-
-  // Sigilo Pay requires client.phone
-  payload.client.phone = (buyer as any).phone?.replace(/\D/g, '') || '00000000000';
 
   console.log('Sigilo Pay PIX payload:', JSON.stringify(payload, null, 2));
 

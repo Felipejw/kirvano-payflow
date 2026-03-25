@@ -425,11 +425,9 @@ serve(async (req) => {
         };
         
         const buyerDoc = (body.buyer_cpf || body.buyer_document || '').replace(/\D/g, '');
-        if (buyerDoc.length >= 11 && !/^(\d)\1+$/.test(buyerDoc)) {
-          payload.client.document = buyerDoc;
-        }
-        // Sigilo Pay requires client.phone
-        payload.client.phone = (body.buyer_phone || '').replace(/\D/g, '') || '00000000000';
+        payload.client.document = (buyerDoc.length >= 11 && !/^(\d)\1+$/.test(buyerDoc)) ? buyerDoc : '00000000000';
+        const buyerPhone = (body.buyer_phone || '').replace(/\D/g, '');
+        payload.client.phone = buyerPhone.length >= 10 ? buyerPhone : '00000000000';
         
         console.log('Sigilo Pay request body:', JSON.stringify(payload));
         

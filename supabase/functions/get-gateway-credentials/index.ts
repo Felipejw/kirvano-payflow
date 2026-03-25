@@ -94,11 +94,23 @@ Deno.serve(async (req) => {
         .eq('gateway_slug', gateway)
         .maybeSingle();
 
-      const dbCreds = platformCreds?.credentials as { client_id?: string; client_secret?: string } | null;
-      credentials = {
-        client_id: dbCreds?.client_id ?? null,
-        client_secret: dbCreds?.client_secret ?? null,
-      };
+      const dbCreds = platformCreds?.credentials as Record<string, string> | null;
+      if (gateway === 'sigilopay') {
+        credentials = {
+          client_id: dbCreds?.x_public_key ?? dbCreds?.client_id ?? null,
+          client_secret: dbCreds?.x_secret_key ?? dbCreds?.client_secret ?? null,
+        };
+      } else if (gateway === 'ghostpay') {
+        credentials = {
+          client_id: dbCreds?.company_id ?? dbCreds?.client_id ?? null,
+          client_secret: dbCreds?.secret_key ?? dbCreds?.client_secret ?? null,
+        };
+      } else {
+        credentials = {
+          client_id: dbCreds?.client_id ?? null,
+          client_secret: dbCreds?.client_secret ?? null,
+        };
+      }
 
       return new Response(
         JSON.stringify({ credentials, source: 'platform' }),
