@@ -3420,6 +3420,21 @@ serve(async (req) => {
           hasCredentials = !!(Deno.env.get('BSPAY_CLIENT_ID') && Deno.env.get('BSPAY_CLIENT_SECRET'));
         }
         
+        // DB fallback: check platform_gateway_credentials table
+        if (!hasCredentials) {
+          const { data: dbCreds } = await supabase
+            .from('platform_gateway_credentials')
+            .select('credentials')
+            .eq('gateway_slug', platformGatewayType)
+            .eq('is_active', true)
+            .maybeSingle();
+          
+          if (dbCreds?.credentials) {
+            const c = dbCreds.credentials as { client_id?: string; client_secret?: string };
+            hasCredentials = !!(c.client_id && c.client_secret);
+          }
+        }
+        
         if (hasCredentials) {
           console.log('Seller uses platform_gateway, returning PIX as available method');
           return new Response(JSON.stringify({ 

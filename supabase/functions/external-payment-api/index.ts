@@ -100,22 +100,50 @@ async function getGatewayCredentials(supabase: any): Promise<{ type: string; com
   
   const gatewayType = platformSettings?.platform_gateway_type || 'ghostpay';
   
-  if (gatewayType === 'sigilopay') {
-    const publicKey = Deno.env.get('SIGILOPAY_PUBLIC_KEY');
-    const secretKey = Deno.env.get('SIGILOPAY_SECRET_KEY');
-    if (!publicKey || !secretKey) {
-      throw new Error('Sigilo Pay credentials not configured');
+  // Helper: try env vars first, then DB fallback
+  async function resolveCredentials(slug: string, envKey1: string, envKey2: string): Promise<{ id: string | null; secret: string | null }> {
+    let id = Deno.env.get(envKey1) || null;
+    let secret = Deno.env.get(envKey2) || null;
+    if (id && secret) return { id, secret };
+    
+    // DB fallback
+    const { data: dbCreds } = await supabase
+      .from('platform_gateway_credentials')
+      .select('credentials')
+      .eq('gateway_slug', slug)
+      .eq('is_active', true)
+      .maybeSingle();
+    
+    if (dbCreds?.credentials) {
+      const c = dbCreds.credentials as { client_id?: string; client_secret?: string };
+      id = c.client_id || null;
+      secret = c.client_secret || null;
     }
+    return { id, secret };
+  }
+  
+  if (gatewayType === 'sigilopay') {
+    const { id: publicKey, secret: secretKey } = await resolveCredentials('sigilopay', 'SIGILOPAY_PUBLIC_KEY', 'SIGILOPAY_SECRET_KEY');
+    if (!publicKey || !secretKey) throw new Error('Sigilo Pay credentials not configured');
     return { type: 'sigilopay', publicKey, secretKey };
   }
   
-  // Default: Ghostpay
-  const companyId = Deno.env.get('GHOSTPAY_COMPANY_ID');
-  const secretKey = Deno.env.get('GHOSTPAY_SECRET_KEY');
-  if (!companyId || !secretKey) {
-    throw new Error('Gateway credentials not configured');
+  if (gatewayType === 'ghostpay') {
+    const { id: companyId, secret: secretKey } = await resolveCredentials('ghostpay', 'GHOSTPAY_COMPANY_ID', 'GHOSTPAY_SECRET_KEY');
+    if (!companyId || !secretKey) throw new Error('Gateway credentials not configured');
+    return { type: 'ghostpay', companyId, secretKey };
   }
-  return { type: 'ghostpay', companyId, secretKey };
+
+  if (gatewayType === 'pixup') {
+    const { id: clientId, secret: clientSecret } = await resolveCredentials('pixup', 'PIXUP_CLIENT_ID', 'PIXUP_CLIENT_SECRET');
+    if (!clientId || !clientSecret) throw new Error('Pixup credentials not configured');
+    return { type: 'pixup', publicKey: clientId, secretKey: clientSecret };
+  }
+
+  // Default: bspay
+  const { id: clientId, secret: clientSecret } = await resolveCredentials('bspay', 'BSPAY_CLIENT_ID', 'BSPAY_CLIENT_SECRET');
+  if (!clientId || !clientSecret) throw new Error('BSPay credentials not configured');
+  return { type: 'bspay', publicKey: clientId, secretKey: clientSecret };
 }
 
 // Create PIX charge with GhostsPay
