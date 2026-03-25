@@ -454,7 +454,7 @@ serve(async (req) => {
           throw new Error(`Transação recusada: ${data.message || data.error || 'Erro desconhecido'}`);
         }
         
-        const qrCode = data.pix?.qrCode || data.pix?.qrcode || data.qrCode || data.qrcode || data.pixCopiaECola || '';
+        const qrCode = data.pix?.qrCode || data.pix?.qrcode || data.pix?.code || data.transaction?.pixInformation?.qrCode || data.qrCode || data.qrcode || data.pixCopiaECola || '';
         if (!qrCode) {
           throw new Error('Gateway não gerou código PIX.');
         }

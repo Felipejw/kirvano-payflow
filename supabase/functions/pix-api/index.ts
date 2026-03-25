@@ -1548,8 +1548,8 @@ async function createSigilopayPixPayment(
     throw new Error(`Transação recusada pelo gateway: ${reason}`);
   }
 
-  const qrCode = data.pix?.qrCode || data.pix?.qrcode || data.qrCode || data.qrcode || data.pixCopiaECola || '';
-  const qrCodeBase64 = data.pix?.qrCodeBase64 || data.qrCodeBase64 || '';
+  const qrCode = data.pix?.qrCode || data.pix?.qrcode || data.pix?.code || data.transaction?.pixInformation?.qrCode || data.qrCode || data.qrcode || data.pixCopiaECola || '';
+  const qrCodeBase64 = data.pix?.qrCodeBase64 || data.pix?.base64 || data.transaction?.pixInformation?.image || data.qrCodeBase64 || '';
   const transactionId = data.transaction?.id || data.id || data.transactionId || externalId;
 
   if (!qrCode) {
