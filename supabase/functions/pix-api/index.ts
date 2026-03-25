@@ -1498,26 +1498,25 @@ async function createSigilopayPixPayment(
 ): Promise<SigilopayPixResult> {
   console.log('Creating Sigilo Pay PIX payment for amount:', amount);
   
+  // Build document with safe fallback (Sigilo Pay requires 'document')
+  const rawDoc = (buyer.document || '').replace(/\D/g, '');
+  const validDoc = rawDoc.length >= 11 && !/^(\d)\1+$/.test(rawDoc) ? rawDoc : '00000000000';
+  
+  // Build phone with safe fallback (Sigilo Pay requires 'phone')
+  const rawPhone = ((buyer as any).phone || '').replace(/\D/g, '');
+  const validPhone = rawPhone.length >= 10 ? rawPhone : '00000000000';
+
   const payload: any = {
     identifier: externalId,
     amount: amount,
     client: {
       name: buyer.name || 'Cliente',
       email: buyer.email,
+      document: validDoc,
+      phone: validPhone,
     },
     callbackUrl: callbackUrl,
   };
-
-  // Add document if valid (Sigilo Pay requires 'document', not 'cpf')
-  if (buyer.document) {
-    const cleanDoc = buyer.document.replace(/\D/g, '');
-    if (cleanDoc.length >= 11 && !/^(\d)\1+$/.test(cleanDoc)) {
-      payload.client.document = cleanDoc;
-    }
-  }
-
-  // Sigilo Pay requires client.phone
-  payload.client.phone = (buyer as any).phone?.replace(/\D/g, '') || '00000000000';
 
   console.log('Sigilo Pay PIX payload:', JSON.stringify(payload, null, 2));
 
@@ -2285,7 +2284,11 @@ serve(async (req) => {
         if (!globalClientId || !globalClientSecret) {
           console.log('Env vars not found for', platformGatewayType, '- trying DB fallback...');
           try {
-            const { data: dbCreds } = await adminClient
+            const serviceClient = createClient(
+              Deno.env.get('SUPABASE_URL') ?? '',
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+            );
+            const { data: dbCreds } = await serviceClient
               .from('platform_gateway_credentials')
               .select('credentials')
               .eq('gateway_slug', platformGatewayType)
@@ -2295,8 +2298,8 @@ serve(async (req) => {
             if (dbCreds?.credentials) {
               const creds = dbCreds.credentials as Record<string, string>;
               if (platformGatewayType === 'sigilopay') {
-                globalClientId = creds.x_public_key;
-                globalClientSecret = creds.x_secret_key;
+                globalClientId = creds.x_public_key || creds.client_id;
+                globalClientSecret = creds.x_secret_key || creds.client_secret;
               } else if (platformGatewayType === 'ghostpay') {
                 globalClientId = creds.company_id || creds.client_id;
                 globalClientSecret = creds.secret_key || creds.client_secret;
@@ -2721,8 +2724,8 @@ serve(async (req) => {
           
         } else if (gateway.slug === 'sigilopay') {
           // Sigilo Pay PIX Integration
-          const publicKey = credentials.x_public_key;
-          const secretKey = credentials.x_secret_key;
+          const publicKey = credentials.x_public_key || credentials.client_id;
+          const secretKey = credentials.x_secret_key || credentials.client_secret;
           
           if (!publicKey || !secretKey) {
             throw new Error('Sigilo Pay credentials incomplete');

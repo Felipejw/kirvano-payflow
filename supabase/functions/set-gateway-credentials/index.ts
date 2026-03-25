@@ -63,12 +63,12 @@ Deno.serve(async (req) => {
 
     const { error: upsertError } = await adminClient
       .from('platform_gateway_credentials')
-      .update({
+      .upsert({
+        gateway_slug: gateway,
         credentials: credentials || {},
         is_active: true,
         updated_at: new Date().toISOString(),
-      })
-      .eq('gateway_slug', gateway);
+      }, { onConflict: 'gateway_slug' });
 
     if (upsertError) {
       console.error('Error saving platform credentials:', upsertError);
