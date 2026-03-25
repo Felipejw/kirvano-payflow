@@ -2281,6 +2281,36 @@ serve(async (req) => {
           gatewayName = 'BSPAY (Plataforma)';
         }
         
+        // Fallback: buscar credenciais do banco se env vars não existem
+        if (!globalClientId || !globalClientSecret) {
+          console.log('Env vars not found for', platformGatewayType, '- trying DB fallback...');
+          try {
+            const { data: dbCreds } = await adminClient
+              .from('platform_gateway_credentials')
+              .select('credentials')
+              .eq('gateway_slug', platformGatewayType)
+              .eq('is_active', true)
+              .maybeSingle();
+            
+            if (dbCreds?.credentials) {
+              const creds = dbCreds.credentials as Record<string, string>;
+              if (platformGatewayType === 'sigilopay') {
+                globalClientId = creds.x_public_key;
+                globalClientSecret = creds.x_secret_key;
+              } else if (platformGatewayType === 'ghostpay') {
+                globalClientId = creds.company_id || creds.client_id;
+                globalClientSecret = creds.secret_key || creds.client_secret;
+              } else {
+                globalClientId = creds.client_id;
+                globalClientSecret = creds.client_secret;
+              }
+              console.log('DB fallback credentials found for', platformGatewayType);
+            }
+          } catch (dbErr) {
+            console.error('Error fetching DB credentials:', dbErr);
+          }
+        }
+
         if (!globalClientId || !globalClientSecret) {
           console.error('Platform gateway credentials not configured for:', platformGatewayType);
           return new Response(JSON.stringify({ 
