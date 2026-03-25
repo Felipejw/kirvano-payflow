@@ -120,7 +120,7 @@ export default function AdminSettings() {
         platform_gateway_withdrawal_fee: data.platform_gateway_withdrawal_fee || 5,
         own_gateway_fee_percentage: data.own_gateway_fee_percentage || 3.99,
         own_gateway_fee_fixed: data.own_gateway_fee_fixed || 1,
-        platform_gateway_type: (data.platform_gateway_type as 'bspay' | 'pixup' | 'ghostpay') || 'bspay',
+        platform_gateway_type: (data.platform_gateway_type as 'bspay' | 'pixup' | 'ghostpay' | 'sigilopay') || 'bspay',
       };
       setSettings(processedSettings);
       setInitialSettings(processedSettings);
