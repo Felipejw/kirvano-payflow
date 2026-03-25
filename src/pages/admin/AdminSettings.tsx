@@ -316,7 +316,7 @@ export default function AdminSettings() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {/* BSPAY */}
               <div 
                 className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
@@ -382,6 +382,29 @@ export default function AdminSettings() {
                   <div>
                     <h3 className="font-semibold">GHOSTPAY</h3>
                     <p className="text-sm text-muted-foreground">PIX, Cartão e Boleto</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* SIGILOPAY */}
+              <div 
+                className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
+                  settings.platform_gateway_type === 'sigilopay' 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border hover:border-primary/50'
+                }`}
+                onClick={() => setSettings({ ...settings, platform_gateway_type: 'sigilopay' })}
+              >
+                {settings.platform_gateway_type === 'sigilopay' && (
+                  <CheckCircle className="absolute right-2 top-2 h-5 w-5 text-primary" />
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-500/10">
+                    <span className="font-bold text-orange-500">SP</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">SIGILOPAY</h3>
+                    <p className="text-sm text-muted-foreground">Sigilo Pay</p>
                   </div>
                 </div>
               </div>
