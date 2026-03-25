@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUserRole } from "@/hooks/useUserRole";
 
 interface GatewayCredentialsDialogProps {
-  gateway: 'bspay' | 'pixup' | 'ghostpay';
+  gateway: 'bspay' | 'pixup' | 'ghostpay' | 'sigilopay';
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -44,7 +44,7 @@ export function GatewayCredentialsDialog({
   
   const { isSuperAdmin } = useUserRole();
 
-  const gatewayName = gateway === 'bspay' ? 'BSPAY' : gateway === 'ghostpay' ? 'GHOSTPAY' : 'PIXUP';
+  const gatewayName = gateway === 'bspay' ? 'BSPAY' : gateway === 'ghostpay' ? 'GHOSTPAY' : gateway === 'sigilopay' ? 'SIGILOPAY' : 'PIXUP';
 
   useEffect(() => {
     if (open) {
@@ -252,6 +252,11 @@ export function GatewayCredentialsDialog({
     ? [
         { key: 'client_id' as const, label: 'Company ID' },
         { key: 'client_secret' as const, label: 'Secret Key' },
+      ]
+    : gateway === 'sigilopay'
+    ? [
+        { key: 'client_id' as const, label: 'Chave Pública (x-public-key)' },
+        { key: 'client_secret' as const, label: 'Chave Secreta (x-secret-key)' },
       ]
     : [
         { key: 'client_id' as const, label: 'Client ID' },
