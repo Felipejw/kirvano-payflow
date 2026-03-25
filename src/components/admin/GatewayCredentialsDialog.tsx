@@ -44,7 +44,7 @@ export function GatewayCredentialsDialog({
   
   const { isSuperAdmin } = useUserRole();
 
-  const gatewayName = gateway === 'bspay' ? 'BSPAY' : gateway === 'ghostpay' ? 'GHOSTPAY' : 'PIXUP';
+  const gatewayName = gateway === 'bspay' ? 'BSPAY' : gateway === 'ghostpay' ? 'GHOSTPAY' : gateway === 'sigilopay' ? 'SIGILOPAY' : 'PIXUP';
 
   useEffect(() => {
     if (open) {
