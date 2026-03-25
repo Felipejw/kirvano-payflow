@@ -1,41 +1,37 @@
 
-Objetivo: eliminar o erro de geração PIX no Sigilo Pay sem exigir CPF no checkout.
 
-1) Diagnóstico final (confirmado)
-- Do I know what the issue is? **Sim**.
-- O erro atual não é mais UI: está no backend `supabase/functions/pix-api/index.ts`.
-- A função quebra no fallback com `ReferenceError: adminClient is not defined`.
-- Mesmo corrigindo isso, ainda haveria falha de leitura: o banco salva Sigilo Pay como `client_id/client_secret`, mas o `pix-api` tenta ler `x_public_key/x_secret_key`.
+# Correção: Sigilo Pay rejeita documento "00000000000"
 
-2) Correções de implementação
-- **Arquivo:** `supabase/functions/pix-api/index.ts`
-  - Corrigir fallback de credenciais da plataforma para usar cliente válido (`supabase` já existente no handler, ou criar `adminClient` corretamente).
-  - Unificar leitura de credenciais Sigilo Pay com compatibilidade dupla:
-    - aceitar `client_id/client_secret` (formato atual salvo pela UI)
-    - aceitar `x_public_key/x_secret_key` (compatibilidade retroativa)
-  - Ajustar payload Sigilo Pay para nunca quebrar por falta de CPF no checkout:
-    - manter `client.phone` obrigatório com fallback seguro
-    - enviar `client.document` com fallback válido quando não houver CPF informado (sem exigir campo no front).
+## Problema Identificado
 
-- **Arquivo:** `supabase/functions/external-payment-api/index.ts`
-  - Aplicar a mesma regra de normalização de credenciais e payload do Sigilo Pay (consistência entre checkout e API externa).
+Os logs mostram claramente o erro:
 
-- **Arquivo:** `supabase/functions/get-gateway-credentials/index.ts`
-  - Melhorar fallback para Sigilo Pay lendo ambos formatos (`client_*` e `x_*`) para evitar inconsistência ao abrir/editar credenciais.
+```
+Sigilo Pay PIX payload: { "document": "00000000000" }
+Sigilo Pay PIX response: {"statusCode":422,"errorCode":"GATEWAY_INVALID_ARGUMENT","message":"Documento inválido."}
+```
 
-- **Arquivo:** `supabase/functions/set-gateway-credentials/index.ts`
-  - Garantir persistência robusta (preferencialmente `upsert` por `gateway_slug`) para evitar falso “salvo” se linha não existir.
+A API do Sigilo Pay valida o CPF/CNPJ e rejeita `00000000000` como documento inválido. O checkout não exige CPF (campo condicional via `require_cpf`), então o fallback `00000000000` é usado — mas esse CPF é inválido.
 
-3) Verificação completa (fim a fim)
-- Teste 1: `GET /payment-methods/:sellerId` com `platform_gateway + sigilopay` deve retornar PIX disponível.
-- Teste 2: Checkout real sem CPF preenchido deve gerar PIX com sucesso (sem 500).
-- Teste 3: Confirmar em logs que:
-  - não aparece mais `adminClient is not defined`
-  - credencial é carregada do banco quando env vars não existem
-  - request ao Sigilo Pay contém `client.phone` e `client.document`.
-- Teste 4: Repetir fluxo via `external-payment-api` para garantir comportamento idêntico.
+A mesma situação já foi resolvida para o Ghostpay, que usa o CPF válido `42401617892` como fallback.
 
-Seção técnica (resumo)
-- Não precisa nova migração de banco.
-- O problema é de **resolução de credenciais + referência inválida de variável + normalização de payload**.
-- A correção principal é centralizar o resolvedor de credenciais da plataforma e reutilizá-lo em ambos os endpoints de cobrança.
+## Correção
+
+Trocar o fallback de `'00000000000'` para um CPF válido (`42401617892`) em **3 pontos**:
+
+### 1. `supabase/functions/pix-api/index.ts` — Função `createSigilopayPixPayment` (linha 1503)
+- Alterar: `'00000000000'` → `'42401617892'` no fallback de documento
+
+### 2. `supabase/functions/pix-api/index.ts` — Chamada do sigilopay no fluxo principal (linha 2755)
+- Garantir que `buyer.document` passa pelo mesmo tratamento da função interna (já está ok, pois a função faz o fallback)
+
+### 3. `supabase/functions/external-payment-api/index.ts` — Payload sigilopay (linha 428)
+- Alterar: `'00000000000'` → `'42401617892'` no fallback de documento
+
+### 4. `supabase/functions/pix-api/index.ts` — Fallback payment-methods (linha 3470-3471)
+- Corrigir checagem de credenciais sigilopay no DB: atualmente verifica `c.client_id && c.client_secret`, mas precisa também aceitar `c.x_public_key && c.x_secret_key`
+
+## Resultado
+- Checkout sem CPF preenchido → envia CPF válido como fallback → Sigilo Pay aceita
+- Mesmo comportamento já validado com Ghostpay
+
