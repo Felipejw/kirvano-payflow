@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.backfill-order-bump-memberships]
 verify_jwt = true
+
+[functions.set-gateway-credentials]
+verify_jwt = false
