@@ -2686,6 +2686,48 @@ serve(async (req) => {
           
           console.log('Ghostpay charge created successfully:', gatewayTransactionId);
           
+        } else if (gateway.slug === 'sigilopay') {
+          // Sigilo Pay PIX Integration
+          const publicKey = credentials.x_public_key;
+          const secretKey = credentials.x_secret_key;
+          
+          if (!publicKey || !secretKey) {
+            throw new Error('Sigilo Pay credentials incomplete');
+          }
+          
+          // Get product name for description
+          let description = body.description || 'Pagamento via PIX';
+          if (body.product_id) {
+            const { data: productInfo } = await supabase
+              .from('products')
+              .select('name')
+              .eq('id', body.product_id)
+              .maybeSingle();
+            if (productInfo) {
+              description = `Compra: ${productInfo.name}`;
+            }
+          }
+          
+          const sigilopayResult = await createSigilopayPixPayment(
+            publicKey,
+            secretKey,
+            validatedAmount,
+            externalId,
+            {
+              name: body.buyer_name || 'Cliente',
+              email: body.buyer_email,
+              document: body.buyer_document || undefined,
+            },
+            webhookUrl + '/sigilopay',
+            description
+          );
+          
+          pixCode = sigilopayResult.qrCode || '';
+          qrCodeBase64 = sigilopayResult.qrCodeBase64 || '';
+          gatewayTransactionId = sigilopayResult.transactionId;
+          
+          console.log('Sigilo Pay charge created successfully:', gatewayTransactionId);
+          
         } else {
           // For other gateways, we'll need to implement their specific APIs
           console.error('Gateway not yet implemented:', gateway.slug);
