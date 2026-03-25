@@ -1464,6 +1464,133 @@ async function getGhostpayPayment(secretKey: string, companyId: string, transact
 // End of Ghostpay Integration
 // ============================================================
 
+// ============================================================
+// SIGILO PAY API Integration
+// ============================================================
+const SIGILOPAY_API_URL = "https://app.sigilopay.com.br/api/v1";
+
+function mapSigilopayStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'COMPLETED': 'paid',
+    'PENDING': 'pending',
+    'FAILED': 'failed',
+    'EXPIRED': 'expired',
+    'REFUNDED': 'refunded',
+    'CANCELED': 'cancelled',
+  };
+  return statusMap[status] || 'pending';
+}
+
+interface SigilopayPixResult {
+  transactionId: string;
+  qrCode: string;
+  qrCodeBase64: string;
+}
+
+async function createSigilopayPixPayment(
+  publicKey: string,
+  secretKey: string,
+  amount: number,
+  externalId: string,
+  buyer: { name?: string; email: string; document?: string },
+  callbackUrl: string,
+  description?: string
+): Promise<SigilopayPixResult> {
+  console.log('Creating Sigilo Pay PIX payment for amount:', amount);
+  
+  const payload: any = {
+    identifier: externalId,
+    amount: amount,
+    client: {
+      name: buyer.name || 'Cliente',
+      email: buyer.email,
+    },
+    callbackUrl: callbackUrl,
+  };
+
+  // Add CPF if valid
+  if (buyer.document) {
+    const cleanDoc = buyer.document.replace(/\D/g, '');
+    if (cleanDoc.length >= 11 && !/^(\d)\1+$/.test(cleanDoc)) {
+      payload.client.cpf = cleanDoc;
+    }
+  }
+
+  console.log('Sigilo Pay PIX payload:', JSON.stringify(payload, null, 2));
+
+  const response = await fetch(`${SIGILOPAY_API_URL}/gateway/pix/receive`, {
+    method: 'POST',
+    headers: {
+      'x-public-key': publicKey,
+      'x-secret-key': secretKey,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const responseText = await response.text();
+  console.log('Sigilo Pay PIX response status:', response.status);
+  console.log('Sigilo Pay PIX response:', responseText);
+
+  if (!response.ok) {
+    console.error('Sigilo Pay PIX error:', response.status, responseText);
+    throw new Error(`Failed to create Sigilo Pay PIX payment: ${response.status} - ${responseText}`);
+  }
+
+  const data = JSON.parse(responseText);
+
+  if (data.status === 'FAILED' || data.error) {
+    const reason = data.message || data.error || 'Transação recusada';
+    console.error('Sigilo Pay PIX refused:', reason);
+    throw new Error(`Transação recusada pelo gateway: ${reason}`);
+  }
+
+  const qrCode = data.pix?.qrCode || data.pix?.qrcode || data.qrCode || data.qrcode || data.pixCopiaECola || '';
+  const qrCodeBase64 = data.pix?.qrCodeBase64 || data.qrCodeBase64 || '';
+  const transactionId = data.transaction?.id || data.id || data.transactionId || externalId;
+
+  if (!qrCode) {
+    console.error('Sigilo Pay returned empty QR code:', JSON.stringify(data));
+    throw new Error('Gateway não gerou código PIX. Verifique as credenciais.');
+  }
+
+  console.log('Sigilo Pay PIX payment created:', transactionId);
+
+  return {
+    transactionId: String(transactionId),
+    qrCode,
+    qrCodeBase64,
+  };
+}
+
+async function getSigilopayTransaction(publicKey: string, secretKey: string, transactionId: string): Promise<any> {
+  console.log('Getting Sigilo Pay transaction:', transactionId);
+
+  const response = await fetch(`${SIGILOPAY_API_URL}/gateway/transactions?id=${transactionId}`, {
+    method: 'GET',
+    headers: {
+      'x-public-key': publicKey,
+      'x-secret-key': secretKey,
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Sigilo Pay get transaction error:', response.status, errorText);
+    throw new Error(`Failed to get Sigilo Pay transaction: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log('Sigilo Pay transaction status:', data.status || data.transaction?.status);
+  return data;
+}
+
+// ============================================================
+// End of Sigilo Pay Integration
+// ============================================================
+
 const generateExternalId = () => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 10);
