@@ -54,9 +54,9 @@ Deno.serve(async (req) => {
 
     const { gateway } = await req.json();
 
-    if (!gateway || !['bspay', 'pixup', 'ghostpay'].includes(gateway)) {
+    if (!gateway || !['bspay', 'pixup', 'ghostpay', 'sigilopay'].includes(gateway)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid gateway. Must be bspay, pixup or ghostpay' }),
+        JSON.stringify({ error: 'Invalid gateway. Must be bspay, pixup, ghostpay or sigilopay' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
