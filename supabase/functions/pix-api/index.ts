@@ -1508,13 +1508,16 @@ async function createSigilopayPixPayment(
     callbackUrl: callbackUrl,
   };
 
-  // Add CPF if valid
+  // Add document if valid (Sigilo Pay requires 'document', not 'cpf')
   if (buyer.document) {
     const cleanDoc = buyer.document.replace(/\D/g, '');
     if (cleanDoc.length >= 11 && !/^(\d)\1+$/.test(cleanDoc)) {
-      payload.client.cpf = cleanDoc;
+      payload.client.document = cleanDoc;
     }
   }
+
+  // Sigilo Pay requires client.phone
+  payload.client.phone = (buyer as any).phone?.replace(/\D/g, '') || '00000000000';
 
   console.log('Sigilo Pay PIX payload:', JSON.stringify(payload, null, 2));
 
