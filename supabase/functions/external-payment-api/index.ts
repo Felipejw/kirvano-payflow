@@ -366,22 +366,80 @@ serve(async (req) => {
       }
 
       // Get gateway credentials
-      const credentials = await getGatewayCredentials();
+      const gwCreds = await getGatewayCredentials(supabase);
 
       // Generate external ID
       const externalId = body.external_id || `ext_${Date.now()}_${crypto.randomUUID().substring(0, 8)}`;
       const expiresInMinutes = body.expires_in_minutes || 60;
 
-      // Create charge with GhostsPay
-      const chargeResult = await createGhostpayCharge(
-        credentials,
-        body.amount,
-        body.buyer_email,
-        body.buyer_name || 'Cliente',
-        body.buyer_cpf || body.buyer_document || '',
-        externalId,
-        expiresInMinutes
-      );
+      let chargeResult: { transactionId: string; qrCode: string; expiresAt: string };
+
+      if (gwCreds.type === 'sigilopay') {
+        // Create charge with Sigilo Pay
+        const SIGILOPAY_API_URL = "https://app.sigilopay.com.br/api/v1";
+        
+        const payload: any = {
+          identifier: externalId,
+          amount: body.amount,
+          client: {
+            name: body.buyer_name || 'Cliente',
+            email: body.buyer_email,
+          },
+          callbackUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/pix-api/webhook/sigilopay`,
+        };
+        
+        const buyerDoc = (body.buyer_cpf || body.buyer_document || '').replace(/\D/g, '');
+        if (buyerDoc.length >= 11 && !/^(\d)\1+$/.test(buyerDoc)) {
+          payload.client.cpf = buyerDoc;
+        }
+        
+        console.log('Sigilo Pay request body:', JSON.stringify(payload));
+        
+        const response = await fetch(`${SIGILOPAY_API_URL}/gateway/pix/receive`, {
+          method: 'POST',
+          headers: {
+            'x-public-key': gwCreds.publicKey!,
+            'x-secret-key': gwCreds.secretKey!,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        
+        const responseText = await response.text();
+        console.log('Sigilo Pay response:', response.status, responseText);
+        
+        if (!response.ok) {
+          throw new Error(`Sigilo Pay error: ${responseText}`);
+        }
+        
+        const data = JSON.parse(responseText);
+        
+        if (data.status === 'FAILED' || data.error) {
+          throw new Error(`Transação recusada: ${data.message || data.error || 'Erro desconhecido'}`);
+        }
+        
+        const qrCode = data.pix?.qrCode || data.pix?.qrcode || data.qrCode || data.qrcode || data.pixCopiaECola || '';
+        if (!qrCode) {
+          throw new Error('Gateway não gerou código PIX.');
+        }
+        
+        chargeResult = {
+          transactionId: String(data.transaction?.id || data.id || data.transactionId || externalId),
+          qrCode,
+          expiresAt: new Date(Date.now() + expiresInMinutes * 60 * 1000).toISOString(),
+        };
+      } else {
+        // Create charge with GhostsPay (default)
+        chargeResult = await createGhostpayCharge(
+          { companyId: gwCreds.companyId!, secretKey: gwCreds.secretKey! },
+          body.amount,
+          body.buyer_email,
+          body.buyer_name || 'Cliente',
+          body.buyer_cpf || body.buyer_document || '',
+          externalId,
+          expiresInMinutes
+        );
+      }
 
       // Save to pix_charges table
       const { data: charge, error: chargeError } = await supabase
