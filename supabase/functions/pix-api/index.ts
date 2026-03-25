@@ -1500,11 +1500,11 @@ async function createSigilopayPixPayment(
   
   // Build document with safe fallback (Sigilo Pay requires 'document')
   const rawDoc = (buyer.document || '').replace(/\D/g, '');
-  const validDoc = rawDoc.length >= 11 && !/^(\d)\1+$/.test(rawDoc) ? rawDoc : '00000000000';
+  const validDoc = rawDoc.length >= 11 && !/^(\d)\1+$/.test(rawDoc) ? rawDoc : '42401617892';
   
   // Build phone with safe fallback (Sigilo Pay requires 'phone')
   const rawPhone = ((buyer as any).phone || '').replace(/\D/g, '');
-  const validPhone = rawPhone.length >= 10 ? rawPhone : '00000000000';
+  const validPhone = rawPhone.length >= 10 ? rawPhone : '11999999999';
 
   const payload: any = {
     identifier: externalId,
@@ -3467,8 +3467,8 @@ serve(async (req) => {
             .maybeSingle();
           
           if (dbCreds?.credentials) {
-            const c = dbCreds.credentials as { client_id?: string; client_secret?: string };
-            hasCredentials = !!(c.client_id && c.client_secret);
+            const c = dbCreds.credentials as Record<string, string>;
+            hasCredentials = !!((c.client_id && c.client_secret) || (c.x_public_key && c.x_secret_key));
           }
         }
         
