@@ -42,7 +42,7 @@ interface PlatformSettings {
   platform_gateway_withdrawal_fee: number;
   own_gateway_fee_percentage: number;
   own_gateway_fee_fixed: number;
-  platform_gateway_type: 'bspay' | 'pixup' | 'ghostpay';
+  platform_gateway_type: 'bspay' | 'pixup' | 'ghostpay' | 'sigilopay';
 }
 
 export default function AdminSettings() {
