@@ -2266,6 +2266,11 @@ serve(async (req) => {
           globalClientSecret = Deno.env.get('GHOSTPAY_SECRET_KEY');
           gatewaySlug = 'ghostpay';
           gatewayName = 'GHOSTPAY (Plataforma)';
+        } else if (platformGatewayType === 'sigilopay') {
+          globalClientId = Deno.env.get('SIGILOPAY_PUBLIC_KEY');
+          globalClientSecret = Deno.env.get('SIGILOPAY_SECRET_KEY');
+          gatewaySlug = 'sigilopay';
+          gatewayName = 'SIGILO PAY (Plataforma)';
         } else {
           globalClientId = Deno.env.get('BSPAY_CLIENT_ID');
           globalClientSecret = Deno.env.get('BSPAY_CLIENT_SECRET');
