@@ -115,9 +115,17 @@ async function getGatewayCredentials(supabase: any): Promise<{ type: string; com
       .maybeSingle();
     
     if (dbCreds?.credentials) {
-      const c = dbCreds.credentials as { client_id?: string; client_secret?: string };
-      id = c.client_id || null;
-      secret = c.client_secret || null;
+      const c = dbCreds.credentials as Record<string, string>;
+      if (slug === 'sigilopay') {
+        id = c.x_public_key || c.client_id || null;
+        secret = c.x_secret_key || c.client_secret || null;
+      } else if (slug === 'ghostpay') {
+        id = c.company_id || c.client_id || null;
+        secret = c.secret_key || c.client_secret || null;
+      } else {
+        id = c.client_id || null;
+        secret = c.client_secret || null;
+      }
     }
     return { id, secret };
   }
