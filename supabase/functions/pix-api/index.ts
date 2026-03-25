@@ -3414,6 +3414,8 @@ serve(async (req) => {
           hasCredentials = !!(Deno.env.get('PIXUP_CLIENT_ID') && Deno.env.get('PIXUP_CLIENT_SECRET'));
         } else if (platformGatewayType === 'ghostpay') {
           hasCredentials = !!(Deno.env.get('GHOSTPAY_COMPANY_ID') && Deno.env.get('GHOSTPAY_SECRET_KEY'));
+        } else if (platformGatewayType === 'sigilopay') {
+          hasCredentials = !!(Deno.env.get('SIGILOPAY_PUBLIC_KEY') && Deno.env.get('SIGILOPAY_SECRET_KEY'));
         } else {
           hasCredentials = !!(Deno.env.get('BSPAY_CLIENT_ID') && Deno.env.get('BSPAY_CLIENT_SECRET'));
         }
