@@ -2294,6 +2294,11 @@ serve(async (req) => {
             secret_key: globalClientSecret,
             company_id: globalClientId,
           };
+        } else if (platformGatewayType === 'sigilopay') {
+          credentials = {
+            x_public_key: globalClientId,
+            x_secret_key: globalClientSecret,
+          };
         } else {
           credentials = {
             client_id: globalClientId,
