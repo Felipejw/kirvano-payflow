@@ -255,15 +255,15 @@ export function GatewayCredentialsDialog({
       ]
     : gateway === 'sigilopay'
     ? [
-        { key: 'client_id' as const, label: 'Chave Pública (x-public-key)' },
-        { key: 'client_secret' as const, label: 'Chave Secreta (x-secret-key)' },
+        { key: 'client_id' as const, label: 'Chave Pública (Client ID)' },
+        { key: 'client_secret' as const, label: 'Chave Privada (Client Secret)' },
       ]
     : [
         { key: 'client_id' as const, label: 'Client ID' },
         { key: 'client_secret' as const, label: 'Client Secret' },
       ];
 
-  const canEdit = !isSuperAdmin && source === 'admin';
+  const canEdit = isSuperAdmin || source === 'admin';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

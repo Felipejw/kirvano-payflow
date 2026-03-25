@@ -41,8 +41,8 @@ const fieldLabels: Record<string, string> = {
   x_seller_token: "X-Seller-Token",
   secret_key: "Secret Key",
   company_id: "Company ID",
-  x_public_key: "Chave Pública (x-public-key)",
-  x_secret_key: "Chave Secreta (x-secret-key)",
+  x_public_key: "Chave Pública (Client ID)",
+  x_secret_key: "Chave Privada (Client Secret)",
 };
 
 export function GatewayConfigDialog({
