@@ -1500,7 +1500,7 @@ async function createSigilopayPixPayment(
   
   // Build document with safe fallback (Sigilo Pay requires 'document')
   const rawDoc = (buyer.document || '').replace(/\D/g, '');
-  const validDoc = rawDoc.length >= 11 && !/^(\d)\1+$/.test(rawDoc) ? rawDoc : '00000000000';
+  const validDoc = rawDoc.length >= 11 && !/^(\d)\1+$/.test(rawDoc) ? rawDoc : '42401617892';
   
   // Build phone with safe fallback (Sigilo Pay requires 'phone')
   const rawPhone = ((buyer as any).phone || '').replace(/\D/g, '');
