@@ -425,7 +425,7 @@ export default function AdminSettings() {
 
             <div className={`p-3 rounded-lg ${hasGatewayChanges ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-yellow-500/10 border-yellow-500/20'} border`}>
               <p className="text-sm">
-                <strong>Gateway selecionado:</strong> {settings.platform_gateway_type === 'ghostpay' ? 'GHOSTPAY' : settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'}
+                <strong>Gateway selecionado:</strong> {settings.platform_gateway_type === 'ghostpay' ? 'GHOSTPAY' : settings.platform_gateway_type === 'pixup' ? 'PIXUP' : settings.platform_gateway_type === 'sigilopay' ? 'SIGILOPAY' : 'BSPAY'}
                 {hasGatewayChanges ? (
                   <span className="text-yellow-600 dark:text-yellow-400 ml-2 font-medium">
                     ← Clique em "Salvar Gateway" para aplicar
