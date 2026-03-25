@@ -452,7 +452,7 @@ export default function AdminSettings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Percent className="h-5 w-5 text-primary" />
-              Taxas Opção A - Gateway Plataforma ({settings.platform_gateway_type === 'ghostpay' ? 'GHOSTPAY' : settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'})
+              Taxas Opção A - Gateway Plataforma ({settings.platform_gateway_type === 'ghostpay' ? 'GHOSTPAY' : settings.platform_gateway_type === 'pixup' ? 'PIXUP' : settings.platform_gateway_type === 'sigilopay' ? 'SIGILOPAY' : 'BSPAY'})
             </CardTitle>
             <CardDescription>
               Taxas para vendedores que usam nosso gateway integrado
