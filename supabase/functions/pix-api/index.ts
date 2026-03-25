@@ -2725,8 +2725,8 @@ serve(async (req) => {
           
         } else if (gateway.slug === 'sigilopay') {
           // Sigilo Pay PIX Integration
-          const publicKey = credentials.x_public_key;
-          const secretKey = credentials.x_secret_key;
+          const publicKey = credentials.x_public_key || credentials.client_id;
+          const secretKey = credentials.x_secret_key || credentials.client_secret;
           
           if (!publicKey || !secretKey) {
             throw new Error('Sigilo Pay credentials incomplete');
