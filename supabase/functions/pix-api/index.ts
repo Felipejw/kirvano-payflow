@@ -2750,6 +2750,7 @@ serve(async (req) => {
               name: body.buyer_name || 'Cliente',
               email: body.buyer_email,
               document: body.buyer_document || undefined,
+              phone: body.buyer_phone || undefined,
             },
             webhookUrl + '/sigilopay',
             description
