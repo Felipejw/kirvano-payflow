@@ -1,31 +1,41 @@
 
+Objetivo: eliminar o erro de geração PIX no Sigilo Pay sem exigir CPF no checkout.
 
-# Correção: PIX Sigilo Pay - Credenciais DB + Campos Obrigatórios
+1) Diagnóstico final (confirmado)
+- Do I know what the issue is? **Sim**.
+- O erro atual não é mais UI: está no backend `supabase/functions/pix-api/index.ts`.
+- A função quebra no fallback com `ReferenceError: adminClient is not defined`.
+- Mesmo corrigindo isso, ainda haveria falha de leitura: o banco salva Sigilo Pay como `client_id/client_secret`, mas o `pix-api` tenta ler `x_public_key/x_secret_key`.
 
-## Problemas Identificados
+2) Correções de implementação
+- **Arquivo:** `supabase/functions/pix-api/index.ts`
+  - Corrigir fallback de credenciais da plataforma para usar cliente válido (`supabase` já existente no handler, ou criar `adminClient` corretamente).
+  - Unificar leitura de credenciais Sigilo Pay com compatibilidade dupla:
+    - aceitar `client_id/client_secret` (formato atual salvo pela UI)
+    - aceitar `x_public_key/x_secret_key` (compatibilidade retroativa)
+  - Ajustar payload Sigilo Pay para nunca quebrar por falta de CPF no checkout:
+    - manter `client.phone` obrigatório com fallback seguro
+    - enviar `client.document` com fallback válido quando não houver CPF informado (sem exigir campo no front).
 
-1. **Credenciais não encontradas no pix-api**: O fluxo de criação de cobrança (linha ~2270) busca credenciais APENAS em variáveis de ambiente (`SIGILOPAY_PUBLIC_KEY`/`SIGILOPAY_SECRET_KEY`), mas você salvou via UI no banco de dados (`platform_gateway_credentials`). O fallback para DB existe apenas no endpoint de payment-methods, não no de criação de cobrança.
+- **Arquivo:** `supabase/functions/external-payment-api/index.ts`
+  - Aplicar a mesma regra de normalização de credenciais e payload do Sigilo Pay (consistência entre checkout e API externa).
 
-2. **Campos obrigatórios da API Sigilo Pay**: A API exige `client.phone` e `client.document` (não `cpf`). O código envia `cpf` em vez de `document` e omite `phone` completamente. Erro retornado: `"path":["client","phone"],"message":"Required"`.
+- **Arquivo:** `supabase/functions/get-gateway-credentials/index.ts`
+  - Melhorar fallback para Sigilo Pay lendo ambos formatos (`client_*` e `x_*`) para evitar inconsistência ao abrir/editar credenciais.
 
-## Alterações
+- **Arquivo:** `supabase/functions/set-gateway-credentials/index.ts`
+  - Garantir persistência robusta (preferencialmente `upsert` por `gateway_slug`) para evitar falso “salvo” se linha não existir.
 
-### 1. `supabase/functions/pix-api/index.ts` — Fallback DB nas credenciais de cobrança (~linha 2269-2289)
-- Após verificar env vars para sigilopay, adicionar fallback para buscar de `platform_gateway_credentials` (mesmo padrão já usado no payment-methods)
-- Se env vazio, consultar tabela e usar `credentials.x_public_key` / `credentials.x_secret_key`
+3) Verificação completa (fim a fim)
+- Teste 1: `GET /payment-methods/:sellerId` com `platform_gateway + sigilopay` deve retornar PIX disponível.
+- Teste 2: Checkout real sem CPF preenchido deve gerar PIX com sucesso (sem 500).
+- Teste 3: Confirmar em logs que:
+  - não aparece mais `adminClient is not defined`
+  - credencial é carregada do banco quando env vars não existem
+  - request ao Sigilo Pay contém `client.phone` e `client.document`.
+- Teste 4: Repetir fluxo via `external-payment-api` para garantir comportamento idêntico.
 
-### 2. `supabase/functions/pix-api/index.ts` — Função `createSigilopayPixPayment` (~linha 1501-1516)
-- Mudar `payload.client.cpf` para `payload.client.document`
-- Adicionar `payload.client.phone` com fallback para `"00000000000"` (telefone padrão quando não fornecido)
-
-### 3. `supabase/functions/external-payment-api/index.ts` — Payload Sigilo Pay (~linha 409-422)
-- Mesma correção: `cpf` → `document`, adicionar `phone`
-
-### 4. DB fallback no `platform_gateway_credentials` para sigilopay
-- Na checagem de credenciais para sigilopay, o cast do DB deve usar `x_public_key`/`x_secret_key` (não `client_id`/`client_secret`)
-
-## Resultado Esperado
-- Super Admin salva credenciais Sigilo Pay pela UI → ficam no banco
-- PIX-API busca do banco quando env vars não existem
-- Cobrança enviada com `client.document` e `client.phone` → Sigilo Pay aceita
-
+Seção técnica (resumo)
+- Não precisa nova migração de banco.
+- O problema é de **resolução de credenciais + referência inválida de variável + normalização de payload**.
+- A correção principal é centralizar o resolvedor de credenciais da plataforma e reutilizá-lo em ambos os endpoints de cobrança.
