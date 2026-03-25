@@ -419,7 +419,7 @@ export default function AdminSettings() {
                 className="flex-1"
               >
                 <Key className="h-4 w-4 mr-2" />
-                Ver Credenciais do {settings.platform_gateway_type === 'ghostpay' ? 'GHOSTPAY' : settings.platform_gateway_type === 'pixup' ? 'PIXUP' : 'BSPAY'}
+                Ver Credenciais do {settings.platform_gateway_type === 'ghostpay' ? 'GHOSTPAY' : settings.platform_gateway_type === 'pixup' ? 'PIXUP' : settings.platform_gateway_type === 'sigilopay' ? 'SIGILOPAY' : 'BSPAY'}
               </Button>
             </div>
 
