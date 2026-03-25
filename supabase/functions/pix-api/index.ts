@@ -3173,6 +3173,70 @@ serve(async (req) => {
       });
     }
 
+    // POST /webhook/sigilopay - Handle Sigilo Pay payment webhook
+    if (req.method === 'POST' && (path === '/webhook/sigilopay' || path === '/webhook-sigilopay')) {
+      console.log('Received Sigilo Pay webhook');
+      
+      let body: any = {};
+      try {
+        const bodyText = await req.text();
+        if (bodyText) {
+          body = JSON.parse(bodyText);
+        }
+      } catch (e) {
+        console.log('No body or invalid JSON in Sigilo Pay webhook');
+      }
+      
+      console.log('Sigilo Pay webhook - body:', JSON.stringify(body));
+      
+      // Sigilo Pay sends events like TRANSACTION_PAID, TRANSACTION_CREATED
+      const event = body.event || body.type;
+      const transaction = body.transaction || body.data || body;
+      const transactionId = transaction.id || body.id;
+      const transactionStatus = transaction.status || body.status;
+      const identifier = transaction.identifier || body.identifier;
+      
+      console.log('Sigilo Pay webhook parsed:', { event, transactionId, transactionStatus, identifier });
+      
+      // Process payment confirmation
+      if (transactionId && (event === 'TRANSACTION_PAID' || transactionStatus === 'COMPLETED')) {
+        console.log('Processing Sigilo Pay payment notification:', transactionId);
+        
+        const { data: charge, error: fetchError } = await supabase
+          .from('pix_charges')
+          .select('*, products(name, seller_id, auto_send_access_email), affiliates(*)')
+          .or(`external_id.eq.${transactionId},external_id.eq.${identifier}`)
+          .maybeSingle();
+        
+        if (fetchError) {
+          console.error('Error fetching charge for Sigilo Pay webhook:', fetchError);
+        }
+        
+        if (charge && charge.status === 'pending') {
+          console.log('Payment confirmed via Sigilo Pay webhook, processing...');
+          await processPaymentConfirmation(supabase, charge, supabaseUrl);
+        } else if (!charge) {
+          console.log('No pending charge found for Sigilo Pay transaction ID:', transactionId);
+        } else {
+          console.log('Charge already processed:', charge.status);
+        }
+      } else if (transactionId && (transactionStatus === 'FAILED' || transactionStatus === 'EXPIRED' || transactionStatus === 'CANCELED' || transactionStatus === 'REFUNDED')) {
+        console.log('Processing Sigilo Pay cancellation:', transactionId, 'status:', transactionStatus);
+        
+        const newStatus = transactionStatus === 'REFUNDED' ? 'cancelled' : transactionStatus === 'EXPIRED' ? 'expired' : 'cancelled';
+        
+        await supabase
+          .from('pix_charges')
+          .update({ status: newStatus })
+          .or(`external_id.eq.${transactionId},external_id.eq.${identifier}`);
+      }
+      
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // GET /charges/:id - Get charge status
     if (req.method === 'GET' && path.startsWith('/charges/')) {
       const chargeId = path.replace('/charges/', '');
