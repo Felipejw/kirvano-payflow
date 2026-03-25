@@ -33,19 +33,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if user is admin or super_admin
-    const { data: isAdmin, error: roleError } = await supabase.rpc('has_role', {
-      _user_id: user.id,
-      _role: 'admin'
-    });
+    const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+    const { data: isSuperAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'super_admin' });
 
-    const { data: isSuperAdmin } = await supabase.rpc('has_role', {
-      _user_id: user.id,
-      _role: 'super_admin'
-    });
-
-    if (roleError || (!isAdmin && !isSuperAdmin)) {
-      console.log(`Access denied for user ${user.id}. Is admin: ${isAdmin}, Is super_admin: ${isSuperAdmin}`);
+    if (!isAdmin && !isSuperAdmin) {
       return new Response(
         JSON.stringify({ error: 'Forbidden - Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -56,38 +47,58 @@ Deno.serve(async (req) => {
 
     if (!gateway || !['bspay', 'pixup', 'ghostpay', 'sigilopay'].includes(gateway)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid gateway. Must be bspay, pixup, ghostpay or sigilopay' }),
+        JSON.stringify({ error: 'Invalid gateway' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     let credentials: { client_id: string | null; client_secret: string | null };
 
-    // Super Admin: return global environment credentials
+    // Super Admin: env vars first, then DB fallback
     if (isSuperAdmin) {
-      console.log(`Super admin ${user.id} accessing global ${gateway} credentials`);
-      
+      // Try env vars first
+      let envId: string | null = null;
+      let envSecret: string | null = null;
+
       if (gateway === 'bspay') {
-        credentials = {
-          client_id: Deno.env.get('BSPAY_CLIENT_ID') ?? null,
-          client_secret: Deno.env.get('BSPAY_CLIENT_SECRET') ?? null,
-        };
+        envId = Deno.env.get('BSPAY_CLIENT_ID') ?? null;
+        envSecret = Deno.env.get('BSPAY_CLIENT_SECRET') ?? null;
       } else if (gateway === 'ghostpay') {
-        credentials = {
-          client_id: Deno.env.get('GHOSTPAY_COMPANY_ID') ?? null,
-          client_secret: Deno.env.get('GHOSTPAY_SECRET_KEY') ?? null,
-        };
+        envId = Deno.env.get('GHOSTPAY_COMPANY_ID') ?? null;
+        envSecret = Deno.env.get('GHOSTPAY_SECRET_KEY') ?? null;
       } else if (gateway === 'sigilopay') {
-        credentials = {
-          client_id: Deno.env.get('SIGILOPAY_PUBLIC_KEY') ?? null,
-          client_secret: Deno.env.get('SIGILOPAY_SECRET_KEY') ?? null,
-        };
+        envId = Deno.env.get('SIGILOPAY_PUBLIC_KEY') ?? null;
+        envSecret = Deno.env.get('SIGILOPAY_SECRET_KEY') ?? null;
       } else {
-        credentials = {
-          client_id: Deno.env.get('PIXUP_CLIENT_ID') ?? null,
-          client_secret: Deno.env.get('PIXUP_CLIENT_SECRET') ?? null,
-        };
+        envId = Deno.env.get('PIXUP_CLIENT_ID') ?? null;
+        envSecret = Deno.env.get('PIXUP_CLIENT_SECRET') ?? null;
       }
+
+      if (envId && envSecret) {
+        credentials = { client_id: envId, client_secret: envSecret };
+        return new Response(
+          JSON.stringify({ credentials, source: 'platform' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Fallback: DB platform_gateway_credentials
+      const { data: platformCreds } = await adminClient
+        .from('platform_gateway_credentials')
+        .select('credentials')
+        .eq('gateway_slug', gateway)
+        .maybeSingle();
+
+      const dbCreds = platformCreds?.credentials as { client_id?: string; client_secret?: string } | null;
+      credentials = {
+        client_id: dbCreds?.client_id ?? null,
+        client_secret: dbCreds?.client_secret ?? null,
+      };
 
       return new Response(
         JSON.stringify({ credentials, source: 'platform' }),
@@ -95,31 +106,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Admin (tenant): fetch from seller_gateway_credentials table
-    console.log(`Admin ${user.id} accessing their own ${gateway} credentials`);
-
-    // First, get the gateway_id for the requested gateway slug
-    const adminClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { data: gatewayData, error: gatewayError } = await adminClient
+    // Admin (tenant): fetch from seller_gateway_credentials
+    const { data: gatewayData } = await adminClient
       .from('payment_gateways')
       .select('id')
       .eq('slug', gateway)
       .maybeSingle();
 
-    if (gatewayError || !gatewayData) {
-      console.log(`Gateway ${gateway} not found in payment_gateways table`);
+    if (!gatewayData) {
       return new Response(
         JSON.stringify({ credentials: { client_id: null, client_secret: null }, source: 'admin' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Fetch admin's credentials for this gateway
-    const { data: sellerCredentials, error: credError } = await adminClient
+    const { data: sellerCredentials } = await adminClient
       .from('seller_gateway_credentials')
       .select('credentials')
       .eq('user_id', user.id)
@@ -127,21 +128,11 @@ Deno.serve(async (req) => {
       .eq('is_active', true)
       .maybeSingle();
 
-    if (credError) {
-      console.error('Error fetching seller credentials:', credError);
-    }
-
     if (sellerCredentials?.credentials) {
       const creds = sellerCredentials.credentials as { client_id?: string; client_secret?: string };
-      credentials = {
-        client_id: creds.client_id ?? null,
-        client_secret: creds.client_secret ?? null,
-      };
+      credentials = { client_id: creds.client_id ?? null, client_secret: creds.client_secret ?? null };
     } else {
-      credentials = {
-        client_id: null,
-        client_secret: null,
-      };
+      credentials = { client_id: null, client_secret: null };
     }
 
     return new Response(
