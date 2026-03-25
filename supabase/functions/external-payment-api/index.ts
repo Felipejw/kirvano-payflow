@@ -90,16 +90,32 @@ async function validateApiKey(supabase: any, apiKey: string): Promise<{ valid: b
   return { valid: true, userId: keyData.user_id, productId: keyData.product_id };
 }
 
-// Get platform gateway credentials
-async function getGatewayCredentials(): Promise<{ companyId: string; secretKey: string }> {
+// Get platform gateway credentials - supports multiple gateways
+async function getGatewayCredentials(supabase: any): Promise<{ type: string; companyId?: string; secretKey?: string; publicKey?: string }> {
+  // Check platform gateway type
+  const { data: platformSettings } = await supabase
+    .from('platform_settings')
+    .select('platform_gateway_type')
+    .single();
+  
+  const gatewayType = platformSettings?.platform_gateway_type || 'ghostpay';
+  
+  if (gatewayType === 'sigilopay') {
+    const publicKey = Deno.env.get('SIGILOPAY_PUBLIC_KEY');
+    const secretKey = Deno.env.get('SIGILOPAY_SECRET_KEY');
+    if (!publicKey || !secretKey) {
+      throw new Error('Sigilo Pay credentials not configured');
+    }
+    return { type: 'sigilopay', publicKey, secretKey };
+  }
+  
+  // Default: Ghostpay
   const companyId = Deno.env.get('GHOSTPAY_COMPANY_ID');
   const secretKey = Deno.env.get('GHOSTPAY_SECRET_KEY');
-
   if (!companyId || !secretKey) {
     throw new Error('Gateway credentials not configured');
   }
-
-  return { companyId, secretKey };
+  return { type: 'ghostpay', companyId, secretKey };
 }
 
 // Create PIX charge with GhostsPay
