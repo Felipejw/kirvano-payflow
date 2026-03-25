@@ -1193,6 +1193,33 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_gateway_credentials: {
+        Row: {
+          created_at: string | null
+          credentials: Json
+          gateway_slug: string
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          credentials?: Json
+          gateway_slug: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          credentials?: Json
+          gateway_slug?: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       platform_gateway_logs: {
         Row: {
           action: string
