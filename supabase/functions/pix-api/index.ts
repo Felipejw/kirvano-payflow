@@ -3343,6 +3343,34 @@ serve(async (req) => {
                 
                 charge.status = mappedStatus;
               }
+            } else if (gatewayData.gateway.slug === 'sigilopay') {
+              // Check Sigilo Pay payment status
+              const { credentials } = gatewayData;
+              const sigilopayPayment = await getSigilopayTransaction(
+                credentials.x_public_key!,
+                credentials.x_secret_key!,
+                charge.external_id
+              );
+              
+              const txStatus = sigilopayPayment.status || sigilopayPayment.transaction?.status;
+              const mappedStatus = mapSigilopayStatus(txStatus);
+              
+              if (mappedStatus === 'paid') {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: 'paid', paid_at: new Date().toISOString() })
+                  .eq('id', charge.id);
+                
+                charge.status = 'paid';
+                charge.paid_at = new Date().toISOString();
+              } else if (['cancelled', 'expired', 'failed'].includes(mappedStatus)) {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: mappedStatus })
+                  .eq('id', charge.id);
+                
+                charge.status = mappedStatus;
+              }
             }
           }
         } catch (e) {
