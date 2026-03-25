@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 
-const WHATSAPP_URL = "https://wa.me/5511977542592?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20para%20comprar%20meu%20gateway!";
+const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511978665059&text=Ol%C3%A1%2C+gostaria+de+saber+mais+para+comprar+meu+gateway%21&type=phone_number&app_absent=0";
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg 
