@@ -2285,7 +2285,11 @@ serve(async (req) => {
         if (!globalClientId || !globalClientSecret) {
           console.log('Env vars not found for', platformGatewayType, '- trying DB fallback...');
           try {
-            const { data: dbCreds } = await adminClient
+            const serviceClient = createClient(
+              Deno.env.get('SUPABASE_URL') ?? '',
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+            );
+            const { data: dbCreds } = await serviceClient
               .from('platform_gateway_credentials')
               .select('credentials')
               .eq('gateway_slug', platformGatewayType)
@@ -2295,8 +2299,8 @@ serve(async (req) => {
             if (dbCreds?.credentials) {
               const creds = dbCreds.credentials as Record<string, string>;
               if (platformGatewayType === 'sigilopay') {
-                globalClientId = creds.x_public_key;
-                globalClientSecret = creds.x_secret_key;
+                globalClientId = creds.x_public_key || creds.client_id;
+                globalClientSecret = creds.x_secret_key || creds.client_secret;
               } else if (platformGatewayType === 'ghostpay') {
                 globalClientId = creds.company_id || creds.client_id;
                 globalClientSecret = creds.secret_key || creds.client_secret;
