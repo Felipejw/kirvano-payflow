@@ -1464,6 +1464,133 @@ async function getGhostpayPayment(secretKey: string, companyId: string, transact
 // End of Ghostpay Integration
 // ============================================================
 
+// ============================================================
+// SIGILO PAY API Integration
+// ============================================================
+const SIGILOPAY_API_URL = "https://app.sigilopay.com.br/api/v1";
+
+function mapSigilopayStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'COMPLETED': 'paid',
+    'PENDING': 'pending',
+    'FAILED': 'failed',
+    'EXPIRED': 'expired',
+    'REFUNDED': 'refunded',
+    'CANCELED': 'cancelled',
+  };
+  return statusMap[status] || 'pending';
+}
+
+interface SigilopayPixResult {
+  transactionId: string;
+  qrCode: string;
+  qrCodeBase64: string;
+}
+
+async function createSigilopayPixPayment(
+  publicKey: string,
+  secretKey: string,
+  amount: number,
+  externalId: string,
+  buyer: { name?: string; email: string; document?: string },
+  callbackUrl: string,
+  description?: string
+): Promise<SigilopayPixResult> {
+  console.log('Creating Sigilo Pay PIX payment for amount:', amount);
+  
+  const payload: any = {
+    identifier: externalId,
+    amount: amount,
+    client: {
+      name: buyer.name || 'Cliente',
+      email: buyer.email,
+    },
+    callbackUrl: callbackUrl,
+  };
+
+  // Add CPF if valid
+  if (buyer.document) {
+    const cleanDoc = buyer.document.replace(/\D/g, '');
+    if (cleanDoc.length >= 11 && !/^(\d)\1+$/.test(cleanDoc)) {
+      payload.client.cpf = cleanDoc;
+    }
+  }
+
+  console.log('Sigilo Pay PIX payload:', JSON.stringify(payload, null, 2));
+
+  const response = await fetch(`${SIGILOPAY_API_URL}/gateway/pix/receive`, {
+    method: 'POST',
+    headers: {
+      'x-public-key': publicKey,
+      'x-secret-key': secretKey,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const responseText = await response.text();
+  console.log('Sigilo Pay PIX response status:', response.status);
+  console.log('Sigilo Pay PIX response:', responseText);
+
+  if (!response.ok) {
+    console.error('Sigilo Pay PIX error:', response.status, responseText);
+    throw new Error(`Failed to create Sigilo Pay PIX payment: ${response.status} - ${responseText}`);
+  }
+
+  const data = JSON.parse(responseText);
+
+  if (data.status === 'FAILED' || data.error) {
+    const reason = data.message || data.error || 'Transação recusada';
+    console.error('Sigilo Pay PIX refused:', reason);
+    throw new Error(`Transação recusada pelo gateway: ${reason}`);
+  }
+
+  const qrCode = data.pix?.qrCode || data.pix?.qrcode || data.qrCode || data.qrcode || data.pixCopiaECola || '';
+  const qrCodeBase64 = data.pix?.qrCodeBase64 || data.qrCodeBase64 || '';
+  const transactionId = data.transaction?.id || data.id || data.transactionId || externalId;
+
+  if (!qrCode) {
+    console.error('Sigilo Pay returned empty QR code:', JSON.stringify(data));
+    throw new Error('Gateway não gerou código PIX. Verifique as credenciais.');
+  }
+
+  console.log('Sigilo Pay PIX payment created:', transactionId);
+
+  return {
+    transactionId: String(transactionId),
+    qrCode,
+    qrCodeBase64,
+  };
+}
+
+async function getSigilopayTransaction(publicKey: string, secretKey: string, transactionId: string): Promise<any> {
+  console.log('Getting Sigilo Pay transaction:', transactionId);
+
+  const response = await fetch(`${SIGILOPAY_API_URL}/gateway/transactions?id=${transactionId}`, {
+    method: 'GET',
+    headers: {
+      'x-public-key': publicKey,
+      'x-secret-key': secretKey,
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Sigilo Pay get transaction error:', response.status, errorText);
+    throw new Error(`Failed to get Sigilo Pay transaction: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log('Sigilo Pay transaction status:', data.status || data.transaction?.status);
+  return data;
+}
+
+// ============================================================
+// End of Sigilo Pay Integration
+// ============================================================
+
 const generateExternalId = () => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 10);
@@ -2139,6 +2266,11 @@ serve(async (req) => {
           globalClientSecret = Deno.env.get('GHOSTPAY_SECRET_KEY');
           gatewaySlug = 'ghostpay';
           gatewayName = 'GHOSTPAY (Plataforma)';
+        } else if (platformGatewayType === 'sigilopay') {
+          globalClientId = Deno.env.get('SIGILOPAY_PUBLIC_KEY');
+          globalClientSecret = Deno.env.get('SIGILOPAY_SECRET_KEY');
+          gatewaySlug = 'sigilopay';
+          gatewayName = 'SIGILO PAY (Plataforma)';
         } else {
           globalClientId = Deno.env.get('BSPAY_CLIENT_ID');
           globalClientSecret = Deno.env.get('BSPAY_CLIENT_SECRET');
@@ -2161,6 +2293,11 @@ serve(async (req) => {
           credentials = {
             secret_key: globalClientSecret,
             company_id: globalClientId,
+          };
+        } else if (platformGatewayType === 'sigilopay') {
+          credentials = {
+            x_public_key: globalClientId,
+            x_secret_key: globalClientSecret,
           };
         } else {
           credentials = {
@@ -2548,6 +2685,48 @@ serve(async (req) => {
           gatewayTransactionId = ghostpayResult.transactionId;
           
           console.log('Ghostpay charge created successfully:', gatewayTransactionId);
+          
+        } else if (gateway.slug === 'sigilopay') {
+          // Sigilo Pay PIX Integration
+          const publicKey = credentials.x_public_key;
+          const secretKey = credentials.x_secret_key;
+          
+          if (!publicKey || !secretKey) {
+            throw new Error('Sigilo Pay credentials incomplete');
+          }
+          
+          // Get product name for description
+          let description = body.description || 'Pagamento via PIX';
+          if (body.product_id) {
+            const { data: productInfo } = await supabase
+              .from('products')
+              .select('name')
+              .eq('id', body.product_id)
+              .maybeSingle();
+            if (productInfo) {
+              description = `Compra: ${productInfo.name}`;
+            }
+          }
+          
+          const sigilopayResult = await createSigilopayPixPayment(
+            publicKey,
+            secretKey,
+            validatedAmount,
+            externalId,
+            {
+              name: body.buyer_name || 'Cliente',
+              email: body.buyer_email,
+              document: body.buyer_document || undefined,
+            },
+            webhookUrl + '/sigilopay',
+            description
+          );
+          
+          pixCode = sigilopayResult.qrCode || '';
+          qrCodeBase64 = sigilopayResult.qrCodeBase64 || '';
+          gatewayTransactionId = sigilopayResult.transactionId;
+          
+          console.log('Sigilo Pay charge created successfully:', gatewayTransactionId);
           
         } else {
           // For other gateways, we'll need to implement their specific APIs
@@ -2994,6 +3173,70 @@ serve(async (req) => {
       });
     }
 
+    // POST /webhook/sigilopay - Handle Sigilo Pay payment webhook
+    if (req.method === 'POST' && (path === '/webhook/sigilopay' || path === '/webhook-sigilopay')) {
+      console.log('Received Sigilo Pay webhook');
+      
+      let body: any = {};
+      try {
+        const bodyText = await req.text();
+        if (bodyText) {
+          body = JSON.parse(bodyText);
+        }
+      } catch (e) {
+        console.log('No body or invalid JSON in Sigilo Pay webhook');
+      }
+      
+      console.log('Sigilo Pay webhook - body:', JSON.stringify(body));
+      
+      // Sigilo Pay sends events like TRANSACTION_PAID, TRANSACTION_CREATED
+      const event = body.event || body.type;
+      const transaction = body.transaction || body.data || body;
+      const transactionId = transaction.id || body.id;
+      const transactionStatus = transaction.status || body.status;
+      const identifier = transaction.identifier || body.identifier;
+      
+      console.log('Sigilo Pay webhook parsed:', { event, transactionId, transactionStatus, identifier });
+      
+      // Process payment confirmation
+      if (transactionId && (event === 'TRANSACTION_PAID' || transactionStatus === 'COMPLETED')) {
+        console.log('Processing Sigilo Pay payment notification:', transactionId);
+        
+        const { data: charge, error: fetchError } = await supabase
+          .from('pix_charges')
+          .select('*, products(name, seller_id, auto_send_access_email), affiliates(*)')
+          .or(`external_id.eq.${transactionId},external_id.eq.${identifier}`)
+          .maybeSingle();
+        
+        if (fetchError) {
+          console.error('Error fetching charge for Sigilo Pay webhook:', fetchError);
+        }
+        
+        if (charge && charge.status === 'pending') {
+          console.log('Payment confirmed via Sigilo Pay webhook, processing...');
+          await processPaymentConfirmation(supabase, charge, supabaseUrl);
+        } else if (!charge) {
+          console.log('No pending charge found for Sigilo Pay transaction ID:', transactionId);
+        } else {
+          console.log('Charge already processed:', charge.status);
+        }
+      } else if (transactionId && (transactionStatus === 'FAILED' || transactionStatus === 'EXPIRED' || transactionStatus === 'CANCELED' || transactionStatus === 'REFUNDED')) {
+        console.log('Processing Sigilo Pay cancellation:', transactionId, 'status:', transactionStatus);
+        
+        const newStatus = transactionStatus === 'REFUNDED' ? 'cancelled' : transactionStatus === 'EXPIRED' ? 'expired' : 'cancelled';
+        
+        await supabase
+          .from('pix_charges')
+          .update({ status: newStatus })
+          .or(`external_id.eq.${transactionId},external_id.eq.${identifier}`);
+      }
+      
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // GET /charges/:id - Get charge status
     if (req.method === 'GET' && path.startsWith('/charges/')) {
       const chargeId = path.replace('/charges/', '');
@@ -3100,6 +3343,34 @@ serve(async (req) => {
                 
                 charge.status = mappedStatus;
               }
+            } else if (gatewayData.gateway.slug === 'sigilopay') {
+              // Check Sigilo Pay payment status
+              const { credentials } = gatewayData;
+              const sigilopayPayment = await getSigilopayTransaction(
+                credentials.x_public_key!,
+                credentials.x_secret_key!,
+                charge.external_id
+              );
+              
+              const txStatus = sigilopayPayment.status || sigilopayPayment.transaction?.status;
+              const mappedStatus = mapSigilopayStatus(txStatus);
+              
+              if (mappedStatus === 'paid') {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: 'paid', paid_at: new Date().toISOString() })
+                  .eq('id', charge.id);
+                
+                charge.status = 'paid';
+                charge.paid_at = new Date().toISOString();
+              } else if (['cancelled', 'expired', 'failed'].includes(mappedStatus)) {
+                await supabase
+                  .from('pix_charges')
+                  .update({ status: mappedStatus })
+                  .eq('id', charge.id);
+                
+                charge.status = mappedStatus;
+              }
             }
           }
         } catch (e) {
@@ -3143,6 +3414,8 @@ serve(async (req) => {
           hasCredentials = !!(Deno.env.get('PIXUP_CLIENT_ID') && Deno.env.get('PIXUP_CLIENT_SECRET'));
         } else if (platformGatewayType === 'ghostpay') {
           hasCredentials = !!(Deno.env.get('GHOSTPAY_COMPANY_ID') && Deno.env.get('GHOSTPAY_SECRET_KEY'));
+        } else if (platformGatewayType === 'sigilopay') {
+          hasCredentials = !!(Deno.env.get('SIGILOPAY_PUBLIC_KEY') && Deno.env.get('SIGILOPAY_SECRET_KEY'));
         } else {
           hasCredentials = !!(Deno.env.get('BSPAY_CLIENT_ID') && Deno.env.get('BSPAY_CLIENT_SECRET'));
         }
