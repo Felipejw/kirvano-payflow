@@ -1508,13 +1508,16 @@ async function createSigilopayPixPayment(
     callbackUrl: callbackUrl,
   };
 
-  // Add CPF if valid
+  // Add document if valid (Sigilo Pay requires 'document', not 'cpf')
   if (buyer.document) {
     const cleanDoc = buyer.document.replace(/\D/g, '');
     if (cleanDoc.length >= 11 && !/^(\d)\1+$/.test(cleanDoc)) {
-      payload.client.cpf = cleanDoc;
+      payload.client.document = cleanDoc;
     }
   }
+
+  // Sigilo Pay requires client.phone
+  payload.client.phone = (buyer as any).phone?.replace(/\D/g, '') || '00000000000';
 
   console.log('Sigilo Pay PIX payload:', JSON.stringify(payload, null, 2));
 
@@ -2278,6 +2281,36 @@ serve(async (req) => {
           gatewayName = 'BSPAY (Plataforma)';
         }
         
+        // Fallback: buscar credenciais do banco se env vars não existem
+        if (!globalClientId || !globalClientSecret) {
+          console.log('Env vars not found for', platformGatewayType, '- trying DB fallback...');
+          try {
+            const { data: dbCreds } = await adminClient
+              .from('platform_gateway_credentials')
+              .select('credentials')
+              .eq('gateway_slug', platformGatewayType)
+              .eq('is_active', true)
+              .maybeSingle();
+            
+            if (dbCreds?.credentials) {
+              const creds = dbCreds.credentials as Record<string, string>;
+              if (platformGatewayType === 'sigilopay') {
+                globalClientId = creds.x_public_key;
+                globalClientSecret = creds.x_secret_key;
+              } else if (platformGatewayType === 'ghostpay') {
+                globalClientId = creds.company_id || creds.client_id;
+                globalClientSecret = creds.secret_key || creds.client_secret;
+              } else {
+                globalClientId = creds.client_id;
+                globalClientSecret = creds.client_secret;
+              }
+              console.log('DB fallback credentials found for', platformGatewayType);
+            }
+          } catch (dbErr) {
+            console.error('Error fetching DB credentials:', dbErr);
+          }
+        }
+
         if (!globalClientId || !globalClientSecret) {
           console.error('Platform gateway credentials not configured for:', platformGatewayType);
           return new Response(JSON.stringify({ 
@@ -2717,6 +2750,7 @@ serve(async (req) => {
               name: body.buyer_name || 'Cliente',
               email: body.buyer_email,
               document: body.buyer_document || undefined,
+              phone: body.buyer_phone || undefined,
             },
             webhookUrl + '/sigilopay',
             description
