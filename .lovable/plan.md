@@ -1,22 +1,22 @@
 
 
-# Adicionar Sigilo Pay na página de Configurações da Plataforma
+# Correções do Sigilo Pay - Credenciais e UI
 
-O Sigilo Pay foi integrado no backend mas não aparece como opção selecionável na UI de admin. Preciso atualizar 3 locais:
+## Problemas Identificados
+
+1. **Labels incorretos** nos campos de credenciais — devem ser "Chave Pública (Client ID)" e "Chave Privada (Client Secret)" conforme o painel do SigiloPay
+2. **Sem opção de salvar** — super_admin não consegue editar porque `canEdit` exclui super_admin
+3. **Nomes inconsistentes** — o GatewayConfigDialog (para sellers) também usa labels errados "x-public-key" / "x-secret-key"
 
 ## Alterações
 
-### 1. `src/pages/admin/AdminSettings.tsx`
-- Expandir o tipo `platform_gateway_type` de `'bspay' | 'pixup' | 'ghostpay'` para incluir `'sigilopay'`
-- Mudar o grid de `md:grid-cols-3` para `md:grid-cols-4`
-- Adicionar um card clicável para SIGILOPAY (cor laranja, sigla "SP", subtítulo "Sigilo Pay")
-- Atualizar todos os trechos de texto condicional (nome do gateway selecionado, label de credenciais, título de taxas) para incluir o caso `sigilopay` → "SIGILOPAY"
+### 1. `src/components/admin/GatewayCredentialsDialog.tsx`
+- Corrigir labels do sigilopay: `"Chave Pública (Client ID)"` e `"Chave Privada (Client Secret)"`
+- Permitir super_admin editar quando `source === 'platform'` e credenciais não configuradas: ajustar `canEdit` para incluir super_admin nesse caso (ou sempre permitir edição para super_admin)
 
-### 2. `src/components/admin/GatewayCredentialsDialog.tsx`
-- Expandir o tipo do prop `gateway` para incluir `'sigilopay'`
-- Adicionar mapeamento de nome: `sigilopay` → "SIGILOPAY"
-- Mapear os campos de credenciais para `x_public_key` e `x_secret_key` (em vez de `client_id`/`client_secret`)
+### 2. `src/components/finance/GatewayConfigDialog.tsx`
+- Corrigir labels no `fieldLabels`: `x_public_key` → `"Chave Pública (Client ID)"` e `x_secret_key` → `"Chave Privada (Client Secret)"`
 
-### 3. `supabase/functions/get-gateway-credentials/index.ts`
-- Já suporta `sigilopay` (confirmado no código anterior) — nenhuma alteração necessária
+### 3. Secrets pendentes
+- Após as correções de UI, solicitar os secrets `SIGILOPAY_PUBLIC_KEY` e `SIGILOPAY_SECRET_KEY` para que o gateway funcione como gateway da plataforma
 
