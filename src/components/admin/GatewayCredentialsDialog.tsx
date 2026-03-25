@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUserRole } from "@/hooks/useUserRole";
 
 interface GatewayCredentialsDialogProps {
-  gateway: 'bspay' | 'pixup' | 'ghostpay';
+  gateway: 'bspay' | 'pixup' | 'ghostpay' | 'sigilopay';
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
